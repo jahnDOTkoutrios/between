@@ -755,6 +755,52 @@
         }
         fail("Line composition did not settle in 24 passes. Reduce the range or use word/character mode.");
     }
+    function compositionFailure(error) { return /oscillates|did not settle/.test(error.message); }
+    function clippedPlan(plan, bounds) {
+        var next = {}, key, values = [], groups = [], units = [];
+        for (key in plan) { next[key] = plan[key]; }
+        for (var g = 0; g < plan.groups.length; g++) {
+            var sourceGroup = plan.groups[g], groupValues = [], offset = units.length;
+            for (var i = sourceGroup.offset; i < sourceGroup.offset + sourceGroup.count; i++) {
+                var spans = [], sourceUnit = plan.units[i];
+                for (var j = 0; j < sourceUnit.spans.length; j++) {
+                    var span = sourceUnit.spans[j], a = Math.max(span.start, bounds.start), z = Math.min(span.end, bounds.end);
+                    if (a <= z) { spans.push(isParagraphProperty(plan.settings.property) ? { start: span.start, end: span.end } : { start: a, end: z }); }
+                }
+                if (spans.length) { units.push({ spans: spans }); values.push(plan.distribution.values[i]); groupValues.push(plan.distribution.values[i]); }
+            }
+            if (groupValues.length) {
+                groups.push({ start: sourceGroup.start, end: sourceGroup.end, structureIndex: sourceGroup.structureIndex,
+                    offset: offset, count: groupValues.length,
+                    distribution: { steps: Math.min(sourceGroup.distribution.steps, groupValues.length), values: groupValues, levels: sourceGroup.distribution.levels } });
+            }
+        }
+        var minSteps = null, maxSteps = 0, shortGroups = 0;
+        for (g = 0; g < groups.length; g++) { var n = groups[g].distribution.steps; minSteps = minSteps === null ? n : Math.min(minSteps, n); maxSteps = Math.max(maxSteps, n); if (n < 3) { shortGroups++; } }
+        next.units = units; next.groups = groups;
+        var data = {}; for (key in plan.data) { data[key] = plan.data[key]; }
+        data.bounds = { start: Math.max(plan.data.bounds.start, bounds.start), end: Math.min(plan.data.bounds.end, bounds.end) }; next.data = data;
+        next.distribution = { steps: maxSteps, minSteps: minSteps || 0, values: values, levels: groups.length === 1 ? groups[0].distribution.levels : [], shortGroups: shortGroups };
+        return next;
+    }
+    function fixedSampling(adapter, settings, frameScope) {
+        adapter.restore(); adapter.recompose();
+        var plan = makePlan(adapter.capture(), settings), originalUnits = encode(plan.units);
+        // Samples are assigned once. Trimming can only remove targets, so a
+        // boundary word cannot restart the distribution feedback loop.
+        for (var pass = 1; pass <= 64; pass++) {
+            adapter.restore(); adapter.apply(plan); adapter.recompose();
+            var after = adapter.capture(), clipped = frameScope ? clippedPlan(plan, after.bounds) : plan;
+            if (!clipped.units.length) { fail("The effect leaves no visible targets. Reduce the range or choose Entire story."); }
+            if (encode(clipped.units) === encode(plan.units) && (!settings.clearTracking || !frameScope || encode(clipped.data.bounds) === encode(plan.data.bounds))) {
+                plan.sampleBounds = { start: plan.data.bounds.start, end: plan.data.bounds.end }; plan.data = after; plan.passes = pass; plan.fixedSampling = true;
+                plan.trimmedSampling = encode(plan.units) !== originalUnits; return plan;
+            }
+            plan = clipped;
+        }
+        fail("The effect leaves no stable visible target range. Reduce the range or choose Entire story.");
+    }
+
     function blendSwatch(doc, settings, value) {
         var a = doc.colors.itemByID(settings.colorA), b = doc.colors.itemByID(settings.colorB);
         if (!a.isValid || !b.isValid) { fail("Choose two available colors."); }
@@ -1056,7 +1102,7 @@
         for (i = positions.length - 1; i >= 0; i--) { story.characters.item(positions[i]).remove(); }
         var after = signature(story); remapHistory(history, positions, true, saved.signature, after);
         if (scope.kind === "selection") { scope.bounds = remapBounds(scope.bounds, positions, true); }
-        story.insertLabel(LINE_LOCK_KEY, ""); story.recompose();
+        story.insertLabel(LINE_LOCK_KEY, ""); story.recompose(); return positions;
     }
     function fixTrackingLines(target, scope, fixedBounds, settings, baseline) {
         var story = target.story, seedBounds = boundsFor(target, scope), hyphens = [], offsets = [];
@@ -1115,7 +1161,8 @@
         var history = { version: 3, effects: {} }, raw = story.extractLabel(HISTORY_KEY);
         if (raw) { history = decode(raw); if (history.version !== 3 || !history.effects) { fail("Unsupported saved effect history."); } }
         var selectedScope = target.scopes[settings.scope], scope = { kind: selectedScope.kind, bounds: selectedScope.bounds };
-        restoreOwnedLineBreaks(story, history, scope, settings);
+        var removedBreaks = restoreOwnedLineBreaks(story, history, scope, settings), textEdits = [];
+        if (removedBreaks) { textEdits.push({ positions: removedBreaks, removing: true }); }
         var effectKey = settings.property;
         var previous = history.effects[effectKey];
         if (settings.textEnabled !== false && settings.replace && previous) {
@@ -1175,21 +1222,44 @@
             try { plan = solveComposition(); }
             catch (compositionError) {
                 var lineCurve = settings.mode === "line" || settings.restart === "line";
-                if (!settings.lockLines || settings.property !== "tracking" || !lineCurve || !/oscillates|did not settle/.test(compositionError.message)) { throw compositionError; }
+                var tryBreaks = settings.lockLines && settings.property === "tracking" && (lineCurve || settings.autoStabilize);
+                if (!compositionFailure(compositionError) || (!settings.autoStabilize && !tryBreaks)) { throw compositionError; }
                 restoreSnapshot(story, baseline, doc); story.recompose();
-                var locks = fixTrackingLines(target, scope, fixedBounds, settings, baseline);
-                original = remapSnapshot(original, locks.offsets, false); baseline = remapSnapshot(baseline, locks.offsets, false);
-                remapHistory(history, locks.offsets, false, locks.before, locks.after);
-                if (scope.kind === "story") { fixedBounds = boundsOf(story); }
-                else if (scope.kind === "selection") { fixedBounds = remapBounds(fixedBounds, locks.offsets, false); }
-                if (cleared) { cleared = remapBounds(cleared, locks.offsets, false); }
-                iterationTouched = {}; baselineTracking = null;
-                plan = solveComposition(); plan.lockedBreaks = locks.positions.length;
+                var locks = null;
+                if (tryBreaks) {
+                    try {
+                        locks = fixTrackingLines(target, scope, fixedBounds, settings, baseline);
+                        original = remapSnapshot(original, locks.offsets, false); baseline = remapSnapshot(baseline, locks.offsets, false);
+                        remapHistory(history, locks.offsets, false, locks.before, locks.after);
+                        if (scope.kind === "story") { fixedBounds = boundsOf(story); }
+                        else if (scope.kind === "selection") { fixedBounds = remapBounds(fixedBounds, locks.offsets, false); }
+                        if (cleared) { cleared = remapBounds(cleared, locks.offsets, false); }
+                        iterationTouched = {}; baselineTracking = null;
+                        plan = solveComposition(); plan.lockedBreaks = locks.positions.length;
+                        textEdits.push({ positions: locks.offsets, removing: false });
+                    } catch (breakError) {
+                        if (!settings.autoStabilize || (!compositionFailure(breakError) && !/No safe word boundaries|Max tracking leaves no visible/.test(breakError.message))) { throw breakError; }
+                        if (locks) {
+                            restoreSnapshot(story, baseline, doc);
+                            restoreOwnedLineBreaks(story, history, scope, { property: settings.property, replace: true, textEnabled: true });
+                            original = remapSnapshot(original, locks.positions, true); baseline = remapSnapshot(baseline, locks.positions, true);
+                            if (scope.kind === "story") { fixedBounds = boundsOf(story); }
+                            else if (scope.kind === "selection") { fixedBounds = remapBounds(fixedBounds, locks.positions, true); }
+                            if (cleared) { cleared = remapBounds(cleared, locks.positions, true); }
+                            iterationTouched = {}; baselineTracking = null;
+                        }
+                    }
+                }
+                if (!plan) {
+                    plan = fixedSampling({ capture: currentData, restore: function () { restoreSnapshot(story, baseline, doc); },
+                        apply: function (p) { applyValues(story, liveClear ? clearedFramePlan(p) : p, doc); },
+                        recompose: function () { story.recompose(); } }, settings, scope.kind === "frame");
+                }
             }
             plan.composition = true;
         } else { plan = makePlan(currentData(), settings); applyValues(story, plan, doc); story.recompose(); }
         var touched = touchedIndices(plan.units);
-        if (liveClear) { cleared = plan.data.bounds; }
+        if (liveClear) { cleared = plan.fixedSampling ? plan.sampleBounds : plan.data.bounds; }
         if (cleared) { for (var i = cleared.start; i <= cleared.end; i++) { touched[i] = true; } }
         // An explicit clear establishes a new zero baseline for future
         // replacement runs. The surrounding Undo transaction still restores
@@ -1204,24 +1274,55 @@
         story.insertLabel(HISTORY_KEY, encode(history));
         var existingLocks = story.extractLabel(LINE_LOCK_KEY);
         if (existingLocks && !plan.lockedBreaks) { var lineLocks = decode(existingLocks); if (lineLocks.signature === signature(story)) { plan.lockedBreaks = lineLocks.positions.length; } }
+        plan.textEdits = textEdits;
         plan.frameWidth = frameWidthResult;
         plan.metricsFrames = settings.metrics ? addMetrics(target, plan) : 0;
         return plan;
     }
 
+    function sessionTarget(target) {
+        var scopes = [];
+        for (var i = 0; i < target.scopes.length; i++) {
+            var source = target.scopes[i], copy = {};
+            for (var key in source) { copy[key] = source[key]; }
+            if (source.bounds) { copy.bounds = { start: source.bounds.start, end: source.bounds.end }; }
+            scopes.push(copy);
+        }
+        return { document: target.document, story: target.story, frame: target.frame, scopes: scopes };
+    }
+    function advanceScopes(target, plan) {
+        var edits = plan.textEdits || [];
+        for (var e = 0; e < edits.length; e++) {
+            for (var s = 0; s < target.scopes.length; s++) {
+                if (target.scopes[s].kind === "selection") { target.scopes[s].bounds = remapBounds(target.scopes[s].bounds, edits[e].positions, edits[e].removing); }
+            }
+        }
+    }
     function PreviewSession(target) {
         this.target = target; this.active = false; this.result = null; this.token = ""; this.committed = false;
+        this.stages = []; this.cacheKey = ""; this.liveTarget = null;
     }
+    PreviewSession.prototype.hasProperty = function (id) {
+        for (var i = 0; i < this.stages.length; i++) { if (this.stages[i].settings.property === id) { return true; } }
+        return false;
+    };
+    PreviewSession.prototype.hasKeptWidth = function () {
+        for (var i = 0; i < this.stages.length; i++) { if (this.stages[i].settings.frameWidth && this.stages[i].settings.frameWidth.enabled) { return true; } }
+        return false;
+    };
     PreviewSession.prototype.rollback = function () {
         if (!this.active) { return; }
         if (this.target.document.undoName !== TITLE || this.target.story.extractLabel(TOKEN_KEY) !== this.token) {
             fail("The document's Undo state changed outside this preview. Use Undo to restore the preview before continuing.");
         }
-        this.target.document.undo(); this.active = false; this.result = null;
+        this.target.document.undo(); this.active = false; this.result = null; this.liveTarget = null;
     };
     PreviewSession.prototype.preview = function (settings) {
-        settings = effectiveSettings(settings);
-        if (this.active && this.result && encode(this.result.settings) === encode(settings) &&
+        settings = settings ? effectiveSettings(settings) : null;
+        if (settings && settings.textEnabled !== false && this.hasProperty(settings.property)) { fail("This property is already kept. Undo the last addition to edit it."); }
+        if (!settings && !this.stages.length) { this.rollback(); return null; }
+        var key = encode(settings);
+        if (this.active && this.result && this.cacheKey === key &&
                 this.target.document.undoName === TITLE && this.target.story.extractLabel(TOKEN_KEY) === this.token) { return this.result; }
         this.rollback();
         var self = this, error = null, result = null;
@@ -1229,23 +1330,42 @@
         self.token = String(new Date().getTime()) + ":" + String(Math.random());
         try {
             app.doScript(function () {
-                // Catch within the group, so even a partial failure is one
-                // verifiable, document-scoped transaction that can be undone.
                 self.target.story.insertLabel(TOKEN_KEY, self.token);
-                try { app.scriptPreferences.enableRedraw = false; result = applyEffect(self.target, settings); }
-                catch (e) { error = e; }
+                try {
+                    app.scriptPreferences.enableRedraw = false;
+                    self.liveTarget = sessionTarget(self.target);
+                    for (var i = 0; i < self.stages.length; i++) {
+                        var stage = self.stages[i], replay = decode(encode(stage.settings));
+                        // Metrics are refreshed once, for the final visible state.
+                        replay.metrics = !settings && i === self.stages.length - 1 && stage.settings.metrics;
+                        result = applyEffect(self.liveTarget, replay);
+                        restoreSnapshot(self.liveTarget.story, stage.frozen, self.liveTarget.document);
+                        self.liveTarget.story.recompose(); advanceScopes(self.liveTarget, result);
+                    }
+                    if (settings) { result = applyEffect(self.liveTarget, settings); advanceScopes(self.liveTarget, result); }
+                    if (result) { result.keptCount = self.stages.length; }
+                } catch (e) { error = e; }
                 finally { app.scriptPreferences.enableRedraw = true; }
             }, ScriptLanguage.JAVASCRIPT, undefined, UndoModes.ENTIRE_SCRIPT, TITLE);
             self.active = self.target.document.undoName === TITLE && self.target.story.extractLabel(TOKEN_KEY) === self.token;
             if (error) { if (self.active) { self.rollback(); } throw error; }
             if (!self.active) { fail("InDesign did not create the preview transaction; preview cannot be safely restored."); }
-            self.result = result; return result;
+            self.result = result; self.cacheKey = key; return result;
         } finally { app.scriptPreferences.enableRedraw = oldRedraw; }
     };
-    PreviewSession.prototype.commit = function (settings) {
+    PreviewSession.prototype.keep = function (settings) {
         settings = effectiveSettings(settings);
-        if (!this.active || !this.result || encode(this.result.settings) !== encode(settings)) { this.preview(settings); }
-        this.committed = true; return this.result;
+        if (settings.textEnabled === false) { fail("Enable a text property before adding another property."); }
+        this.preview(settings);
+        this.stages.push({ settings: decode(encode(settings)), frozen: takeSnapshot(this.target.story, propertiesFor(settings)) });
+        this.cacheKey = "";
+    };
+    PreviewSession.prototype.undoAddition = function () {
+        if (!this.stages.length) { return null; }
+        var stage = this.stages.pop(); this.cacheKey = ""; return decode(encode(stage.settings));
+    };
+    PreviewSession.prototype.commit = function (settings) {
+        this.preview(settings); this.committed = true; return this.result;
     };
 
     function graphGeometry(control) { return { x: 48, y: 18, width: control.size.width - 68, height: control.size.height - 45 }; }
@@ -1343,6 +1463,9 @@
             var d = parent.add("dropdownlist", undefined, choices); d.selection = 0; d.preferredSize.width = width; return d;
         }
         function panel(name) { var p = dialog.add("panel", undefined, name); p.margins = 10; p.spacing = 8; p.alignChildren = ["fill", "top"]; return p; }
+        var stackRow = row(dialog); stackRow.visible = false; stackRow.maximumSize = [10000, 0];
+        var stackSummary = stackRow.add("statictext", undefined, ""); stackSummary.preferredSize.width = 470;
+        var undoAddition = stackRow.add("button", undefined, "Undo addition");
         var targetPanel = panel("Target and property");
         var labels = [];
         for (var i = 0; i < target.scopes.length; i++) { labels.push(target.scopes[i].label); }
@@ -1377,8 +1500,8 @@
         var replace = targetPanel.add("checkbox", undefined, "Replace previous effect for this property in this story"); replace.value = true;
         var clearTracking = targetPanel.add("checkbox", undefined, "Clear tracking to 0 first (for older effects / a clean start)");
 
-        var lockLines = targetPanel.add("checkbox", undefined, "Fix line breaks if tracking line curves cannot settle"); lockLines.value = true;
-        lockLines.helpTip = "If a tracking curve cycles, insert tracked soft line breaks at word gaps. Reapply replaces these breaks; Cancel restores the original text.";
+        var lockLines = targetPanel.add("checkbox", undefined, "Auto-stabilize composition"); lockLines.value = true;
+        lockLines.helpTip = "Try exact live composition first, then managed tracking line breaks. If needed, freeze sampled assignments without reducing Min/Max. Cancel restores everything.";
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
         var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom — drag control points"];
@@ -1411,6 +1534,8 @@
         var error = dialog.add("statictext", undefined, " ", { multiline: true }); error.preferredSize = [600, 32];
         var footer = row(dialog); footer.alignment = "right";
         var cancel = footer.add("button", undefined, "Cancel", { name: "cancel" });
+        var addProperty = footer.add("button", undefined, "+ Add property");
+        addProperty.helpTip = "Keep the current effect and choose another property. Cancel still restores the entire session.";
         var apply = footer.add("button", undefined, "Apply", { name: "ok" });
 
         var session = new PreviewSession(target), settings = null, plan = null;
@@ -1499,7 +1624,7 @@
             else if (plan) { distribution = selectedDistribution(plan); }
             drawGraph(graph, distribution, gs, displayPoints(), selected);
         };
-        function scopeBounds() { return boundsFor(target, target.scopes[scope.selection.index]); }
+        function scopeBounds() { var t = session.liveTarget || target; return boundsFor(t, t.scopes[scope.selection.index]); }
         function updateAxes() {
             axis.removeAll(); axes = [];
             var b = scopeBounds();
@@ -1540,12 +1665,12 @@
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
-                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: lockLines.value };
+                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: lockLines.value, autoStabilize: lockLines.value };
             if (editorTrack && !widthOptions.linked) { copyCurve(result, widthOptions.curve); copyCurve(textCurve, result); }
             else { copyCurve(result, textCurve); }
             if (widthOptions.linked) { widthOptions.curve = decode(encode(textCurve)); }
-            result.textEnabled = textEnabled.value; result.frameWidth = decode(encode(widthOptions));
-            if (!result.textEnabled && !result.frameWidth.enabled) { fail("Enable a text property or Line width."); }
+            result.textEnabled = textEnabled.value; result.frameWidth = session.hasKeptWidth() ? null : decode(encode(widthOptions));
+            if (!result.textEnabled && (!result.frameWidth || !result.frameWidth.enabled)) { fail("Enable a text property or Line width."); }
             return effectiveSettings(result);
         }
         function showResult(result) {
@@ -1558,7 +1683,8 @@
             if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + settings.restart + " groups"; }
             summary.text += " / " + stepsLabel + " steps/group / " + propertyInfo(settings.property, axes[axis.selection.index]).label;
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
-            if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? " / settled in " + result.passes + " pass(es)" : " / composition calculated on Apply"; }
+            if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
+            if (result.fixedSampling) { summary.text += " / Fixed sampling"; }
             if (result.lockedBreaks) { summary.text += " / " + result.lockedBreaks + " fixed line breaks"; }
             var displayed = selectedDistribution(result);
             if (editorTrack) {
@@ -1585,6 +1711,7 @@
             }
             if (settings.mode === "sentence" || settings.restart === "sentence") { text += " Sentence boundaries use punctuation with abbreviation/decimal handling."; }
             if ((settings.mode === "frame" || settings.restart === "frame") && target.scopes[settings.scope].kind !== "story") { text += " Choose Entire story to distribute across linked frames."; }
+            if (result.fixedSampling) { text += " Fixed sampling keeps assigned values while text reflows; line/frame patterns follow the sampled layout. In frame scope, new text may retain its baseline. Min/Max were not rescaled."; }
             if (result.lockedBreaks) { text += " Soft line breaks keep line curves stable; reapplying this property replaces its managed breaks."; }
             if (target.story.overflows) { text += " Overset text remains."; }
             if (editorTrack) { text = "Width curve: top → bottom. Set contour bands in Line width. " + (widthOptions.linked ? "Linked to text." : "Independent of text.") + "\n" + text; }
@@ -1594,7 +1721,7 @@
             if (switching) { return; }
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
-                apply.enabled = false; error.text = " ";
+                apply.enabled = addProperty.enabled = false; error.text = " ";
                 var paragraphProperty = isParagraphProperty(propertyIDs[property.selection.index]);
                 if (paragraphProperty && !previousStructure) { previousStructure = [mode.selection.index, change.selection.index, restart.selection.index]; }
                 switching = true;
@@ -1603,21 +1730,22 @@
                     else if (previousStructure) { mode.selection = previousStructure[0]; change.selection = previousStructure[1]; restart.selection = previousStructure[2]; previousStructure = null; }
                 } finally { switching = false; }
                 mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty;
-                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = textEnabled.value && propertyIDs[property.selection.index] === "tracking";
+                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = textEnabled.value;
+                widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth();
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);
                 if (live.value && shown) { plan = session.preview(settings); }
                 else {
-                    session.rollback();
+                    if (session.stages.length) { session.preview(null); } else { session.rollback(); }
                     var b = scopeBounds(); if (!b) { fail("No visible text in this frame."); }
-                    plan = makePlan(capture(target.story, b), settings);
+                    plan = makePlan(captureEffect(target.story, b, settings), settings);
                 }
-                showResult(plan); apply.enabled = true;
+                showResult(plan); apply.enabled = true; addProperty.enabled = textEnabled.value && session.stages.length < propertyIDs.length - 1; syncStack();
                 removePoint.enabled = curveIDs[curve.selection.index] === "custom" && selected > 0 && selected < points.length - 1;
                 redraw(); if (shown) { dialog.update(); }
             } catch (e) {
-                try { session.rollback(); } catch (rollbackError) { error.text = rollbackError.message; }
+                try { session.rollback(); if (session.stages.length) { session.preview(null); } } catch (rollbackError) { error.text = rollbackError.message; }
                 settings = null; plan = null; summary.text = " "; samples.text = " "; note.text = " ";
                 error.text = e.message; redraw();
             } finally {
@@ -1625,7 +1753,59 @@
                 if (pendingRefresh) { pendingRefresh = false; refresh(true); }
             }
         }
+        function syncStack() {
+            var names = [], all = [];
+            for (var i = 0; i < session.stages.length; i++) {
+                var label = propertyInfo(session.stages[i].settings.property).label;
+                all.push((i + 1) + " " + label); if (i < 3) { names.push(label); }
+            }
+            stackSummary.text = "Kept: " + names.join(" → ") + (all.length > 3 ? " +" + (all.length - 3) : "");
+            stackSummary.helpTip = all.join(" → ");
+            var layoutChanged = stackRow.visible !== (all.length > 0);
+            stackRow.visible = all.length > 0; stackRow.maximumSize = [10000, all.length ? 28 : 0];
+            undoAddition.enabled = all.length > 0; apply.text = all.length ? "Apply all" : "Apply";
+            if (layoutChanged) { try { dialog.layout.layout(true); } catch (_) {} }
+        }
+        function loadSettings(saved) {
+            session.rollback(); switching = true; previousStructure = null; editorTrack = 0; curveTrack.selection = 0;
+            for (var i = 0; i < propertyIDs.length; i++) { if (propertyIDs[i] === saved.property) { property.selection = i; break; } }
+            scope.selection = saved.scope;
+            for (i = 0; i < modeIDs.length; i++) { if (modeIDs[i] === saved.mode) { mode.selection = i; break; } }
+            for (i = 0; i < restartIDs.length; i++) { if (restartIDs[i] === saved.restart) { restart.selection = i; break; } }
+            change.selection = saved.target === "letters" ? 0 : saved.target === "spaces" ? 1 : 2;
+            textEnabled.value = saved.textEnabled !== false; replace.value = saved.replace; clearTracking.value = saved.clearTracking;
+            metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; strokeWidth.text = String(saved.strokeWidth);
+            for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
+            savedRanges[saved.property] = [String(saved.min), String(saved.max)];
+            if (saved.frameWidth) { widthOptions = decode(encode(saved.frameWidth)); }
+            copyCurve(saved, textCurve); switching = false;
+            propertyChanged();
+            for (i = 0; i < axes.length; i++) { if (axes[i].name === saved.axisName) { axis.selection = i; break; } }
+            minInput.text = String(saved.min); maxInput.text = String(saved.max); loadEditor(saved); syncStack(); refresh(true);
+        }
+        addProperty.onClick = function () {
+            try {
+                var current = readSettings(), choices = [], ids = [];
+                for (var i = 0; i < propertyIDs.length; i++) { if (propertyIDs[i] !== current.property && !session.hasProperty(propertyIDs[i])) { choices.push(propertyLabels[i]); ids.push(i); } }
+                if (!ids.length) { fail("All available properties are already in this stack."); }
+                var chooser = new Window("dialog", "Add property"); chooser.orientation = "column"; chooser.alignChildren = ["fill", "top"]; chooser.margins = 16;
+                chooser.add("statictext", undefined, "Keep " + propertyInfo(current.property).label + " and add:");
+                var next = dropdown(chooser, "", choices, 280), buttons = row(chooser); buttons.alignment = "right";
+                buttons.add("button", undefined, "Cancel", { name: "cancel" });
+                var choose = buttons.add("button", undefined, "Add", { name: "ok" }); choose.onClick = function () { chooser.close(1); };
+                if (chooser.show() !== 1) { return; }
+                session.keep(current); property.selection = ids[next.selection.index];
+                editorTrack = 0; curveTrack.selection = 0; propertyChanged(); loadEditor(textCurve); syncStack();
+            } catch (e) { error.text = e.message; }
+        };
+        undoAddition.onClick = function () { try { var saved = session.undoAddition(); if (saved) { loadSettings(saved); } } catch (e) { error.text = e.message; } };
         function propertyChanged() {
+            if (switching) { return; }
+            var chosen = propertyIDs[property.selection.index];
+            if (session.hasProperty(chosen)) {
+                switching = true; for (var taken = 0; taken < propertyIDs.length; taken++) { if (propertyIDs[taken] === lastProperty) { property.selection = taken; break; } } switching = false;
+                error.text = "This property is already kept. Use Undo addition to return to it."; return;
+            }
             try { session.rollback(); } catch (e) { error.text = e.message; return; }
             savedRanges[lastProperty] = [minInput.text, maxInput.text];
             var id = propertyIDs[property.selection.index];

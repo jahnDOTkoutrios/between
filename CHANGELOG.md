@@ -4,6 +4,11 @@
 
 Additional features and fixes published without changing the version number:
 
+- Add + Add property, a read-only Kept strip, Undo addition, and Apply all. Freeze kept numeric formatting and commit the whole stack as one Undo action; Cancel restores the entire session.
+- Prevent duplicate properties in a stack and preserve kept colors, contours, and managed break ownership during replay.
+- Add default Auto-stabilize: exact composition first, managed tracking breaks next, then labeled Fixed sampling without rescaling Min/Max. Frozen assignments remove the line-boundary redistribution feedback loop.
+- Keep outgoing frame text and its clear-first baseline intact when trimming fallback targets.
+
 - Add underline weight and offset with automatic activation, fractional values, saved automatic baselines, and shared activation preservation during replacement.
 - Add paragraph left, right and first-line indents. Treat intersecting paragraphs atomically; preserve whole-paragraph baselines for partial selection, reapply, Cancel and Undo.
 - Resolve native paragraph objects before storing their scalar story indices.

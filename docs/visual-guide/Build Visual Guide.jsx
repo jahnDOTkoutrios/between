@@ -79,7 +79,7 @@
             specimens.push(tf);return tf;
         }
         function settings(extra) {
-            var s={scope:0,mode:"word",restart:"never",target:"letters",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:true,textEnabled:true};
+            var s={scope:0,mode:"word",restart:"never",target:"letters",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:true,autoStabilize:true,textEnabled:true};
             for(var k in extra)s[k]=extra[k];return s;
         }
         function apply(tf,extra) {
@@ -93,6 +93,15 @@
             tf.parentStory.recompose();
             log(tf.name+" | "+result.units.length+" units | "+result.passes+" passes | "+(result.lockedBreaks||0)+" fixed breaks | overset="+tf.overflows);
             return result;
+        }
+        function applyStack(tf, stages) {
+            app.select(tf); var target=api.resolveTarget(),session=new api.PreviewSession(target),saved=[];
+            for(var i=0;i<stages.length;i++){
+                var s=settings(stages[i]);s.scope=target.scopes.length-1;saved.push(s);
+                if(i<stages.length-1)session.keep(s);else session.commit(s);
+            }
+            tf.insertLabel("TrackingRamp.guide.settings",api.encode({stack:saved}));
+            log(tf.name+" | "+saved.length+" stacked properties | one Undo group | overset="+tf.overflows);
         }
         text("Guide - eyebrow","TRACKING RAMP 5  /  VISUAL GUIDE",[44,48,66,760],st.eye);
         text("Guide - format","01  /  A2 SPECIMEN SHEET",[44,W-310,66,W-48],st.eye);
@@ -122,8 +131,8 @@
         f=specimen("06 - Character color - word ramp per paragraph","A letter fades from black to a quiet trace. Its message remains, even as the ink grows light.\rThe second memory begins in darkness, then follows the first toward the edge of sight.",[c.y,c.x,c.y+c.h,c.x+c.w],16,23);f.parentStory.texts[0].spaceAfter=10;apply(f,{property:"fillColor",restart:"paragraph",target:"both",max:100});
         c=card(7,"A sentence stretches","Horizontal scale / Word / Linear / 65 to 145%\rRestart: Sentence / Change: Both / Auto steps","Three sentences; three independent distributions.");
         f=specimen("07 - Horizontal scale - word ramp per sentence","The edges grow quiet.\rThe hours spread thin.\rThe colors drift away.",[c.y+5,c.x,c.y+c.h,c.x+c.w],25,48);apply(f,{property:"horizontalScale",restart:"sentence",target:"both",min:65,max:145});
-        c=card(8,"Lean and drift","Skew: -20 to 20 degrees / Character / Linear\rRotation: -12 to 12 degrees / Character / Sine","Two separate targets; generous leading leaves room.");
-        f=specimen("08A - Skew - character linear minus20-plus20","a leaning memory",[c.y+8,c.x,c.y+70,c.x+c.w],28,45);apply(f,{property:"skew",mode:"character",min:-20,max:20});
+        c=card(8,"Keep, then add","Skew -20 to 20 degrees; tracking 0 to 110\rUse + Add property to keep skew, then add tracking.\rLower sample: rotation -12 to 12 degrees / Sine","Two stacked properties above; separate rotation below.");
+        f=specimen("08A - Kept skew plus tracking - two-property stack","a leaning memory",[c.y+8,c.x,c.y+70,c.x+c.w],28,45);applyStack(f,[{property:"skew",mode:"character",min:-20,max:20},{property:"tracking",mode:"word",min:0,max:110}]);
         f=specimen("08B - Rotation - character sine minus12-plus12","letters drift away",[c.y+91,c.x,c.y+c.h,c.x+c.w],28,45);apply(f,{property:"characterRotation",mode:"character",curve:"sine",min:-12,max:12});
         var wmin=Math.max(weight.min,100),wmax=Math.min(weight.max,800);
         c=card(9,"Weight and outline","Variable weight: "+wmax+" to "+wmin+" / Word / Linear\rStroke width: 0 to 1 pt / Character / Linear","Axis: "+weight.name+". The lower sample has a white fill.");
@@ -153,10 +162,10 @@
         box("Footer rule",[1538,48,1538.5,W-48],rule,ground);
         text("Footer - open","OPEN & EXPLORE",[1553,48,1572,48+cw],st.eye);
         text("Footer - open instructions","Open the INDD or IDML. In Layers, select a numbered frame on the Editable specimens layer. Run Tracking Ramp.jsx.",[1578,48,1630,48+cw],st.foot);
-        text("Footer - reapply","REAPPLY A CURVE",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
-        text("Footer - reapply instructions","Keep Replace previous effect on to start from the saved baseline. Example 03 may use managed soft breaks to preserve exact line curves.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
+        text("Footer - reapply","ADD ANOTHER PROPERTY",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
+        text("Footer - reapply instructions","Set an effect, click + Add property, then choose the next property. Apply all keeps the stack; Cancel restores the starting state.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Footer - compare","READ THE RESULTS",[1553,48+2*(cw+gap),1572,W-48],st.eye);
-        text("Footer - compare instructions","Auto steps samples every eligible unit. Frame/line groups exclude overset. Examples 11 and 12 intentionally contain longer stories.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
+        text("Footer - compare instructions","Auto-stabilize tries exact composition, then tracking breaks or Fixed sampling. Fixed sampling retains assignments while text reflows.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
         text("Footer - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v5.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
         // Page 2 keeps the same quiet typography and adds the new v5 targets.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};

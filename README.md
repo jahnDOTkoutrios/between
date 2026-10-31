@@ -63,8 +63,8 @@ Examples:
 - **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, and left/right/first-line paragraph indents.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
-- **Live preview:** changes appear in the actual document. Cancel restores the pre-preview state; Apply keeps one named Undo transaction.
-- **Resulting composition:** frame scope follows text moving in or out in every unit mode. Line/frame groups recalculate against the final layout; tracking line curves can use managed soft line breaks if natural composition cycles.
+- **Live preview and stacking:** adjust one property, click **+ Add property**, choose the next property, and continue. A read-only Kept strip and Undo addition appear for stacks. Apply all commits one named Undo transaction; Cancel restores the whole session.
+- **Auto-stabilize composition:** starts with exact resulting composition, then tries managed tracking breaks if needed. Remaining cycles use **Fixed sampling**, retaining assigned values while allowing text to reflow. The status identifies the fallback; Min/Max are not rescaled.
 - **Frame contour:** minimum/maximum available width in %, pt, or mm; left/center/right anchoring; smooth or stepped sides; linked or independent curve.
 - **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
@@ -75,7 +75,8 @@ Examples:
 - Units crossing a restart boundary are split into disjoint fragments. Groups with one unit receive the curve's starting value; a bell needs at least three sampled stages to show an interior peak.
 - Sentence detection uses punctuation and common abbreviation/decimal handling. It is a heuristic; review ambiguous text.
 - For character properties, Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
-- **Fix line breaks** is on by default for tracking curves using Line units or Line restart groups. If natural composition cannot settle, it inserts real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces its managed breaks; Cancel restores the text. Other properties retain them. After manual text edits, disable Replace to adopt the current breaks as ordinary text.
+- **Auto-stabilize composition** is on by default. Tracking can insert real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces managed breaks; Cancel restores the text. If fixed sampling is needed, final lines/frames may differ from the sampled groups. Outgoing frame text returns to its baseline; newly fitting text may retain its baseline. Disable Auto-stabilize for strict convergence.
+- Each property can appear once per stack. Kept values are frozen; Undo addition returns the last kept effect to editing and discards the current draft. A kept contour remains fixed while adding further properties. After manual text edits, disable Replace to adopt existing managed breaks as ordinary text.
 - Underline properties enable underlining on eligible targets and preserve original automatic values for replacement/Cancel.
 - Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph, Change is Both, and Restart is Never; previous structure choices return when selecting another property.
 - Frame contour shapes only the selected frame. It requires one ordinary column, equal insets, auto-sizing off, and an unrotated/unsheared frame at 100% scale.
@@ -93,12 +94,12 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **83 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **94 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-The v5 implementation also passed **194 checks in native InDesign 2026 on macOS**
+The v5 implementation also passed **225 checks in native InDesign 2026 on macOS**
 during development. See [verification notes](docs/VERIFICATION.md) for the
 coverage and a manual smoke-test procedure.
 

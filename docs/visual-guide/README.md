@@ -16,7 +16,10 @@ actual Tracking Ramp v5 engine. Labels stay neutral so the text does the work.
 Open the INDD or IDML. Expand **02 - Editable numbered specimens** in Layers.
 Select a frame named **01…15 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
 Use the printed caption to recreate its settings. Keep **Replace previous effect**
-on to replace the saved effect without stacking values. Labels and rules are
+on to replace the saved effect without accumulating values. To layer different
+properties in one session, use **+ Add property**, then **Apply all**. Example 08A
+is an actual kept Skew + Tracking stack. **Undo addition** returns the last kept
+effect to editing; **Cancel** restores the whole session. Labels and rules are
 on separate locked layers; metrics are on their own printable layer.
 
 | No. | Example | Applied settings |
@@ -28,7 +31,7 @@ on separate locked layers; metrics are on their own printable layer.
 | 05 | Baseline wave | Character; Sine; 0–14 pt; fixed 48 pt leading |
 | 06 | Color reset | Word; restart Paragraph; Linear; Ink to Mist |
 | 07 | Horizontal scale | Word; restart Sentence; Linear; 65–145% |
-| 08 | Skew and rotation | Character; Skew −20–20° Linear; Rotation −12–12° Sine |
+| 08 | Kept skew + tracking | Skew −20–20° Character, then Tracking 0–110 Word; separate Rotation −12–12° Sine |
 | 09 | Weight and stroke | Word; variable Weight 800–100; Character stroke 0–1 pt |
 | 10 | Frame contour | Centered, smooth; width 58–100%; independent Gaussian, bell width 29% |
 | 11 | Live frame scope | Original vs Character tracking 0–100; Linear |
@@ -64,3 +67,7 @@ The export was visually reviewed. All fifteen example headings and twenty-three 
 specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.
+
+Auto-stabilize is enabled in the examples. It tries exact composition, managed
+tracking breaks, then Fixed sampling when needed. Fixed sampling keeps assigned
+values as text reflows, so final line groups may differ from the sampled groups.

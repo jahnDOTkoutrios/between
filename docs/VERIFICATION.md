@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 83 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 94 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -24,7 +24,7 @@ actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 ## Native verification performed during development
 
-194 checks passed in Adobe InDesign 2026 on macOS. These are development-time
+225 checks passed in Adobe InDesign 2026 on macOS. These are development-time
 native checks and are not run by the Node test command. They covered:
 
 - Actual word-gap measurements and numeric property application/restoration.
@@ -54,6 +54,11 @@ selection, mixed indent baselines, narrower reapplication, hanging indents,
 frame-scope paragraph continuations, Cancel and Undo. The actual UI was also
 checked for all new property choices and paragraph-only control locking.
 
+A further 31 native checks cover two/three-property stacks, exact kept values,
+Cancel/Undo, duplicate rejection, Undo addition, kept-only preview, failed drafts,
+color swatches, baked contours, managed breaks, cycling tracking/font-size
+fixtures, clearing with outgoing overset, and the actual Add property/Apply all UI.
+
 ## Manual smoke test
 
 Use a disposable document for the checks below.
@@ -81,9 +86,10 @@ Use a disposable document for the checks below.
    Repeat with Clear tracking and verify incoming gaps are zeroed.
 9. Try a fully justified **Tracking → Word → restart per Line → Gaussian**,
    Min 0/Max 300. For a cycling layout, confirm the fixed-break count appears
-   with Fix line breaks enabled and final values match each line. Cancel must
+   with Auto-stabilize enabled and final values match each line. Cancel must
    remove the inserted text; Apply/reapply must not accumulate breaks. A zero
-   range should insert none. Disable Fix line breaks to test strict rejection.
+   range should insert none. Disable Auto-stabilize to test strict rejection. Other property cycles should
+   complete with a visible Fixed sampling status; final groups may differ.
 10. Test **Line width** on an eligible frame. Confirm the anchor and envelope,
    linked/independent curve behavior, and exact original-path restoration on Cancel.
 
@@ -94,6 +100,11 @@ Use a disposable document for the checks below.
     properties: complete touched paragraphs change; adjacent paragraphs do not.
     Confirm Paragraph/Both/Never are locked and the former structure returns
     when switching back to a character property. Test a narrower reapply and Undo.
+
+13. Set Skew, then + Add property and choose Tracking. Confirm the Kept strip,
+    exact retained skew, Undo addition, and Apply all. One Undo must remove both.
+    Cancel must restore everything, including breaks, swatches and contours.
+    Turn draft preview off and confirm only the kept effects remain visible.
 
 Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,

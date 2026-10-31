@@ -25,6 +25,30 @@ restores the document immediately. Apply still applies the configured effect.
 The dialog initially appears toward the right of the main screen so the
 page can remain visible. You can move the dialog by its title bar.
 
+KEEPING EFFECTS / ADDING ANOTHER PROPERTY
+
+Adjust a property as usual. Click + Add property and choose the next property.
+The current effect is kept, and a read-only Kept strip appears. Continue with
+the next effect, for example Skew followed by Tracking. The next curve samples
+the composition produced by the kept effects. Their actual numeric formatting
+stays frozen while the new property changes; they are not resampled against
+the later property's composition.
+
+Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 5
+transaction. Cancel, Escape, or closing restores the document from before the
+dialog opened, including kept effects, inserted breaks, contours and swatches.
+Keeping an effect does not create a separate permanent document commit.
+
+Undo addition discards the current draft and returns the last kept effect to
+editing with its saved settings. Kept effects are read-only until returned this
+way; reordering and arbitrary stage editing are not part of this version.
+Each property is available once per stack, so the chooser omits properties
+already kept. The existing Property selector still chooses the active draft.
+
+Live document preview off restores the active draft while leaving kept effects
+visible. Metrics are refreshed for the final visible state. A contour kept with
+an earlier effect stays fixed; its width controls are disabled for later stages.
+
 TARGETS
 
 Scope:
@@ -191,8 +215,9 @@ For stroke width/tint, existing stroke colors are retained unless the text
 has no stroke color, in which case Color A is used. For color/tint, text
 with zero stroke width receives the Width pt value so the result is visible.
 
-Select one property at a time. Committing a different property generally
-retains the earlier property. Stroke width/color/tint also set related stroke
+Use + Add property to keep one effect while adjusting another in the same
+dialog. Separately committing a different property also generally retains
+the earlier property. Stroke width/color/tint also set related stroke
 attributes when required for visibility; review these together when layering
 several stroke effects.
 
@@ -318,29 +343,34 @@ Some exact curves have no stable natural result: a word moves to the next
 line, gets a different value, and moves back. The solver detects cycles or
 stops after 24 passes rather than retaining an inconsistent curve.
 
-Fix line breaks if tracking line curves cannot settle is on by default.
-It applies only to Tracking with Values per Line or Restart curve per Line.
-Natural composition is tried first. If it cycles or exceeds the pass limit,
-the fallback seeds a conservative layout at Max tracking, then inserts soft
-line breaks at safe word gaps and recalculates the exact curve. This may fit
-fewer words than an unconstrained layout. The breaks are real editable text,
-not additional paragraphs. Automatic hyphenation is temporarily disabled to
-find word gaps and then restored. Composer and justification are unchanged.
+Auto-stabilize composition is on by default. It first tries the exact live
+solver. On a cycle or pass-limit failure, tracking tries a conservative layout
+at Max tracking and inserts managed soft line breaks at safe word gaps. This
+can fit fewer words than an unconstrained layout. Automatic hyphenation is
+temporarily disabled to find gaps and then restored. Composer and justification
+are unchanged. The status reports the number of fixed breaks.
 
-The status reports the number of fixed breaks. Cancel removes new breaks and
-restores all formatting and ownership metadata. Reapplying the same property
-with Replace enabled removes its previous managed breaks before recalculating,
-so they do not accumulate. Applying another property retains them. Manual
-Undo restores the entire previous state, including breaks. If you edit text
-after Apply, ownership is no longer trusted; disable Replace to keep the
-current breaks as ordinary text and establish a new baseline.
+If tracking cannot be stabilized this way, or another property cycles, the
+fallback assigns the curve once and keeps those assignments as text reflows.
+The status says Fixed sampling. Min/Max and assigned numeric values are not
+rescaled. The final line/frame groups can differ from the sampled groups;
+this fallback prioritizes a usable result over an exact curve in every final
+line. In Current frame scope, targets leaving the frame are restored without
+redistributing the remaining values. Newly fitting text can retain its baseline.
+Clear tracking is limited to the retained sampled range in this fallback too.
+Paragraph indents remain atomic and can affect full paragraph continuations.
 
-Disable Fix line breaks to require a naturally stable composition. Curves
-for other properties still require natural convergence. Excessive Max values,
-unbreakable words, and selections without safe word gaps may still fail;
-reduce Max, change the curve/steps, or expand the scope. Failed previews are
-restored. Fully justified composition can compensate for tracking with other
-spacing settings: numeric tracking and visible gap sizes differ.
+Cancel removes new breaks and restores formatting and metadata. Reapplying
+Tracking with Replace removes its previously managed breaks before recalculating,
+so they do not accumulate. Other properties retain them. Manual Undo restores
+the entire previous state. After manual text edits, ownership is no longer
+trusted: disable Replace to adopt the current breaks as ordinary text and
+establish a new baseline.
+
+Disable Auto-stabilize to require strict natural convergence. Invalid native
+property values, missing font axes, or an effect leaving no visible targets
+can still be rejected safely. Fully justified composition can compensate for
+tracking through other spacing settings: numeric tracking and visible gaps differ.
 
 REAPPLYING / RESETTING OLDER EFFECTS
 
@@ -383,7 +413,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-83 automated checks passed. Coverage includes 108 unit/group/target
+94 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -391,7 +421,7 @@ New coverage checks underline activation/automatic baselines, shared activation,
 whole-paragraph targeting, native collection resolution, narrow replacement,
 normalized preview reuse, and UI structure locking/restoration.
 
-194 native InDesign 2026 checks passed on macOS. Existing property, grouping,
+225 native InDesign 2026 checks passed on macOS. Existing property, grouping,
 contour, curve-editor and Undo coverage is retained. New checks cover incoming
 and outgoing frame text, zero-first frame scope, exact justified line values,
 fixed-break Character/Word and entire-story curves, stable curves without
@@ -399,10 +429,14 @@ extra breaks, Cancel/reapply, cross-property history, and manual text edits.
 Metrics were measured against actual glyph bounds, including tight gaps,
 without accumulated row drift or changes to source leading. A PDF export
 retained all 90 integer labels in a 30-row fixture and was visually inspected.
-Thirty new native checks cover underline fractional/signed endpoints, automatic
+The native suite includes thirty checks for underline fractional/signed endpoints, automatic
 values, mixed paragraph baselines, partial selections, hanging indents, whole
 paragraph frame continuations, Cancel/reapply and independent Undo.
-Actual UI checks confirmed the new property choices and paragraph control locks,
+Additional checks cover frozen multi-property stacks, a single composite Undo,
+kept-only preview, Undo addition, duplicate prevention, failed drafts, swatch
+recreation, kept contours, tracking and font-size cycle fallbacks, and clearing
+with outgoing overset. The real UI confirmed Add property and Apply all.
+Actual UI checks also confirmed the new property choices and paragraph control locks,
 Gaussian graph refresh, fixed-break status,
 printable metrics, and a committed Undo transaction. Other InDesign versions
 and Windows remain unverified.
