@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 104 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 106 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -72,6 +72,12 @@ logic is also covered deterministically by the automated suite.
 
 Performance differential checks compare old/new formatting, unit boundaries,
 distributions and all 462 annotation positions. See [performance notes](PERFORMANCE.md).
+
+The slider follow-up adds two automated checks and a focused native rerun
+with eight passing assertions: no preview calls or formatting changes during
+movement, one full preview on release, final value retained, metrics rebuilt,
+and a single Undo restoring formatting and removing annotations. The previous
+231-assertion broad native run predates this isolated slider change.
 
 ## Manual smoke test
 

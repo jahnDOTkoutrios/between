@@ -1644,7 +1644,7 @@
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
         var lastValid = { curve: "linear", power: 2, width: 22, invert: false };
         var lastPreview = 0, dragOrigin = null, switching = false, editorTrack = 0, previewIndex = 0;
-        var windowClosed = false;
+        var windowClosed = false, sliderAdjusting = false;
         var inputDelay = new PreviewDelay(350, function () { refresh(true); }, {
             now: function () { return new Date().getTime(); },
             wait: typeof $ !== "undefined" && $.sleep ? function (milliseconds) { $.sleep(milliseconds); } : null,
@@ -1730,7 +1730,10 @@
             // ExtendScript evaluates chained conditional expressions differently
             // from modern JS in this callback. Keep the branches explicit.
             if (gs && editorTrack) { distribution = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, gs); }
-            else if (plan) { distribution = selectedDistribution(plan); }
+            else if (plan) {
+                distribution = selectedDistribution(plan);
+                if (sliderAdjusting && gs) { distribution = buildDistribution(distribution.values.length, gs); }
+            }
             drawGraph(graph, distribution, gs, displayPoints(), selected);
         };
         function scopeBounds() { var t = session.liveTarget || target; return boundsFor(t, t.scopes[scope.selection.index]); }
@@ -1829,7 +1832,7 @@
         }
         function refresh(force) {
             if (switching || windowClosed) { return; }
-            inputDelay.cancel();
+            inputDelay.cancel(); sliderAdjusting = false;
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = addProperty.enabled = false; error.text = " ";
@@ -2003,9 +2006,16 @@
         };
         resetCurve.onClick = function () { points = []; selected = -1; customEditing = false; dragging = false; dragOrigin = null; curve.selection = 0; invert.value = false; curveChanged(); };
         shapeSlider.onChanging = function () {
+            if (switching || windowClosed || !shown) { return; }
+            inputDelay.cancel();
             shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10);
-            var now = new Date().getTime();
-            if (now - lastPreview > 250) { refresh(false); lastPreview = new Date().getTime(); }
+            // Keep dragging local to ScriptUI. Native composition (and metrics)
+            // runs once on release, using the final value and exact boundaries.
+            try {
+                settings = readSettings(); lastValid = graphSettings(settings); sliderAdjusting = true;
+                summary.text = "Release slider to update document preview.";
+                redraw();
+            } catch (e) { error.text = e.message; }
         };
         shapeSlider.onChange = function () { shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10); refresh(true); };
         function numberChanging() {

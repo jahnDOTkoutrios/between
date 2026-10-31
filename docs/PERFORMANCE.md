@@ -9,9 +9,10 @@ rules are unchanged.
 - Numeric fields use a 350 ms trailing delay, extended by each keystroke.
   Apply reads the latest fields immediately; Cancel discards queued work.
   The modal window continues processing typing and buttons during the wait.
-- Curve and slider movement leave 250 ms after a completed preview before
-  starting another. Release always requests the final result. Curve dragging
-  defers metrics construction until release.
+- Slider movement updates the numeric field and graph locally; document
+  composition and metrics run on release. Custom-curve movement leaves 250 ms
+  after a completed preview before starting another, and defers metrics
+  construction until release. Release always requests the final result.
 - Word/line bounds and numeric snapshots use validated bulk native reads,
   with the original scalar path when the host cannot supply those columns.
 - Kept numeric properties replay exact saved patches instead of recomputing
@@ -47,6 +48,7 @@ still cost time. Numeric input that pauses longer than 350 ms can preview an
 intermediate value. The update does not reduce final curve accuracy, label
 count or composition iteration limits to obtain these gains.
 
-The regression suite passes 104 automated checks and 231 native assertions.
+The regression suite passes 106 automated checks and 231 native assertions.
+A focused native slider rerun also passed eight assertions.
 See [verification](VERIFICATION.md) for scope, platform limits and native
 UI timing-test details.

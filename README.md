@@ -63,7 +63,7 @@ Examples:
 - **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, and left/right/first-line paragraph indents.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
-- **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Curve/slider previews are throttled, with a complete final refresh on release.
+- **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Sliders update the graph during dragging and the document on release. Custom-curve document previews remain throttled.
 - **Live preview and stacking:** adjust one property, click **+ Add property**, choose the next property, and continue. A read-only Kept strip and Undo addition appear for stacks. Apply all commits one named Undo transaction; Cancel restores the whole session.
 - **Auto-stabilize composition:** starts with exact resulting composition, then tries managed tracking breaks if needed. Remaining cycles use **Fixed sampling**, retaining assigned values while allowing text to reflow. The status identifies the fallback; Min/Max are not rescaled.
 - **Frame contour:** minimum/maximum available width in %, pt, or mm; left/center/right anchoring; smooth or stepped sides; linked or independent curve.
@@ -110,7 +110,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **104 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **106 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.

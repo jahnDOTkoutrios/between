@@ -5,7 +5,7 @@
 Additional features and fixes published without changing the version number:
 
 - Debounce numeric previews until typing pauses for 350 ms; keep Apply immediate and discard pending work on Cancel.
-- Throttle curve/slider previews from calculation completion; rebuild metrics on curve release.
+- Update slider fields and graphs during dragging; defer document composition and metrics to release. Throttle custom-curve previews from calculation completion and rebuild metrics on curve release.
 - Batch native text/metrics reads and writes, retaining scalar fallbacks and both annotation correction passes.
 - Replay exact patches for safe kept numeric properties; retain full replay for colors, axes, contours, text edits, and stale content signatures.
 - Verify unchanged formatting and annotation positions against the previous v5, with native preview benchmarks.

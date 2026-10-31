@@ -284,10 +284,11 @@ Dragging updates the preview while movement notifications are available and
 always uses the final release position. This accommodates InDesign/macOS
 hosts that omit some drag-move events. The graph explicitly invalidates its cached native surface so handles and
 curves repaint during adjustment. InDesign still needs time to recompose
-the actual text. Curve and slider previews leave at least 250 ms after a
+the actual text. Custom-curve previews leave at least 250 ms after a
 calculation before starting another during movement. Metrics are omitted
 during curve dragging and rebuilt on release with the complete final result.
-The final slider position also triggers a refresh.
+Sliders update the numeric field and graph during dragging; the document and
+metrics update once on release, using the exact final value.
 
 STEPS
 
@@ -421,7 +422,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-104 automated checks passed. Coverage includes 108 unit/group/target
+106 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
