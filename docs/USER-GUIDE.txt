@@ -1,0 +1,390 @@
+TRACKING RAMP 5.0.0 — TEXT DISTRIBUTION STUDIO
+
+RUN
+
+In InDesign 2026, open Window > Utilities > Scripts > User > Tracking Ramp.jsx.
+Select one ordinary text frame, highlight text, or put the text cursor inside
+a frame, then double-click the script. V5 replaces the installed v4 entry.
+This repository contains the current v5 script.
+
+LIVE PREVIEW / CANCEL / APPLY
+
+Live document preview is on by default. The actual selected text changes as
+you adjust controls. Each update starts from the document state before the
+current preview, so changes do not accumulate while experimenting.
+
+Cancel, Escape, or closing the dialog restores the original formatting and
+metadata, and removes any new preview metrics frames, layers and swatches.
+This uses document-scoped Undo, preserving style overrides and inherited
+formatting rather than merely rewriting numeric values.
+
+Apply keeps the current result as one Edit > Undo Tracking Ramp 5 action.
+Turn Live document preview off to work with the graph alone; turning it off
+restores the document immediately. Apply still applies the configured effect.
+
+The dialog initially appears toward the right of the main screen so the
+page can remain visible. You can move the dialog by its title bar.
+
+TARGETS
+
+Scope:
+- Highlighted text: includes only the highlighted bounds, clipping partial words.
+- Current frame: word/character modes target the text visible after resetting
+  the previous effect. Adaptive line mode follows the frame's live composition.
+- Entire story: includes linked frames and overset for word/character modes.
+
+Values per:
+- Character: one value per eligible InDesign character.
+- Word: one value per word, or one per interword gap in Spaces mode.
+- Sentence: one value across each punctuation-delimited sentence.
+- Paragraph: one value across each paragraph.
+- Line: one value per resulting composed line, recalculated until stable.
+- Frame: one value across each visible linked frame's text, recalculated until
+  frame boundaries agree with the resulting composition. Choose Entire story
+  to distribute values across multiple linked frames.
+
+Change:
+- Letters: changes letters/punctuation and preserves spaces.
+- Spaces: changes only interword spaces and preserves letters.
+- Both: explicitly includes letters and internal interword spaces. In Word
+  mode, each gap follows its preceding word's value.
+
+Ordinary and typographic spaces are supported, including nonbreaking and
+em/en spaces. Tabs, control markers, paragraph breaks, and leading/trailing
+spaces are excluded. In line mode, spaces at the composed line edge are
+excluded. Blank lines and units with no eligible targets do not consume steps.
+
+STRUCTURE / RESTARTING THE CURVE (V5)
+
+Scope decides which text is included. Values per decides the unit that gets
+one value. Restart curve per decides where the complete curve starts again:
+Never (entire scope), Word, Sentence, Paragraph, Line or Frame.
+
+Examples:
+- Font size, Values per Character, Restart per Word, Gaussian: a small-large-
+  small pattern inside every word.
+- Tracking, Values per Word, Restart per Sentence: a complete ramp or bell
+  across the words of each sentence.
+- Tracking, Values per Character or Word, Restart per Line: every resulting
+  composed line receives its own complete distribution.
+- Values per Line, Restart per Frame: a complete top-to-bottom text-property
+  distribution in every linked frame.
+- Values per Frame, Restart Never, Scope Entire story: frame 1 gets the first
+  value, frame 2 the next, and so on.
+- Restart Never: the v4 behavior, one continuous curve across the chosen scope.
+
+Min/Max, curve and steps are shared by all groups. Auto steps is calculated
+from the eligible unit count in EACH group. A fixed step count is separately
+capped to each group's length. Empty groups do not consume a sample or a
+preview-group number. One eligible unit receives the curve's starting value;
+a bell needs at least three sampled stages for an interior peak. The UI
+reports undersampled bell groups rather than silently promising a peak.
+
+Preview group below the graph chooses which group's actual blue samples and
+numeric values are displayed. The thin gray guide and orange handles describe
+the shared curve. Changing Preview group only inspects it: it does not modify
+that group's settings or touch the document/Undo transaction. Dragging points
+or changing curve controls updates the same curve across every group.
+
+Units that cross a restart boundary are split into disjoint fragments. A word
+hyphenated across two lines can therefore receive each line's curve value on
+its respective fragment. Choosing a larger unit inside a smaller group often
+leaves only one fragment per group, producing a constant starting value.
+Interword gaps follow the preceding word in Word/Both distributions and Word
+restart groups. Line/frame restart groups exclude their outer whitespace.
+Tabs, breaks and control objects are never text-property targets.
+
+Partial selections clip groups to the selected bounds; the curve is sampled
+across each included fragment. Nothing outside that scope is modified, apart
+from replacing the previous saved effect when that option is enabled.
+
+Sentence grouping uses punctuation, decimal/initial/common-abbreviation
+handling, closing quotes and paragraph boundaries. It recognizes ASCII
+period/question/exclamation marks, ellipses, Chinese/Japanese full stop and
+fullwidth question/exclamation, and Arabic question marks. Smart quotes and
+other visible InDesign special-character codes are normalized before parsing
+and targeting. This is a deterministic heuristic, not a linguistic parser:
+ambiguous abbreviations, URLs, unusual punctuation and other languages may
+need review. Paragraph or Line grouping provides a more explicit boundary.
+
+Paragraph breaks create paragraph groups; forced line breaks alone do not.
+Line and Frame units OR restart groups follow actual frame-owned composition.
+They exclude overset text, including when the scope is Entire story. Semantic
+units with Restart Never/Word/Sentence/Paragraph can include overset in Entire
+story scope. Frame scope follows its live boundaries for physical grouping.
+The existing 24-pass/cycle protection also applies to these new combinations.
+
+Values per Frame controls TEXT formatting inside linked frames. The separate
+Line width feature still reshapes only the selected frame, mapped over its
+fixed physical height. Linking its curve shares the shape of the curve; it
+is not resampled over the typography's restart groups.
+
+TRACKING AND THE WORD-GAP FIX
+
+V2 preserved the numeric tracking on space characters but still changed
+tracking on a word's last glyph. InDesign uses that glyph's outgoing tracking
+in the word gap. The gap could therefore grow even with space tracking 0.
+
+V3 Letters tracking excludes the last glyph before a space, preserving that
+outgoing boundary as well as the space. Single-letter words can consequently
+have no internal tracking target. Spaces mode changes the space character;
+Both mode changes both boundaries explicitly. Other properties such as font
+size still target the complete word: this boundary exclusion is specific to
+tracking. Justification and font shaping can further affect visible spacing.
+
+PROPERTIES
+
+Tracking: whole numbers -1000 to 10000, in 1/1000 em.
+Font size: 0.1 to 1296 pt.
+Baseline shift: -1000 to 1000 pt.
+Variable-font axis: axes and ranges are discovered from the first text font
+in the selected scope. Choose an axis, then enter values in that axis's native
+range. The script does not change the font automatically. Mixed-font targets
+must all support the chosen axis name and requested values.
+Horizontal and vertical scale: 1% to 1000%.
+Character rotation: -360 to 360 degrees.
+Skew: -85 to 85 degrees.
+Text stroke width: 0 to 100 pt.
+Text stroke tint: 0% to 100%.
+Character color and Text stroke color: blend between document colors Color A and B. The colors
+must share a color space: RGB, CMYK, or Lab. Up to 64 interpolated process
+swatches are used. Min and Max control the blend position as a percentage.
+
+Character tint: 0% to 100%, retaining the existing character fill color.
+Character color retains existing fill tint.
+
+Baseline shift moves glyphs without increasing leading. Large shifts, scale
+values, skew or rotation can overlap neighboring text or extend past the
+frame. Rotation is periodic: 360 degrees looks like 0. Native outline tests
+confirmed that these controls change the actual rendered glyphs, including
+60 pt baseline shift, 80 degree skew, 180 degree rotation and 300% scale.
+
+Nontracking properties retain fractional values to three decimal places.
+For stroke width/tint, existing stroke colors are retained unless the text
+has no stroke color, in which case Color A is used. For color/tint, text
+with zero stroke width receives the Width pt value so the result is visible.
+
+Select one property at a time. Committing a different property generally
+retains the earlier property. Stroke width/color/tint also set related stroke
+attributes when required for visibility; review these together when layering
+several stroke effects.
+
+LINE WIDTH / FRAME CONTOUR (V4)
+
+Click Line width… at the top. Enable shaping, choose Min/Max, %, pt or mm,
+and Keep left, Centered or Keep right. % refers to the original usable frame
+width, excluding its equal insets. Widths must be at least 1 pt and fit within
+that original envelope. The frame height remains fixed.
+
+This changes the left/right frame path. It controls available line space;
+ragged text, a paragraph's final line, paragraph indents, glyph dimensions,
+text wrap and InDesign's inset/composition rules can produce shorter ink lines.
+The frame's fill and stroke follow the new outline. Smooth contours use 97
+bounded samples per side; stepped contours use 2–200 horizontal bands.
+
+The curve maps to physical position from the original top to bottom, not
+to the changing number of text lines. Text curve linking is on by default.
+Unlinking copies the current text curve. Choose Edit > Width curve below
+the graph to edit that independent curve with the same presets and draggable
+points. Switching back to Text curve preserves both curves. Width band count
+is set in Line width…; the main Auto steps/Steps controls belong to text.
+
+Leave Apply text property on to combine width with typography. Turn it off
+for width only. Shape is calculated before typography and resulting-line
+recomposition. Width always applies to the selected frame, even if text scope
+is Highlighted text or Entire story. Story threading is retained.
+
+The first pass supports one ordinary column, equal insets, auto-sizing off,
+and an unrotated/unsheared frame at 100% horizontal/vertical scale with one
+path. Unsupported frames are rejected before a shape is kept.
+
+The original path is stored separately from character-effect history. Reapply
+starts from that same original path. Disable shaping to restore the original
+path; Cancel restores the exact state present when the dialog opened. Manual
+moving/reshaping after a committed contour is detected, avoiding a jump to a
+stale page position. Undo that manual geometry edit or use a fresh base frame
+before recalculating. This version does not automatically rebase moved frames.
+
+CURVES / DRAGGABLE EDITOR
+
+Presets: Linear, Ease in, Ease out, S-curve, Gaussian bell, Sine arch, Triangle.
+Ease power controls easing strength. Gaussian Bell width controls its spread.
+Invert swaps the high and low parts of a curve.
+
+The orange handles are editable control points. Drag a handle to move it.
+The first and last handles keep their horizontal positions but can move up
+or down. Interior handles can move horizontally and vertically without
+crossing their neighbors. This supports asymmetric peaks and multiple peaks.
+
+Click empty graph space to add a point. Alt-click an interior point, or select
+it and use Delete point, to remove it. There can be 2-24 control points.
+Editing a preset switches to Custom. Reset curve returns to a linear ramp.
+Smooth custom uses bounded interpolation without overshooting; turn it off
+for straight segments between points. Custom curves honor the actual handle
+heights; they are not automatically stretched to reach Min and Max.
+
+Dragging updates the preview while movement notifications are available and
+always uses the final release position. This accommodates InDesign/macOS
+hosts that omit some drag-move events. The graph explicitly invalidates its cached native surface so handles and
+curves repaint during adjustment. InDesign still needs time to recompose
+the actual text. The final slider position also triggers a refresh.
+
+STEPS
+
+Auto steps gives each eligible unit a sample within its restart group. Disable it and enter Steps
+(1-10000) to spread that many stages over the selected scope. The effective
+step count is capped by the available unit count. Several adjacent units
+can share one value. Centered stage buckets keep bells symmetric with uneven
+unit/stage counts. A step count describes samples along the curve, not the
+number of distinct numeric values.
+
+Bell presets reach exact Min at the ends and exact Max at their sampled
+middle stage(s), including even counts. At least three stages are needed
+for a bell peak. One or two stages only sample its endpoints. Invert turns
+a bell into a valley. Equal Min/Max values give a constant effect.
+
+The thin gray guide shows the continuous curve. Blue shows the actual
+sampled distribution; above 500 units it is
+visually sampled for performance. The numeric readout shows up to nine
+values across the inspected group. Every eligible unit still receives its full value.
+
+METRICS
+
+Enable Metrics 5 pt to add a transparent overlay text frame above each source
+frame containing visible targets. The overlay shows actual tracking values,
+rounded to integers, between the composed text lines and aligned with their
+targets. This remains tracking data even when another property is selected.
+
+A unit spanning more than one composed line gets an annotation on each
+visible line fragment. Line anchors follow the composed lines, so baseline
+shift does not create spurious annotation rows. Dense character-level labels
+can overlap because all labels remain 5 pt rather than being silently omitted.
+
+Overlays are on the Tracking Ramp Metrics layer, locked and nonprinting.
+Use Normal view (W) to see them. InDesign hides nonprinting objects in
+Preview mode. They are excluded from normal print/PDF output. To include
+them in output, manually unlock the objects and clear Nonprinting in Attributes.
+
+Metrics require unrotated, unsheared source frames in this version. If the
+source is transformed, turn Metrics off; the text effect itself can still run.
+The overlay is a snapshot of the committed composition. Rerun the script to
+refresh it after manually editing text or moving/resizing frames.
+
+ADAPTIVE LINE MODE
+
+Line mode now works against the resulting composition, rather than retaining
+v2's original-line targeting. It applies a pass, recomposes, reads the resulting
+frame-owned lines, restores the pass baseline, and recalculates values for
+the new boundaries. It stops when the resulting bounds agree with the plan.
+With live preview on, the status reports how many passes were required.
+With live preview off, composition is calculated when you press Apply.
+
+The existing resulting-line solver was verified against native justified
+fixtures, including the shaped-frame case. No separate general composition
+failure was reproduced in those fixtures. A bell across one or two eligible
+lines can legitimately stay at endpoint values; v4 now explains this in the UI.
+
+Frame scope follows text moving into/out of the frame during these passes.
+Whole-story scope processes visible composed lines across linked frames.
+The same resulting-composition loop applies when either Values per or
+Restart curve per uses Line or Frame.
+Overset text is excluded from line mode because it has no visible frame line.
+No forced line breaks or composer/justification changes are inserted.
+
+Some combinations have no stable result: moving a word to the next line can
+change its value enough to push it back. Such cycles are detected, and the
+preview is restored instead of keeping an inconsistent result. There is a
+24-pass limit. If a range will not settle, reduce it, change curve/steps, or
+use word/character mode. Fully justified composition can compensate for
+tracking through other spacing settings; numeric tracking and visible gap
+sizes are different measurements.
+
+REAPPLYING / RESETTING OLDER EFFECTS
+
+Replace previous effect is on by default. V5 retains compatible v3/v4 history
+and saves the original affected
+property values in the story's metadata. Reapplying restores the previous
+baseline before calculating the new result, including old targets that are
+no longer included by the new mode. Narrowing a range or switching from Both
+to Letters therefore does not leave the previous tracking on old gaps.
+
+There is one replaceable effect per property per story. This is story-wide,
+as stated in the checkbox; applying to another linked frame can replace that
+property's previous effect. Disable Replace for an independent additional
+effect or to start from the current formatting.
+
+The original values from v1/v2 were not saved and cannot be reconstructed.
+For those cases, enable Clear tracking to 0 first. It clears tracking across
+the starting scope before applying the new distribution. Cancel still restores
+what was there when the dialog opened. A committed clear establishes zero
+as the saved baseline for later replacement runs, so old v2 gap tracking does
+not return when the option is left off on a later run. Manual Undo still
+restores the pre-clear formatting.
+
+If the text content changes after a v3 commit, saved indices may be invalid.
+The script detects this and asks you to disable Replace to establish a new
+baseline. It does not apply old index-based history to changed text.
+
+LIMITS / VERIFICATION
+
+Ordinary frames and one contiguous selection are supported. Multiple-frame
+selection, table-cell text, footnotes, endnotes, text on paths and grouped-frame
+selection remain outside this version. Character mode uses InDesign's native
+Characters collection, not a custom Unicode grapheme engine. Complex scripts,
+combining characters, emoji and ligatures need additional typographic review.
+
+Preview performance depends on story length and composition complexity.
+The script changes local formatting; applying paragraph/character styles
+later can replace those overrides. Locked source text/layers may reject writes;
+failed preview transactions are restored.
+
+61 automated checks passed. The v4 coverage is retained, with new checks for
+character/word/sentence/paragraph/line/frame units and restart groups, 108
+unit/group/target combinations, absolute selection bounds, per-group step
+sampling, special-character punctuation, native-preview scheduling, group
+inspection without document changes, and inactive Clear tracking protection.
+118 native InDesign 2026 checks passed on macOS. The v4 checks are retained,
+with grouped character values checked on actual document characters, sentence
+counts and Unicode quotes, paragraph/sentence resets, resulting-line and
+frame grouping across linked frames, metrics on both frames and grouped
+text applied after contour shaping. Dense metrics now styles and positions
+its complete annotation story, including initially overset labels; both
+linked-frame overlays retained all labels at 5 pt without overset.
+Actual UI checks covered group selection, different sample counts in different
+groups, words per sentence, characters per word, a dragged shared custom curve,
+metrics and a single committed Undo transaction. Other InDesign versions and
+Windows remain unverified.
+
+The unchanged 500-word fixture measured a v5 median of 810 ms per fresh
+preview (v4 measured 854 ms; v3 1118 ms on this machine). An unchanged
+preview request took about 0–1 ms. New grouped modes naturally depend on their
+number of units and required composition passes. These are local measurements, not universal
+timing promises. Bulk native reads have a scalar fallback, and duplicate
+snapshots are avoided. Composition and Undo safeguards remain in place.
+
+ADOBE REFERENCES
+
+Text properties and axes:
+https://developer.adobe.com/indesign/uxp/dom/api/t/text/
+https://developer.adobe.com/indesign/uxp/dom/api/f/font/
+
+Document-scoped Undo:
+https://developer.adobe.com/indesign/uxp/dom/api/d/document/
+
+Scripts panel installation:
+https://helpx.adobe.com/indesign/desktop/automation-and-scripting/document-automation/automate-workflows-with-scripts.html
+
+This is a standalone ExtendScript .jsx, not a UXP .idjs script. Shared DOM
+properties were cross-checked against Adobe's reference and tested in the
+actual ExtendScript host. No libraries, plugin build, network access, or
+additional installation is required beyond the single script file.
+
+Frame paths and frame preferences:
+https://developer.adobe.com/indesign/uxp/dom/api/p/path/
+https://developer.adobe.com/indesign/uxp/dom/api/t/text-frame-preference/
+
+ScriptUI repaint technique reference:
+https://indiscripts.com/post/2011/04/sprite-buttons-in-scriptui
+
+Native special-character reference:
+https://developer.adobe.com/indesign/uxp/dom/api/s/special-characters/
