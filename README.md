@@ -7,6 +7,18 @@ inside words, sentences, paragraphs, composed lines, or linked frames.
 A standalone ExtendScript `.jsx` with a ScriptUI interface; no plugin build or
 runtime dependencies are needed in InDesign.
 
+## Visual guide
+
+A minimal, one-page A2 specimen sheet with short and long fading-themed text,
+12 labeled examples, and 16 named editable specimen frames.
+
+[View the PDF](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
+[Download INDD](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
+[Download IDML](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.idml) ·
+[Explore the examples](docs/visual-guide/README.md)
+
+[![Tracking Ramp visual guide: twelve typography and frame specimens](docs/visual-guide/preview.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
+
 ## Install and run
 
 1. Download [Tracking Ramp.jsx](https://raw.githubusercontent.com/jahnDOTkoutrios/indesign-tracking-ramp/main/Tracking%20Ramp.jsx), or clone this repository.
