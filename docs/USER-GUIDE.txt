@@ -54,6 +54,50 @@ Live document preview off restores the active draft while leaving kept effects
 visible. Metrics are refreshed for the final visible state. A contour kept with
 an earlier effect stays fixed; its width controls are disabled for later stages.
 
+LINE LENGTH - CENTERED
+
+Choose Line length - centered in Property. Min and Max are percentages of the
+frame's usable width, from 1 to 100 (also at least 1 pt). The default is 40-100%.
+The remaining width becomes equal left and right paragraph indents. This
+controls available measure; a short final line may contain less ink.
+
+The script fits each row at its assigned width, then replaces an existing
+word gap with a paragraph return. Wider rows can therefore take more words.
+It never inserts a break inside a word. Existing paragraph returns remain
+unowned. Manual soft breaks can become managed paragraph returns and are
+restored on replacement. Character count and indices stay unchanged.
+
+Use any existing curve, inversion and step controls. Scope is Current frame,
+Values per is Line, Change is Both and Restart is Never. These controls are
+locked while this property is selected and return to their previous settings
+on exit. The separate frame-contour controls are unavailable for this property.
+
+This first pass requires one unthreaded rectangular frame, one ordinary column,
+equal insets, auto-sizing off, no rotation/shear/scale, and no existing contour.
+Automatic bullets/numbering and drop caps are excluded. The result really is
+one paragraph per fitted row: nested styles, paragraph rules or other
+paragraph-aware formatting may repeat. First/last-line indents are zeroed,
+hyphenation is disabled, and keep options are normalized on the shaped rows.
+Original paragraph spacing survives at its outer edges; new internal rows add
+no space-before/after. Justified paragraphs retain full justification on new
+nonfinal rows and the original alignment on their true final row. Original
+formatting is saved for restoration. Overset remainder retains its baseline.
+
+Replace restores the owned spaces/soft breaks before composing again. Cancel
+restores the starting document; Apply keeps one named Undo. + Add property can
+keep Line length before a tracking, color or other draft. Kept widths remain
+paragraph indents; a later font/tracking change can wrap those paragraphs again.
+Manual text edits invalidate ownership: disable Replace to adopt the current
+paragraphs as a new baseline. Never remove unverified owned returns silently.
+
+Row-count changes are refitted for up to eight passes. If the count cycles,
+Auto-stabilize retains the last safe fitted widths and reports Fixed sampling
+and the sampled row count; final rows may not span the entire curve. Disable
+Auto-stabilize for strict rejection. The requested Min/Max are never rescaled.
+Very narrow widths that cannot fit a whole word report an error and roll back.
+
+See visual-guide examples 16 (long Gaussian) and 17 (short linear).
+
 TARGETS
 
 Scope:
@@ -422,7 +466,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-106 automated checks passed. Coverage includes 108 unit/group/target
+114 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -463,6 +507,11 @@ color/axis/contour/text-edit stages retain full replay, as do stale text
 signatures. Native bulk reads have scalar fallbacks. Metrics retain both
 position-correction passes and every eligible label. Composition convergence,
 replacement baselines, Cancel restoration and the single Undo action remain.
+
+The Line length addition passed 77 focused native assertions, including the
+actual UI, row widths, spacing, justification, overset, replacement and stacks.
+The visual guide now has three A2 pages, seventeen examples and 25 editable
+specimen frames. Its exported PDF was rendered and visually reviewed.
 
 ADOBE REFERENCES
 

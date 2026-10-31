@@ -1,5 +1,5 @@
 #target "indesign"
-/* Build the editable, two-page Tracking Ramp specimen using the actual v5 engine.
+/* Build the editable, three-page Tracking Ramp specimen using the actual v5 engine.
  * Run from this folder beside the shipped Tracking Ramp source checkout.
  * Outputs are recreated beside this script. No existing document is edited.
  */
@@ -210,13 +210,37 @@
         text("Page 2 - footer paragraph label","ONE CURVE PER SCOPE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 2 - footer paragraph","Indent properties use Paragraph, Both and Never restart. Curves run across the selected paragraphs without splitting their formatting.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
         text("Page 2 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v5.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
+        // Page 3 demonstrates managed, independently indented rows.
+        page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
+        box("Page 3 - white paper",[0,0,H,W],paper,ground);
+        text("Page 3 - eyebrow","TRACKING RAMP 5  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 3 - format","03  /  LINE LENGTH",[44,W-310,66,W-48],st.eye);
+        text("Page 3 - title","A changing measure.",[79,45,159,W-48],st.title);
+        text("Page 3 - introduction","One width for each fitted line. The remaining space becomes equal left and right indents.\rExtra paragraph breaks are managed by the script; original paragraph boundaries are retained.",[169,48,218,W-48],st.intro);
+        section("16","A longer bell","Line length / Gaussian / 45 to 100% of usable frame width / Auto steps\rValues per: Line / Change: Both / Restart: Never / Current frame",246);
+        var lengthPassage="The light fades slowly enough that we almost miss the change. A curtain gives up its blue, a table loses the hard edge of its shadow, and the afternoon makes a softer shape around the room. Nothing has gone, yet everything has moved a little further into memory. We read the same words again and find more space around them. The measure opens toward the middle, holding a longer breath, then draws inward as the passage reaches its end.\rA photograph remains beside the window. Its colors have grown quiet, but the face is still there. Fading can be a way of staying: less exact, less certain, and still recognizable. What remains asks us to look more slowly, until the last lines gather around a small and familiar trace.";
+        f=specimen("16 - Line length - long Gaussian centered 45-100 percent",lengthPassage,[354,96,965,W-96],23,34);
+        var lengthResult=apply(f,{scope:0,property:"lineLength",mode:"line",target:"both",curve:"gaussian",min:45,max:100});
+        require(lengthResult.lineLength&&lengthResult.managedParagraphs>0,"Line-length bell must create managed rows.");
+        for(var row=0;row<lengthResult.units.length;row++){var para=f.parentStory.characters.item(lengthResult.units[row].spans[0].start).paragraphs.firstItem();require(para.lines.length===1,"Guide line-length paragraph must occupy one row.");require(Math.abs(Number(para.leftIndent)-Number(para.rightIndent))<.001,"Guide row must be centered.");}
+        section("17","A shorter ramp","Line length / Linear / 40 to 100% of usable frame width / Auto steps\rWider rows take more words. These are available widths, not exact ink lengths.",1012);
+        f=specimen("17 - Line length - short linear centered 40-100 percent","A trace remains. The color leaves first, then the sharp edges of the room. What stays is a rhythm: a few words held close, a longer sentence opening into light, and the quiet after it.",[1122,96,1465,W-96],30,44);
+        apply(f,{scope:0,property:"lineLength",mode:"line",target:"both",curve:"linear",min:40,max:100});
+        box("Page 3 - footer rule",[1538,48,1538.5,W-48],rule,ground);
+        text("Page 3 - footer try label","TRY A DIFFERENT CURVE",[1553,48,1572,48+cw],st.eye);
+        text("Page 3 - footer try","Select specimen 16 or 17. Choose Line length - centered, set Min/Max percentages, then change the curve or steps.",[1578,48,1630,48+cw],st.foot);
+        text("Page 3 - footer restore label","REPLACE & RESTORE",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
+        text("Page 3 - footer restore","Replace restores owned word gaps before refitting. Cancel restores the starting document. Apply keeps one Undo action.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
+        text("Page 3 - footer frame label","ONE RECTANGULAR FRAME",[1553,48+2*(cw+gap),1572,W-48],st.eye);
+        text("Page 3 - footer frame","Use one unthreaded, rectangular frame with one column. Paragraph-aware styles may repeat on the new line paragraphs.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
+        text("Page 3 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v5.0.0   /   Centered per-line measures",[1650,48,1670,W-48],st.note);
         doc.recompose();
         for(var i=0;i<allText.length;i++){
             var tf=allText[i];
             if(tf.overflows&&!tf.extractLabel("TrackingRamp.guide.expectedOverset"))log("OVERSET "+tf.name);
         }
         doc.metadataPreferences.documentTitle="Fading, by degrees. - Tracking Ramp visual guide";
-        doc.metadataPreferences.description="Two editable A2 specimen sheets demonstrating Tracking Ramp 5 text curves, metrics, scopes, and frame contours. Generated with the actual script engine.";
+        doc.metadataPreferences.description="Three editable A2 specimen sheets demonstrating Tracking Ramp 5 text curves, metrics, scopes, and frame contours. Generated with the actual script engine.";
         ground.locked=true;labels.locked=true;doc.activeLayer=examples;
         var indd=File(folder.fsName+"/Tracking Ramp - Visual Guide.indd");doc.save(indd);
         doc.exportFile(ExportFormat.INDESIGN_MARKUP,File(folder.fsName+"/Tracking Ramp - Visual Guide.idml"),false);

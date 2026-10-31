@@ -295,9 +295,9 @@
 
     function isParagraphProperty(id) { return /^(leftIndent|rightIndent|firstLineIndent)$/.test(id); }
     function effectiveSettings(settings) {
-        if (!isParagraphProperty(settings.property)) { return settings; }
+        if (!isParagraphProperty(settings.property) && settings.property !== "lineLength") { return settings; }
         var copy = {}; for (var key in settings) { copy[key] = settings[key]; }
-        copy.mode = "paragraph"; copy.restart = "never"; copy.target = "both";
+        copy.mode = settings.property === "lineLength" ? "line" : "paragraph"; copy.restart = "never"; copy.target = "both";
         return copy;
     }
     function captureEffect(story, bounds, settings) {
@@ -584,7 +584,8 @@
             underlineOffset: ["Underline offset", "pt", -1000, 1000, 0, 8, false],
             leftIndent: ["Paragraph left indent", "pt", 0, 1000, 0, 36, false],
             rightIndent: ["Paragraph right indent", "pt", 0, 1000, 0, 36, false],
-            firstLineIndent: ["Paragraph first-line indent", "pt", -1000, 1000, 0, 36, false]
+            firstLineIndent: ["Paragraph first-line indent", "pt", -1000, 1000, 0, 36, false],
+            lineLength: ["Line length", "% frame width", 1, 100, 40, 100, false]
         };
         if (id === "designAxes") {
             if (!axis) { return { label: "Variable-font axis", unit: "axis units", low: 0, high: 1000, min: 0, max: 1000, integer: false }; }
@@ -595,6 +596,7 @@
         return { label: info[0], unit: info[1], low: info[2], high: info[3], min: info[4], max: info[5], integer: info[6] };
     }
     function propertiesFor(settings) {
+        if (settings.property === "lineLength") { return ["leftIndent", "rightIndent", "firstLineIndent", "lastLineIndent", "spaceBefore", "spaceAfter", "hyphenation", "keepWithNext", "keepAllLinesTogether", "keepLinesTogether", "startParagraph", "justification"]; }
         if (/^underline/.test(settings.property)) { return ["underline", settings.property]; }
         if (/^stroke/.test(settings.property)) { return ["strokeWeight", "strokeColor", "strokeTint"]; }
         return [settings.property];
@@ -602,7 +604,7 @@
     function readProperty(character, property) {
         var value;
         try { value = character[property]; } catch (_) { return null; }
-        if (property === "underline") { return !!value; }
+        if (/^(underline|hyphenation|keepAllLinesTogether|keepLinesTogether)$/.test(property)) { return !!value; }
         if (/^(strokeColor|fillColor)$/.test(property)) { return { swatch: value.id, name: value.name }; }
         if (property === "designAxes") {
             if (!axisInfo(character.appliedFont).length) { return null; }
@@ -621,13 +623,13 @@
             if (!swatch.isValid) { swatch = doc.swatches.itemByName(value.name); }
             if (!swatch.isValid) { fail("A saved stroke swatch is no longer available."); }
             range[property] = swatch;
-        } else { range[property] = property === "underline" ? !!value : value; }
+        } else { range[property] = /^(underline|hyphenation|keepAllLinesTogether|keepLinesTogether)$/.test(property) ? !!value : value; }
     }
     function takeSnapshot(story, properties) {
         var count = story.characters.length, characters = null, rows = [], previousKey = null, columns = {};
         for (var b = 0; b < properties.length; b++) {
             var prop = properties[b];
-            if (/^(strokeColor|fillColor|designAxes|underline)$/.test(prop)) { continue; }
+            if (/^(strokeColor|fillColor|designAxes|underline|hyphenation|keepAllLinesTogether|keepLinesTogether)$/.test(prop)) { continue; }
             try {
                 var bulk = story.characters.everyItem()[prop];
                 if (bulk instanceof Array && bulk.length === count) { columns[prop] = bulk; }
@@ -651,7 +653,7 @@
         for (var i = 0; i < rows.length; i++) {
             if (rows[i].start < 0 || rows[i].end >= story.characters.length || rows[i].end < rows[i].start) { fail("Saved text bounds no longer match this story."); }
             for (var property in rows[i].values) {
-                if (!/^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|strokeWeight|strokeColor|strokeTint|fillColor|fillTint|designAxes|underline|underlineWeight|underlineOffset|leftIndent|rightIndent|firstLineIndent)$/.test(property)) { fail("Unsupported saved property."); }
+                if (!/^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|strokeWeight|strokeColor|strokeTint|fillColor|fillTint|designAxes|underline|underlineWeight|underlineOffset|leftIndent|rightIndent|firstLineIndent|lastLineIndent|spaceBefore|spaceAfter|hyphenation|keepWithNext|keepAllLinesTogether|keepLinesTogether|startParagraph|justification)$/.test(property)) { fail("Unsupported saved property."); }
                 writeProperty(story, rows[i], property, rows[i].values[property], doc);
             }
         }
@@ -1125,7 +1127,9 @@
     function remapHistory(history, indices, removing, before, after) {
         for (var property in history.effects) {
             var effect = history.effects[property];
-            if (effect.signature === before) { effect.original = remapSnapshot(effect.original, indices, removing); effect.signature = after; }
+            if (effect.signature === before) { effect.original = remapSnapshot(effect.original, indices, removing); effect.signature = after;
+                if (effect.breaks) { for (var b = 0; b < effect.breaks.length; b++) { var position = effect.breaks[b].index; effect.breaks[b].index = removing ? position - countAtOrBefore(indices, position) : position + countAtOrBefore(indices, position); } }
+            }
         }
     }
     function isSoftLineBreak(value) {
@@ -1199,12 +1203,152 @@
         for (var i = 0; i < plan.units.length; i++) { units.push(plan.units[i]); values.push(plan.distribution.values[i]); }
         return { settings: plan.settings, units: units, distribution: { values: values } };
     }
+    // Line-length composition is isolated from the character-property solver.
+    // Whitespace is replaced, rather than deleted/inserted: character indices
+    // and formatting histories remain stable, including kept numeric stages.
+    function centeredLineInsets(usable, percent) {
+        if (!(usable > 0 && percent >= 1 && percent <= 100 && usable * percent / 100 >= 1)) { fail("Line length must be 1–100% and leave at least 1 pt of usable width."); }
+        var inset = usable * (1 - percent / 100) / 2;
+        return { leftIndent: inset, rightIndent: inset };
+    }
+    function layoutLineLengths(adapter, settings, initialCount) {
+        var count = Math.max(1, initialCount), seen = {}, result;
+        for (var pass = 1; pass <= 8; pass++) {
+            seen[count] = true; adapter.reset();
+            var distribution = buildDistribution(count, settings), rows = [], values = [], row;
+            for (var i = 0; i < 2000; i++) {
+                var percent = distribution.values[Math.min(i, distribution.values.length - 1)];
+                row = adapter.next(percent); if (!row) { break; }
+                rows.push(row); values.push(percent);
+            }
+            if (i === 2000) { fail("Line length is limited to 2000 visible rows per frame."); }
+            if (!rows.length) { fail("No text fits at this line length. Increase Min or enlarge the frame."); }
+            result = { rows: rows, values: values, distribution: distribution, passes: pass, fixedSampling: false };
+            if (rows.length === count) { return result; }
+            if (seen[rows.length] || pass === 8) {
+                if (settings.autoStabilize === false) { fail("Line length composition oscillates. Enable Auto-stabilize or change the curve/range."); }
+                result.fixedSampling = true; return result;
+            }
+            count = rows.length;
+        }
+        return result;
+    }
+    function retagTextHistory(story, history, before, after) {
+        for (var key in history.effects) { if (history.effects[key].signature === before) { history.effects[key].signature = after; } }
+        var raw = story.extractLabel(LINE_LOCK_KEY);
+        if (raw) { var locks = decode(raw); if (locks.signature === before) { locks.signature = after; story.insertLabel(LINE_LOCK_KEY, encode(locks)); } }
+    }
+    function restoreLengthBreaks(story, history, settings) {
+        var effect = history.effects.lineLength;
+        if (settings.property !== "lineLength" || settings.textEnabled === false || !effect || !effect.breaks || !settings.replace) { return; }
+        var before = signature(story);
+        if (effect.signature !== before) { fail("Text changed after Line length. Disable Replace to keep the current paragraphs and start a new baseline."); }
+        for (var i = 0; i < effect.breaks.length; i++) {
+            var b = effect.breaks[i];
+            if (b.index < 0 || b.index >= story.characters.length || b.index !== Math.floor(b.index) ||
+                    story.characters.item(b.index).contents !== "\r" || (i && b.index <= effect.breaks[i - 1].index) || typeof b.contents !== "string" || !/^[ \t\n]$/.test(b.contents)) { fail("Saved Line length paragraphs no longer match this story."); }
+        }
+        for (i = effect.breaks.length - 1; i >= 0; i--) { var saved = effect.breaks[i]; story.characters.item(saved.index).contents = saved.contents; }
+        retagTextHistory(story, history, before, signature(story)); story.recompose();
+    }
+    function lineLengthFrame(target) {
+        var frame = target.frame, story = target.story;
+        if (!frame || story.textContainers.length !== 1 || typeName(story.textContainers[0]) !== "TextFrame") { fail("Line length currently requires one unthreaded text frame."); }
+        var base = frameBase(frame), path = base.path;
+        if (frame.extractLabel(SHAPE_KEY) || path.length !== 4) { fail("Line length requires a rectangular frame. Disable its Line width contour first."); }
+        for (var i = 0; i < path.length; i++) {
+            if (path[i].length !== 2 || path[i][0] instanceof Array ||
+                    (Math.abs(path[i][0] - base.bounds[1]) > .01 && Math.abs(path[i][0] - base.bounds[3]) > .01) ||
+                    (Math.abs(path[i][1] - base.bounds[0]) > .01 && Math.abs(path[i][1] - base.bounds[2]) > .01)) { fail("Line length requires a rectangular frame."); }
+        }
+        var paragraphs = story.paragraphs.everyItem().getElements();
+        for (i = 0; i < paragraphs.length; i++) {
+            if (paragraphs[i].bulletsAndNumberingListType != ListType.NO_LIST || (paragraphs[i].dropCapCharacters > 0 && paragraphs[i].dropCapLines > 1)) { fail("Line length currently supports ordinary paragraphs without automatic lists or drop caps."); }
+        }
+        return { frame: frame, usable: base.bounds[3] - base.bounds[1] - 2 * base.pad };
+    }
+    function applyLineLength(target, settings, original, history) {
+        var story = target.story, doc = target.document, geometry = lineLengthFrame(target), frame = geometry.frame;
+        if (settings.min > settings.max) { fail("Line length Min must not exceed Max."); }
+        centeredLineInsets(geometry.usable, settings.min); centeredLineInsets(geometry.usable, settings.max);
+        var breaks = [], cursor = 0, touchedEnd = -1, initial = frame.lines.length;
+        var before = signature(story);
+        function reset() {
+            for (var b = breaks.length - 1; b >= 0; b--) { story.characters.item(breaks[b].index).contents = breaks[b].contents; }
+            breaks = []; restoreSnapshot(story, original, doc); story.recompose(); cursor = 0; touchedEnd = -1;
+        }
+        var fitted = layoutLineLengths({ reset: reset, next: function (percent) {
+            if (cursor >= story.characters.length) { return null; }
+            var visible = visibleBounds(frame); if (!visible || cursor > visible.end) { return null; }
+            var paragraph = story.characters.item(cursor).paragraphs.firstItem().getElements()[0], pb = boundsOf(paragraph);
+            if (pb.start !== cursor) { fail("Line length could not isolate the next paragraph."); }
+            var savedBefore = Number(paragraph.spaceBefore), savedAfter = Number(paragraph.spaceAfter), savedJustification = paragraph.justification;
+            var insets = centeredLineInsets(geometry.usable, percent);
+            paragraph.properties = { leftIndent: insets.leftIndent, rightIndent: insets.rightIndent, firstLineIndent: 0, lastLineIndent: 0,
+                spaceBefore: savedBefore, spaceAfter: 0, hyphenation: false, keepWithNext: 0, keepAllLinesTogether: false, keepLinesTogether: false, startParagraph: StartParagraph.ANYWHERE };
+            story.recompose(); visible = visibleBounds(frame);
+            if (!visible || cursor > visible.end) { restoreSnapshot(story, filterSnapshot(original, touchedIndices([{ spans: [pb] }])), doc); story.recompose(); return null; }
+            var lines = frame.lines, line = null;
+            for (var l = 0; l < lines.length; l++) { var lb = boundsOf(lines.item(l)); if (lb && lb.start === cursor) { line = lb; break; } }
+            if (!line) { fail("Line length could not measure the next visible row."); }
+            var inkStart = line.start, inkEnd = line.end;
+            while (inkStart <= inkEnd && contentKind(story.characters.item(inkStart).contents) !== "text") { inkStart++; }
+            while (inkEnd >= inkStart && contentKind(story.characters.item(inkEnd).contents) !== "text") { inkEnd--; }
+            if (inkStart <= inkEnd) {
+                var measured;
+                try { measured = Math.abs(Number(story.characters.item(inkEnd).endHorizontalOffset) - Number(story.characters.item(inkStart).horizontalOffset)); }
+                catch (_) { fail("A word cannot fit this line length without splitting. Increase Min or reduce the font size."); }
+                if (!isFinite(measured) || measured > geometry.usable * percent / 100 + .5) { fail("A word cannot fit this line length without splitting. Increase Min or reduce the font size."); }
+            }
+            var end = line.end, boundary = -1, replacement = "", last = story.characters.item(end).contents;
+            if (last === "\r" || end === story.characters.length - 1) { boundary = end; }
+            else {
+                // Prefer the last breakable space already composed in this row.
+                if (last === " " || last === "\t" || isSoftLineBreak(last)) { boundary = end; replacement = isSoftLineBreak(last) ? "\n" : last; }
+                else if (end + 1 < story.characters.length) {
+                    var next = story.characters.item(end + 1).contents;
+                    if (next === " " || next === "\t" || isSoftLineBreak(next)) { boundary = end + 1; replacement = isSoftLineBreak(next) ? "\n" : next; }
+                }
+                if (boundary < 0) { fail("A word cannot fit this line length without splitting. Increase Min or reduce the font size."); }
+            }
+            if (replacement) {
+                breaks.push({ index: boundary, contents: replacement }); story.characters.item(boundary).contents = "\r";
+                var following = story.characters.item(boundary + 1).paragraphs.firstItem().getElements()[0];
+                following.spaceBefore = 0; following.spaceAfter = savedAfter; following.justification = savedJustification;
+                if (savedJustification == Justification.LEFT_JUSTIFIED || savedJustification == Justification.CENTER_JUSTIFIED || savedJustification == Justification.RIGHT_JUSTIFIED) { paragraph.justification = Justification.FULLY_JUSTIFIED; }
+            } else { paragraph.spaceAfter = savedAfter; }
+            // Original paragraph spacing survives only at its outer edges.
+            cursor = boundary + 1; touchedEnd = boundary; story.recompose();
+            var result = { spans: [{ start: line.start, end: boundary }], percent: percent };
+            if (!replacement && last !== "\r" && boundary === story.characters.length - 1) { cursor = story.characters.length; }
+            return result;
+        } }, settings, initial);
+        // The outgoing remainder is a separate paragraph: restore its baseline
+        // instead of leaving the most recently tried width on overset text.
+        if (cursor < story.characters.length) {
+            restoreSnapshot(story, filterSnapshot(original, touchedIndices([{ spans: [{ start: cursor, end: story.characters.length - 1 }] }])), doc); story.recompose();
+        }
+        retagTextHistory(story, history, before, signature(story));
+        var data = capture(story, visibleBounds(frame)), distribution = fitted.distribution, sampleCount = distribution.values.length;
+        distribution.values = fitted.values; distribution.minSteps = distribution.steps;
+        var group = { start: 0, end: touchedEnd, structureIndex: 0, count: fitted.rows.length, offset: 0, distribution: distribution };
+        var plan = { settings: settings, data: data, units: fitted.rows, groups: [group], distribution: distribution,
+            passes: fitted.passes, composition: true, fixedSampling: fitted.fixedSampling, lineLength: true, sampleCount: sampleCount,
+            shortGroups: distribution.steps < 3 ? 1 : 0, managedParagraphs: breaks.length, breaks: breaks, textEdits: [] };
+        history.effects.lineLength = { signature: signature(story), original: filterSnapshot(original, touchedIndices(fitted.rows)), settings: settings, breaks: breaks };
+        story.insertLabel(HISTORY_KEY, encode(history));
+        plan.metricsFrames = settings.metrics ? addMetrics(target, plan) : 0;
+        return plan;
+    }
+
     function applyEffect(target, settings) {
         settings = effectiveSettings(settings);
         var story = target.story, doc = target.document;
         var history = { version: 3, effects: {} }, raw = story.extractLabel(HISTORY_KEY);
         if (raw) { history = decode(raw); if (history.version !== 3 || !history.effects) { fail("Unsupported saved effect history."); } }
         var selectedScope = target.scopes[settings.scope], scope = { kind: selectedScope.kind, bounds: selectedScope.bounds };
+        if (settings.property === "lineLength" && settings.textEnabled !== false && scope.kind !== "frame") { fail("Line length uses Current frame scope."); }
+        restoreLengthBreaks(story, history, settings);
         var removedBreaks = restoreOwnedLineBreaks(story, history, scope, settings), textEdits = [];
         if (removedBreaks) { textEdits.push({ positions: removedBreaks, removing: true }); }
         var effectKey = settings.property;
@@ -1234,6 +1378,7 @@
         if (!bounds) { fail("This frame has no visible text. Choose Entire story."); }
         var properties = propertiesFor(settings);
         var original = takeSnapshot(story, properties);
+        if (settings.property === "lineLength" && settings.textEnabled !== false) { return applyLineLength(target, settings, original, history); }
         var cleared = null;
         if (settings.textEnabled !== false && settings.property === "tracking" && settings.clearTracking) {
             cleared = { start: bounds.start, end: bounds.end };
@@ -1363,7 +1508,7 @@
         return false;
     };
     PreviewSession.prototype.hasKeptWidth = function () {
-        for (var i = 0; i < this.stages.length; i++) { if (this.stages[i].settings.frameWidth && this.stages[i].settings.frameWidth.enabled) { return true; } }
+        for (var i = 0; i < this.stages.length; i++) { if (this.stages[i].settings.property === "lineLength" || (this.stages[i].settings.frameWidth && this.stages[i].settings.frameWidth.enabled)) { return true; } }
         return false;
     };
     PreviewSession.prototype.rollback = function () {
@@ -1579,8 +1724,8 @@
         var restart = dropdown(row(targetPanel), "Restart curve per", ["Never — entire scope", "Word", "Sentence", "Paragraph", "Line — resulting composition", "Frame — resulting composition"], 320);
         restart.helpTip = "Each group receives the complete curve. Units crossing group boundaries are split. Min/Max and steps are shared by every group.";
         var propRow = row(targetPanel);
-        var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint", "underlineWeight", "underlineOffset", "leftIndent", "rightIndent", "firstLineIndent"];
-        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Paragraph left indent", "Paragraph right indent", "Paragraph first-line indent"];
+        var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint", "underlineWeight", "underlineOffset", "leftIndent", "rightIndent", "firstLineIndent", "lineLength"];
+        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Paragraph left indent", "Paragraph right indent", "Paragraph first-line indent", "Line length — centered"];
         var property = dropdown(propRow, "Property", propertyLabels, 220);
         var previousStructure = null;
         var axis = dropdown(propRow, "Axis", ["Select a variable font"], 215);
@@ -1644,7 +1789,7 @@
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
         var lastValid = { curve: "linear", power: 2, width: 22, invert: false };
         var lastPreview = 0, dragOrigin = null, switching = false, editorTrack = 0, previewIndex = 0;
-        var windowClosed = false, sliderAdjusting = false;
+        var windowClosed = false, sliderAdjusting = false, previousLengthScope = null;
         var inputDelay = new PreviewDelay(350, function () { refresh(true); }, {
             now: function () { return new Date().getTime(); },
             wait: typeof $ !== "undefined" && $.sleep ? function (milliseconds) { $.sleep(milliseconds); } : null,
@@ -1781,7 +1926,7 @@
             if (editorTrack && !widthOptions.linked) { copyCurve(result, widthOptions.curve); copyCurve(textCurve, result); }
             else { copyCurve(result, textCurve); }
             if (widthOptions.linked) { widthOptions.curve = decode(encode(textCurve)); }
-            result.textEnabled = textEnabled.value; result.frameWidth = session.hasKeptWidth() ? null : decode(encode(widthOptions));
+            result.textEnabled = textEnabled.value; result.frameWidth = session.hasKeptWidth() || id === "lineLength" ? null : decode(encode(widthOptions));
             if (!result.textEnabled && (!result.frameWidth || !result.frameWidth.enabled)) { fail("Enable a text property or Line width."); }
             return effectiveSettings(result);
         }
@@ -1797,6 +1942,8 @@
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
             if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
             if (result.fixedSampling) { summary.text += " / Fixed sampling"; }
+            if (result.lineLength && result.fixedSampling) { summary.text += " / sampled " + result.sampleCount + " rows"; }
+            if (result.lineLength) { summary.text += " / " + result.managedParagraphs + " managed paragraph breaks"; }
             if (result.lockedBreaks) { summary.text += " / " + result.lockedBreaks + " fixed line breaks"; }
             var displayed = selectedDistribution(result);
             if (editorTrack) {
@@ -1813,6 +1960,7 @@
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
             if (isParagraphProperty(settings.property)) { text += " Indents apply to whole intersecting paragraphs, including text beyond the selected scope. One curve runs across those paragraphs."; }
             if (/^underline/.test(settings.property)) { text += " Underlining is enabled on the targets. Offset is measured from the baseline; positive values move it downward."; }
+            if (settings.property === "lineLength") { text += " Available width is centered using left/right indents. Each fitted row is a paragraph; Replace restores the managed breaks. Original paragraph spacing is kept at its outer edges."; }
             if (settings.property === "baselineShift") { text += " Baseline shift moves glyphs without increasing leading."; }
             if (/^(characterRotation|skew|horizontalScale|verticalScale)$/.test(settings.property)) { text += " Large transforms can overlap or extend beyond the frame; rotation wraps at 360 degrees."; }
             if (dragging && settings.metrics) { text += " Metrics update on release."; }
@@ -1836,16 +1984,24 @@
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = addProperty.enabled = false; error.text = " ";
+                var lengthProperty = propertyIDs[property.selection.index] === "lineLength";
                 var paragraphProperty = isParagraphProperty(propertyIDs[property.selection.index]);
-                if (paragraphProperty && !previousStructure) { previousStructure = [mode.selection.index, change.selection.index, restart.selection.index]; }
+                if ((paragraphProperty || lengthProperty) && !previousStructure) { previousStructure = [mode.selection.index, change.selection.index, restart.selection.index]; }
                 switching = true;
                 try {
-                    if (paragraphProperty) { mode.selection = 4; change.selection = 2; restart.selection = 0; }
+                    if (lengthProperty) { mode.selection = 1; change.selection = 2; restart.selection = 0;
+                        if (previousLengthScope === null) { previousLengthScope = scope.selection.index; }
+                        var frameScope = -1; for (var fs = 0; fs < target.scopes.length; fs++) { if (target.scopes[fs].kind === "frame") { frameScope = fs; break; } }
+                        if (frameScope < 0) { fail("Select a visible text frame for Line length."); } scope.selection = frameScope;
+                    }
+                    else if (paragraphProperty) { mode.selection = 4; change.selection = 2; restart.selection = 0; }
                     else if (previousStructure) { mode.selection = previousStructure[0]; change.selection = previousStructure[1]; restart.selection = previousStructure[2]; previousStructure = null; }
                 } finally { switching = false; }
-                mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty;
+                if (!lengthProperty && previousLengthScope !== null) { scope.selection = previousLengthScope; previousLengthScope = null; }
+                scope.enabled = !lengthProperty;
+                mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty && !lengthProperty;
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = textEnabled.value;
-                widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth();
+                widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);
@@ -1927,14 +2083,16 @@
             }
             try { session.rollback(); } catch (e) { error.text = e.message; return; }
             savedRanges[lastProperty] = [minInput.text, maxInput.text];
-            var id = propertyIDs[property.selection.index];
+            var id = propertyIDs[property.selection.index], returnToTextCurve = id === "lineLength" && editorTrack;
+            if (returnToTextCurve) { editorTrack = 0; curveTrack.selection = 0; }
             axis.enabled = id === "designAxes"; strokeRow.enabled = /^stroke/.test(id) || id === "fillColor";
             colorB.enabled = /^(strokeColor|fillColor)$/.test(id); strokeWidth.enabled = /^stroke/.test(id) && id !== "strokeWeight";
             clearTracking.enabled = id === "tracking";
             updateAxes(); var selectedAxis = axes[axis.selection.index];
             var info = propertyInfo(id, selectedAxis), saved = savedRanges[id];
             minInput.text = saved ? saved[0] : String(info.min); maxInput.text = saved ? saved[1] : String(info.max);
-            unitLabel.text = info.unit; lastProperty = id; refresh(true);
+            unitLabel.text = info.unit; lastProperty = id;
+            if (returnToTextCurve) { loadEditor(textCurve); } else { refresh(true); }
         }
         function curveChanged() {
             if (switching) { return; }

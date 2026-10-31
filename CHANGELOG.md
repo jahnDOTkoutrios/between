@@ -4,6 +4,11 @@
 
 Additional features and fixes published without changing the version number:
 
+- Add Line length — centered: percentage widths per fitted row, equal left/right indents, and managed paragraph breaks. Keep original paragraph boundaries and spacing at their outer edges.
+- Preserve text indices by replacing owned whitespace; restore and refit on replacement, and retain cross-property histories through managed tracking breaks.
+- Support curves, steps, stacking, printable metrics, Cancel and a single Undo. Restrict the first pass to one ordinary unthreaded rectangular frame.
+- Extend the minimal editable visual guide to three A2 pages, adding long Gaussian and short linear line-length examples.
+
 - Debounce numeric previews until typing pauses for 350 ms; keep Apply immediate and discard pending work on Cancel.
 - Update slider fields and graphs during dragging; defer document composition and metrics to release. Throttle custom-curve previews from calculation completion and rebuild metrics on curve release.
 - Batch native text/metrics reads and writes, retaining scalar fallbacks and both annotation correction passes.

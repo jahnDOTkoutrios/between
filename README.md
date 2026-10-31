@@ -9,9 +9,10 @@ runtime dependencies are needed in InDesign.
 
 ## Visual guide
 
-A minimal, two-page A2 visual guide with short and long fading-themed text,
-15 labeled examples, and 23 named editable specimen frames. The second page
-covers underline weight, underline offset, and paragraph indents.
+A minimal, three-page A2 visual guide with short and long fading-themed text,
+17 labeled examples, and 25 named editable specimen frames. The second page
+covers underline weight, underline offset, and paragraph indents. The third
+page adds long and short Line length specimens.
 
 [View the PDF](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Download INDD](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -60,12 +61,13 @@ Examples:
 
 ## Features
 
-- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, and left/right/first-line paragraph indents.
+- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, left/right/first-line paragraph indents, and centered per-line length.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
 - **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Sliders update the graph during dragging and the document on release. Custom-curve document previews remain throttled.
 - **Live preview and stacking:** adjust one property, click **+ Add property**, choose the next property, and continue. A read-only Kept strip and Undo addition appear for stacks. Apply all commits one named Undo transaction; Cancel restores the whole session.
 - **Auto-stabilize composition:** starts with exact resulting composition, then tries managed tracking breaks if needed. Remaining cycles use **Fixed sampling**, retaining assigned values while allowing text to reflow. The status identifies the fallback; Min/Max are not rescaled.
+- **Line length — centered:** fit each visible row at a curve-driven percentage of frame width, with equal left/right indents and managed paragraph breaks. Reapply restores owned whitespace before refitting; Cancel/Undo restores the original structure.
 - **Frame contour:** minimum/maximum available width in %, pt, or mm; left/center/right anchoring; smooth or stepped sides; linked or independent curve.
 - **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
@@ -85,6 +87,13 @@ version. Formatting matched the baseline, including all 462 labels and their
 positions. These are local measurements, not timing guarantees. See
 [performance notes](docs/PERFORMANCE.md) for the method and safeguards.
 
+<details>
+<summary>Line length examples</summary>
+
+![Centered line-length specimens](docs/visual-guide/preview-line-length.png)
+
+</details>
+
 ## Important behavior
 
 - Tracking **Letters** preserves the outgoing word gap, including the final glyph's tracking before a space. A single-letter word may have no internal tracking target.
@@ -95,6 +104,7 @@ positions. These are local measurements, not timing guarantees. See
 - Each property can appear once per stack. Kept values are frozen; Undo addition returns the last kept effect to editing and discards the current draft. A kept contour remains fixed while adding further properties. After manual text edits, disable Replace to adopt existing managed breaks as ordinary text.
 - Underline properties enable underlining on eligible targets and preserve original automatic values for replacement/Cancel.
 - Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph, Change is Both, and Restart is Never; previous structure choices return when selecting another property.
+- Line length uses Current frame / Line / Both / Never. It requires one unthreaded rectangular frame with one ordinary column, equal insets, auto-sizing off and no frame transform. Automatic lists/drop caps are excluded. It changes the paragraph structure; paragraph-aware styles may repeat.
 - Frame contour shapes only the selected frame. It requires one ordinary column, equal insets, auto-sizing off, and an unrotated/unsheared frame at 100% scale.
 - Baseline shift does not increase leading. Large scale, skew, rotation, or shift values can overlap text or extend beyond a frame.
 - Multiple-frame selection, table cells, notes, text on paths, and grouped-frame selection are not supported.
@@ -110,7 +120,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **106 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **114 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
@@ -118,5 +128,9 @@ point it at another script file.
 The v5 implementation also passed **231 checks in native InDesign 2026 on macOS**
 during development. See [verification notes](docs/VERIFICATION.md) for the
 coverage and a manual smoke-test procedure.
+
+The Line length follow-up also passed **77 focused native assertions**, covering
+row fitting, restoration, spacing, justification, overset, stacking and the actual
+UI. The three-page guide was rebuilt with the actual engine and visually checked.
 
 [Version notes](CHANGELOG.md)

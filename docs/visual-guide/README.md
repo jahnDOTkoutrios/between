@@ -1,6 +1,6 @@
 # Fading, by degrees.
 
-Two A2 pages, fifteen examples. The effects were applied in InDesign 2026 by the
+Three A2 pages, seventeen examples. The effects were applied in InDesign 2026 by the
 actual Tracking Ramp v5 engine. Labels stay neutral so the text does the work.
 
 [PDF](Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
@@ -11,10 +11,12 @@ actual Tracking Ramp v5 engine. Labels stay neutral so the text does the work.
 
 ![Underline and paragraph-indent specimens](preview-underlines.png)
 
+![Centered line-length specimens](preview-line-length.png)
+
 ## Try it
 
 Open the INDD or IDML. Expand **02 - Editable numbered specimens** in Layers.
-Select a frame named **01…15 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
+Select a frame named **01…17 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
 Use the printed caption to recreate its settings. Keep **Replace previous effect**
 on to replace the saved effect without accumulating values. To layer different
 properties in one session, use **+ Add property**, then **Apply all**. Example 08A
@@ -39,11 +41,13 @@ on separate locked layers; metrics are on their own printable layer.
 | 13 | Underline weight | Character Linear / Word Gaussian; 0.2–6 pt; Letters |
 | 14 | Underline offset | Character Sine / Word Linear; −2–12 pt; weight held at 1 pt |
 | 15 | Paragraph indents | Left/right 0–72 pt; first line −18–36 pt; four paragraphs |
+| 16 | Longer line-length bell | Line length; Gaussian; centered 45–100%; Current frame |
+| 17 | Shorter line-length ramp | Line length; Linear; centered 40–100%; Current frame |
 
 All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
 one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
 curve runs once across the local scope. Semantic samples use Entire story;
-03 and 11 use Current frame, and 12 uses Entire story across linked frames. Example 10 changes only frame width;
+03, 11, 16 and 17 use Current frame, and 12 uses Entire story across linked frames. Example 10 changes only frame width;
 its faint contour is a guide rule. Example 11 intentionally has overset text:
 the applied frame shows 213 characters versus 234 in the control, and outgoing
 overset retains tracking 0. Example 12 is one continuous story in two frames.
@@ -51,19 +55,19 @@ Metrics remain tracking values even when another property is selected.
 
 ## Files and fonts
 
-The INDD and IDML contain 23 uniquely named specimen frames with saved effect
-history. The PDF has two 420 × 594 mm pages with live, selectable text. Arial,
+The INDD and IDML contain 25 uniquely named specimen frames with saved effect
+history. The PDF has three 420 × 594 mm pages with live, selectable text. Arial,
 Minion Pro, and Acumin Variable Concept were used; font files are not bundled.
 Activate or substitute missing fonts before editing; substitution can reflow text.
 
-[Build Visual Guide.jsx](Build%20Visual%20Guide.jsx) regenerates the page with the
+[Build Visual Guide.jsx](Build%20Visual%20Guide.jsx) regenerates the pages with the
 current repository engine. Keep it in this folder and run it from InDesign's
 Scripts panel. It creates a new document, overwrites the guide INDD/IDML/PDF
 beside the builder, and records `build-report.txt`. Render the PDF again to
-refresh `preview.png` (page 1) and `preview-underlines.png` (page 2). The builder needs the fonts listed above (or its listed
+refresh `preview.png` (page 1), `preview-underlines.png` (page 2), and `preview-line-length.png` (page 3). The builder needs the fonts listed above (or its listed
 fallbacks), including a variable font with a Weight axis.
 
-The export was visually reviewed. All fifteen example headings and twenty-three editable
+The export was visually reviewed. All seventeen example headings and twenty-five editable
 specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.
@@ -71,3 +75,10 @@ visual guide, not an exhaustive compatibility test.
 Auto-stabilize is enabled in the examples. It tries exact composition, managed
 tracking breaks, then Fixed sampling when needed. Fixed sampling keeps assigned
 values as text reflows, so final line groups may differ from the sampled groups.
+
+Examples 16–17 fit rows at curve-driven widths before creating managed paragraph
+returns. Left and right indents share the remaining space equally. These are
+available widths, not exact ink lengths. Replace restores owned whitespace
+before refitting; original paragraph returns remain. Each shaped row is a real
+paragraph, so paragraph-aware styles may repeat. This first pass requires one
+ordinary unthreaded rectangular frame; it cannot combine with a frame contour.

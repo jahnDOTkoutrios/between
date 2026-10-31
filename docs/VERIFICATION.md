@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 106 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 114 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -79,6 +79,28 @@ movement, one full preview on release, final value retained, metrics rebuilt,
 and a single Undo restoring formatting and removing annotations. The previous
 231-assertion broad native run predates this isolated slider change.
 
+## Line length follow-up
+
+Eight additional automated checks cover percentage metadata/structure,
+centered inset math, refitting counts, bounded cycle fallback, strict rejection,
+UI structure/scope restoration, safe owned-whitespace restoration, malformed
+ownership rejection and cross-property soft-break remapping.
+
+77 focused assertions passed in native InDesign 2026: 72 API fixture assertions
+and five actual UI assertions. Coverage includes one paragraph per fitted row,
+equal indents, linear endpoints, wider rows taking more words, Gaussian/custom
+curves and steps, original returns and outer spacing, full justification,
+existing character skew and replacement history, short text, manual soft breaks,
+overset baselines, narrow-width rollback, manual-edit rejection, metrics,
+property stacks, Cancel/reapply and Undo. The UI was checked with a typed 90%
+maximum and the forced Current frame/Line/Both/Never structure.
+
+The rebuilt guide has three A2 pages, 17 examples and 25 editable specimen
+frames. New long Gaussian and short linear specimens use the actual engine.
+The long specimen was checked for one row per paragraph and equal indents;
+all three PDF pages were rendered and visually reviewed. Only the existing
+frame-scope comparison stories intentionally contain overset text.
+
 ## Manual smoke test
 
 Use a disposable document for the checks below.
@@ -128,6 +150,15 @@ Use a disposable document for the checks below.
     exact retained skew, Undo addition, and Apply all. One Undo must remove both.
     Cancel must restore everything, including breaks, swatches and contours.
     Turn draft preview off and confirm only the kept effects remain visible.
+
+14. Select an unthreaded rectangular frame and choose Line length - centered.
+    Try Linear and Gaussian with Min 40/Max 100%, then a fixed step count and
+    Custom curve. Wider rows should fit more words; each fitted row should be
+    a paragraph with equal left/right indents. Cancel restores original returns.
+    Apply and reapply a wider range without accumulating paragraph returns.
+    Try existing paragraph spacing, a short passage and overset. Outgoing
+    overset should keep its baseline. Keep Line length, add Tracking, and Undo
+    the committed stack once. Manual text edits must prevent unsafe replacement.
 
 Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,

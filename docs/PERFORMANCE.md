@@ -48,7 +48,11 @@ still cost time. Numeric input that pauses longer than 350 ms can preview an
 intermediate value. The update does not reduce final curve accuracy, label
 count or composition iteration limits to obtain these gains.
 
-The regression suite passes 106 automated checks and 231 native assertions.
+The regression suite passes 114 automated checks and 231 native assertions.
 A focused native slider rerun also passed eight assertions.
 See [verification](VERIFICATION.md) for scope, platform limits and native
 UI timing-test details.
+
+Line length is a separate, opt-in composition path. It fits rows sequentially
+and can recompose up to eight passes. The earlier timing table does not
+benchmark this new property. Existing numeric/slider input delays also apply.
