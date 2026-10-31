@@ -29,8 +29,9 @@ TARGETS
 
 Scope:
 - Highlighted text: includes only the highlighted bounds, clipping partial words.
-- Current frame: word/character modes target the text visible after resetting
-  the previous effect. Adaptive line mode follows the frame's live composition.
+- Current frame: every unit mode follows the frame's resulting composition.
+  Newly fitting text joins the distribution; text moving out returns to its
+  baseline. Values are recalculated until the final visible range agrees.
 - Entire story: includes linked frames and overset for word/character modes.
 
 Values per:
@@ -252,52 +253,68 @@ METRICS
 
 Enable Metrics 5 pt to add a transparent overlay text frame above each source
 frame containing visible targets. The overlay shows actual tracking values,
-rounded to integers, between the composed text lines and aligned with their
-targets. This remains tracking data even when another property is selected.
+rounded to integers and aligned horizontally with their targets. This remains
+tracking data even when another property is selected.
 
-A unit spanning more than one composed line gets an annotation on each
-visible line fragment. Line anchors follow the composed lines, so baseline
-shift does not create spurious annotation rows. Dense character-level labels
-can overlap because all labels remain 5 pt rather than being silently omitted.
+Each annotation row sits in the gap BELOW its source text row, centered
+between the bottom of that row's glyphs and the top of the next row's glyphs.
+The last row's labels sit below the last line. The positions account for
+shifted baselines and the label font's actual ascent/descent. A unit spanning
+multiple composed lines gets a label for each visible line fragment.
 
-Overlays are on the Tracking Ramp Metrics layer, locked and nonprinting.
-Use Normal view (W) to see them. InDesign hides nonprinting objects in
-Preview mode. They are excluded from normal print/PDF output. To include
-them in output, manually unlock the objects and clear Nonprinting in Attributes.
+Labels remain 5 pt and are not omitted. Tight leading or dense character
+labels can cause clashes: they remain centered, the UI reports tight gaps,
+and source leading is never increased. The overlay is locked on the visible,
+printable Tracking Ramp Metrics layer. Labels show in Normal and Preview
+view and are included in ordinary print/PDF output. Rerun with Metrics enabled
+and Apply to replace overlays created by older nonprinting builds.
 
 Metrics require unrotated, unsheared source frames in this version. If the
 source is transformed, turn Metrics off; the text effect itself can still run.
 The overlay is a snapshot of the committed composition. Rerun the script to
 refresh it after manually editing text or moving/resizing frames.
 
-ADAPTIVE LINE MODE
+RESULTING COMPOSITION / FIXED LINE BREAKS
 
-Line mode now works against the resulting composition, rather than retaining
-v2's original-line targeting. It applies a pass, recomposes, reads the resulting
-frame-owned lines, restores the pass baseline, and recalculates values for
-the new boundaries. It stops when the resulting bounds agree with the plan.
-With live preview on, the status reports how many passes were required.
-With live preview off, composition is calculated when you press Apply.
+Frame scope now adapts in every unit mode, including Word and Character.
+Each pass applies values, recomposes, reads the new visible text and line/frame
+groups, restores the baseline, and recalculates. Text leaving the frame is
+restored; text newly fitting is sampled. With live preview on, the status shows
+the number of passes. With live preview off, this happens when you press Apply.
 
-The existing resulting-line solver was verified against native justified
-fixtures, including the shaped-frame case. No separate general composition
-failure was reproduced in those fixtures. A bell across one or two eligible
-lines can legitimately stay at endpoint values; v4 now explains this in the UI.
+Line/Frame units and Line/Frame restart groups use the same loop even in
+selection or entire-story scope. Whole-story scope includes visible composed
+lines across linked frames. Overset has no visible line/frame group. For
+tracking, a changed layout can settle if every target already has exactly the
+value required by the resulting composition, including restored targets.
 
-Frame scope follows text moving into/out of the frame during these passes.
-Whole-story scope processes visible composed lines across linked frames.
-The same resulting-composition loop applies when either Values per or
-Restart curve per uses Line or Frame.
-Overset text is excluded from line mode because it has no visible frame line.
-No forced line breaks or composer/justification changes are inserted.
+Some exact curves have no stable natural result: a word moves to the next
+line, gets a different value, and moves back. The solver detects cycles or
+stops after 24 passes rather than retaining an inconsistent curve.
 
-Some combinations have no stable result: moving a word to the next line can
-change its value enough to push it back. Such cycles are detected, and the
-preview is restored instead of keeping an inconsistent result. There is a
-24-pass limit. If a range will not settle, reduce it, change curve/steps, or
-use word/character mode. Fully justified composition can compensate for
-tracking through other spacing settings; numeric tracking and visible gap
-sizes are different measurements.
+Fix line breaks if tracking line curves cannot settle is on by default.
+It applies only to Tracking with Values per Line or Restart curve per Line.
+Natural composition is tried first. If it cycles or exceeds the pass limit,
+the fallback seeds a conservative layout at Max tracking, then inserts soft
+line breaks at safe word gaps and recalculates the exact curve. This may fit
+fewer words than an unconstrained layout. The breaks are real editable text,
+not additional paragraphs. Automatic hyphenation is temporarily disabled to
+find word gaps and then restored. Composer and justification are unchanged.
+
+The status reports the number of fixed breaks. Cancel removes new breaks and
+restores all formatting and ownership metadata. Reapplying the same property
+with Replace enabled removes its previous managed breaks before recalculating,
+so they do not accumulate. Applying another property retains them. Manual
+Undo restores the entire previous state, including breaks. If you edit text
+after Apply, ownership is no longer trusted; disable Replace to keep the
+current breaks as ordinary text and establish a new baseline.
+
+Disable Fix line breaks to require a naturally stable composition. Curves
+for other properties still require natural convergence. Excessive Max values,
+unbreakable words, and selections without safe word gaps may still fail;
+reduce Max, change the curve/steps, or expand the scope. Failed previews are
+restored. Fully justified composition can compensate for tracking with other
+spacing settings: numeric tracking and visible gap sizes differ.
 
 REAPPLYING / RESETTING OLDER EFFECTS
 
@@ -315,7 +332,9 @@ effect or to start from the current formatting.
 
 The original values from v1/v2 were not saved and cannot be reconstructed.
 For those cases, enable Clear tracking to 0 first. It clears tracking across
-the starting scope before applying the new distribution. Cancel still restores
+the chosen scope before applying the new distribution. In Current frame scope,
+this clear follows the final visible range too: incoming gaps are cleared and
+outgoing overset retains its previous baseline. Cancel still restores
 what was there when the dialog opened. A committed clear establishes zero
 as the saved baseline for later replacement runs, so old v2 gap tracking does
 not return when the option is left off on a later run. Manual Undo still
@@ -338,24 +357,24 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-61 automated checks passed. The v4 coverage is retained, with new checks for
-character/word/sentence/paragraph/line/frame units and restart groups, 108
-unit/group/target combinations, absolute selection bounds, per-group step
-sampling, special-character punctuation, native-preview scheduling, group
-inspection without document changes, and inactive Clear tracking protection.
-118 native InDesign 2026 checks passed on macOS. The v4 checks are retained,
-with grouped character values checked on actual document characters, sentence
-counts and Unicode quotes, paragraph/sentence resets, resulting-line and
-frame grouping across linked frames, metrics on both frames and grouped
-text applied after contour shaping. Dense metrics now styles and positions
-its complete annotation story, including initially overset labels; both
-linked-frame overlays retained all labels at 5 pt without overset.
-Actual UI checks covered group selection, different sample counts in different
-groups, words per sentence, characters per word, a dragged shared custom curve,
-metrics and a single committed Undo transaction. Other InDesign versions and
-Windows remain unverified.
+74 automated checks passed. Coverage includes 108 unit/group/target
+combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
+frame contraction/expansion, effective tracking convergence, cleared-frame
+baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
 
-The unchanged 500-word fixture measured a v5 median of 810 ms per fresh
+164 native InDesign 2026 checks passed on macOS. Existing property, grouping,
+contour, curve-editor and Undo coverage is retained. New checks cover incoming
+and outgoing frame text, zero-first frame scope, exact justified line values,
+fixed-break Character/Word and entire-story curves, stable curves without
+extra breaks, Cancel/reapply, cross-property history, and manual text edits.
+Metrics were measured against actual glyph bounds, including tight gaps,
+without accumulated row drift or changes to source leading. A PDF export
+retained all 90 integer labels in a 30-row fixture and was visually inspected.
+Actual UI checks confirmed Gaussian graph refresh, fixed-break status,
+printable metrics, and a committed Undo transaction. Other InDesign versions
+and Windows remain unverified.
+
+Before these composition fixes, the 500-word fixture measured a v5 median of 810 ms per fresh
 preview (v4 measured 854 ms; v3 1118 ms on this machine). An unchanged
 preview request took about 0–1 ms. New grouped modes naturally depend on their
 number of units and required composition passes. These are local measurements, not universal

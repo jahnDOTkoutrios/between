@@ -2,6 +2,16 @@
 
 ## 5.0.0
 
+Additional fixes published without changing the version number:
+
+- Make metrics visible and printable; center 5 pt labels in the glyph gap below each line, including tight leading without changing it.
+- Correct accumulating annotation drift and verify printed/PDF labels.
+- Adapt current-frame scope to the final visible range in all unit modes, including zero-first tracking and text entering or leaving the frame.
+- Accept exact effective tracking convergence even when line geometry changes; improve cycle diagnostics.
+- Add optional managed soft line breaks when tracking Line units or Line restart curves cycle. Cancel/reapply and other property histories account for inserted/removed breaks.
+
+Initial v5 features:
+
 - Separate value units from curve restart groups.
 - Add sentence, paragraph, and frame units; restart within words, sentences, paragraphs, lines, or frames.
 - Sample each group's curve independently, with a preview-group inspector.

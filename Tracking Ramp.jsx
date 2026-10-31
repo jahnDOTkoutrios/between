@@ -672,17 +672,55 @@
         return { data: data, units: units, groups: groups, settings: settings,
             distribution: { steps: maxSteps, minSteps: minSteps || 0, values: values, levels: groups.length === 1 ? groups[0].distribution.levels : [], shortGroups: shortGroups }, passes: 1 };
     }
+    function trackingPlansEquivalent(applied, desired, baseline) {
+        function valuesOf(plan) {
+            var values = {};
+            for (var i = 0; i < plan.units.length; i++) {
+                for (var j = 0; j < plan.units[i].spans.length; j++) {
+                    var span = plan.units[i].spans[j];
+                    for (var k = span.start; k <= span.end; k++) { values[k] = plan.distribution.values[i]; }
+                }
+            }
+            return values;
+        }
+        var a = valuesOf(applied), b = valuesOf(desired), key;
+        for (key in a) { if (a[key] !== (b.hasOwnProperty(key) ? b[key] : baseline[key])) { return false; } }
+        for (key in b) { if (b[key] !== (a.hasOwnProperty(key) ? a[key] : baseline[key])) { return false; } }
+        return true;
+    }
+    function compositionCycleMessage(previous, current) {
+        var detail = "";
+        if (previous) {
+            var count = Math.max(previous.lines.length, current.lines.length);
+            function wordsIn(data, line) {
+                var words = 0; if (!line) { return 0; }
+                for (var w = 0; w < data.words.length; w++) { if (data.words[w].end >= line.start && data.words[w].start <= line.end) { words++; } }
+                return words;
+            }
+            for (var i = 0; i < count; i++) {
+                var a = previous.lines[i], b = current.lines[i];
+                if (!a || !b || a.start !== b.start || a.end !== b.end) {
+                    detail = " Line " + (i + 1) + " changes between " + wordsIn(previous, a) + " and " + wordsIn(current, b) + " words under this curve."; break;
+                }
+            }
+        }
+        return "Composition oscillates." + detail + " Try a smaller range or different curve/steps. No unstable formatting was kept.";
+    }
     function settleLines(adapter, settings) {
-        var seen = {}, data = adapter.capture(), plan;
+        var seen = {}, data = adapter.capture(), previous = null, plan;
         for (var pass = 1; pass <= 24; pass++) {
             var before = geometryKey(data);
-            if (seen[before]) { fail("Line composition oscillates. Reduce the range or change steps/curve; no unstable result was kept."); }
+            if (seen[before]) { fail(compositionCycleMessage(previous, data)); }
             seen[before] = true;
             plan = makePlan(data, settings);
             adapter.restore(); adapter.apply(plan); adapter.recompose();
             var after = adapter.capture();
             if (geometryKey(after) === before) { plan.passes = pass; plan.data = after; return plan; }
-            data = after;
+            if (adapter.matches) {
+                var resulting = makePlan(after, settings);
+                if (adapter.matches(plan, resulting)) { resulting.passes = pass; resulting.data = after; return resulting; }
+            }
+            previous = data; data = after;
         }
         fail("Line composition did not settle in 24 passes. Reduce the range or use word/character mode.");
     }
@@ -740,18 +778,56 @@
             }
         }
     }
+    function metricsRows(lines, ascent, descent, padding) {
+        var columns = {}, result = {}, height = ascent + descent;
+        for (var i = 0; i < lines.length; i++) {
+            var column = String(lines[i].column || 0);
+            if (!columns[column]) { columns[column] = []; } columns[column].push(lines[i]);
+        }
+        for (var key in columns) {
+            var rows = columns[key]; rows.sort(function (a, b) { return a.baseline - b.baseline; });
+            for (i = 0; i < rows.length; i++) {
+                var row = rows[i], low = row.bottom + padding, high;
+                if (i + 1 < rows.length) { high = rows[i + 1].top - padding; }
+                else { high = low + Math.max(height, row.leading - (row.bottom - row.top) - 2 * padding); }
+                result[row.key] = { baseline: (low + high + ascent - descent) / 2, crowded: high - low < height - 0.01,
+                    top: low, bottom: high };
+            }
+        }
+        return result;
+    }
+    function metricsLineGeometry(line, key, frame, column) {
+        var chars = line.characters, bulk = chars.everyItem(), count = chars.length;
+        var bases, ascents, descents;
+        try { bases = bulk.baseline; ascents = bulk.ascent; descents = bulk.descent; } catch (_) {}
+        function at(values, index, fallback) {
+            var value = Number(values instanceof Array ? values[index] : values);
+            return isFinite(value) ? value : fallback;
+        }
+        var baseline = Number(line.baseline), top = Infinity, bottom = -Infinity;
+        for (var i = 0; i < count; i++) {
+            var base = at(bases, i, baseline), asc = at(ascents, i, Number(line.ascent)), desc = at(descents, i, Number(line.descent));
+            top = Math.min(top, base - asc); bottom = Math.max(bottom, base + desc);
+        }
+        var first = chars.firstItem(), leading = Number(first.leading);
+        if (!isFinite(leading) || leading <= 0 || leading > 10000) { leading = Number(first.pointSize) * 1.2; }
+        return { key: key, frame: frame, column: column, baseline: baseline, top: top, bottom: bottom, leading: leading };
+    }
     function addMetrics(target, plan) {
         var doc = target.document, story = target.story, containers = story.textContainers;
-        var layer = null, marks = [], visible = {};
-        // Anchor annotations to composed lines, not individual shifted glyph
-        // baselines. This keeps metrics between lines for baseline-shift waves.
+        var layer = null, marks = [], visible = {}, geometries = {};
+        plan.metricsCrowded = 0;
         for (var f = 0; f < containers.length; f++) {
             if (typeName(containers[f]) !== "TextFrame") { continue; }
-            var lines = containers[f].lines;
+            var sourceFrame = containers[f], lines = sourceFrame.lines, columns = [];
+            try { for (var col = 0; col < sourceFrame.textColumns.length; col++) { columns.push(boundsOf(sourceFrame.textColumns.item(col))); } } catch (_) {}
+            geometries[sourceFrame.id] = [];
             for (var l = 0; l < lines.length; l++) {
-                var lineBounds = boundsOf(lines.item(l));
-                if (!lineBounds) { continue; }
-                var item = { frame: containers[f].id, key: containers[f].id + ":" + l, baseline: Number(lines.item(l).baseline) };
+                var line = lines.item(l), lineBounds = boundsOf(line); if (!lineBounds) { continue; }
+                var column = 0;
+                for (col = 0; col < columns.length; col++) { if (columns[col] && lineBounds.start >= columns[col].start && lineBounds.start <= columns[col].end) { column = col; break; } }
+                var item = metricsLineGeometry(line, sourceFrame.id + ":" + l, sourceFrame.id, column);
+                geometries[sourceFrame.id].push(item);
                 for (var v = lineBounds.start; v <= lineBounds.end; v++) { visible[v] = item; }
             }
         }
@@ -759,11 +835,9 @@
             var spans = plan.units[i].spans, starts = {};
             for (var j = 0; j < spans.length; j++) {
                 for (var k = spans[j].start; k <= spans[j].end; k++) {
-                    var composed = visible[k];
-                    if (!composed || starts[composed.key]) { continue; }
+                    var composed = visible[k]; if (!composed || starts[composed.key]) { continue; }
                     var c = story.characters.item(k);
-                    marks.push({ index: k, frame: composed.frame, baseline: composed.baseline,
-                        x: Number(c.horizontalOffset), tracking: Math.round(Number(c.tracking)) });
+                    marks.push({ index: k, frame: composed.frame, row: composed.key, x: Number(c.horizontalOffset), tracking: Math.round(Number(c.tracking)) });
                     starts[composed.key] = true;
                 }
             }
@@ -773,64 +847,60 @@
         for (i = 0; i < layers.length; i++) { if (layers[i].extractLabel("TR3.metricsLayer") === "1") { layer = layers[i]; break; } }
         if (!layer) { layer = doc.layers.add({ name: "Tracking Ramp Metrics" }); layer.insertLabel("TR3.metricsLayer", "1"); }
         if (layer.locked) { fail("Unlock the Tracking Ramp Metrics layer to update its overlay."); }
+        layer.visible = true; layer.printable = true;
         var count = 0;
-        for (var f = 0; f < containers.length; f++) {
-            var source = containers[f];
-            if (typeName(source) !== "TextFrame") { continue; }
+        for (f = 0; f < containers.length; f++) {
+            var source = containers[f]; if (typeName(source) !== "TextFrame") { continue; }
             var labels = [];
             for (i = 0; i < marks.length; i++) { if (marks[i].frame === source.id) { labels.push(marks[i]); } }
             if (!labels.length) { continue; }
             if (Math.abs(source.absoluteRotationAngle) > 0.01 || Math.abs(source.absoluteShearAngle) > 0.01) { fail("Metrics currently requires unrotated, unsheared text frames. Turn Metrics off for this frame."); }
-            var bounds = source.geometricBounds;
-            var baselineRows = [];
-            for (i = 0; i < labels.length; i++) { baselineRows.push(labels[i].baseline); }
-            baselineRows.sort(function (a, b) { return a - b; });
-            var unique = [];
-            for (i = 0; i < baselineRows.length; i++) { if (!i || Math.abs(baselineRows[i] - baselineRows[i - 1]) > 0.01) { unique.push(baselineRows[i]); } }
-            var labelY = {};
-            for (i = 0; i < unique.length; i++) {
-                var gap = i ? unique[i] - unique[i - 1] : Number(story.characters.item(labels[0].index).pointSize) * 1.2;
-                labelY[Math.round(unique[i] * 100)] = unique[i] - Math.max(3, gap / 2) + 1;
-            }
-            var top = Math.min(Number(bounds[0]), labelY[Math.round(unique[0] * 100)] - 5);
-            var left = Number(bounds[1]) - 5;
+            var bounds = source.geometricBounds, top = Number(bounds[0]) - 5, left = Number(bounds[1]) - 5;
             for (i = 0; i < labels.length; i++) { left = Math.min(left, labels[i].x - 5); }
             var overlay = source.parent.textFrames.add({ itemLayer: layer, geometricBounds: [top, left, Number(bounds[2]) + 20, Number(bounds[3]) + 25] });
             overlay.name = "Tracking metrics " + source.id;
             overlay.insertLabel("TR3.metricsStory", String(story.id)); overlay.insertLabel("TR3.sourceFrame", String(source.id));
-            overlay.nonprinting = true; overlay.fillColor = doc.swatches.itemByName("None"); overlay.strokeWeight = 0;
+            overlay.nonprinting = false; overlay.fillColor = doc.swatches.itemByName("None"); overlay.strokeWeight = 0;
             overlay.textWrapPreferences.textWrapMode = TextWrapModes.NONE;
             overlay.textFramePreferences.insetSpacing = 0; overlay.textFramePreferences.ignoreWrap = true;
             overlay.textFramePreferences.firstBaselineOffset = FirstBaseline.FIXED_HEIGHT;
             overlay.textFramePreferences.minimumFirstBaselineOffset = 5;
-            var strings = [];
-            for (i = 0; i < labels.length; i++) { strings.push(String(labels[i].tracking)); }
+            var strings = []; for (i = 0; i < labels.length; i++) { strings.push(String(labels[i].tracking)); }
             overlay.contents = strings.join("\r");
             overlay.parentStory.storyPreferences.opticalMarginAlignment = false;
             var text = overlay.parentStory.texts.item(0);
             text.appliedParagraphStyle = doc.paragraphStyles.item(0); text.appliedCharacterStyle = doc.characterStyles.item(0);
             text.appliedFont = story.characters.item(labels[0].index).appliedFont;
-            text.pointSize = 5; text.leading = 0; text.tracking = 0; text.baselineShift = 0;
+            text.pointSize = 5; text.leading = 0.01; text.tracking = 0; text.baselineShift = 0;
             text.horizontalScale = 100; text.verticalScale = 100; text.characterRotation = 0; text.skew = 0;
-            text.fillColor = doc.swatches.itemByName("Black"); text.strokeWeight = 0; text.noBreak = true;
+            text.fillColor = doc.swatches.itemByName("Black"); text.fillTint = 100; text.strokeWeight = 0; text.noBreak = true;
             text.justification = Justification.LEFT_ALIGN; text.spaceBefore = 0; text.spaceAfter = 0;
             text.alignToBaseline = false; text.hyphenation = false;
-            var anchor = top + 5;
+            overlay.parentStory.recompose();
+            var firstLabel = text.characters.firstItem();
+            var asc = Number(firstLabel.ascent), desc = Number(firstLabel.descent);
+            var positions = metricsRows(geometries[source.id], asc, desc, 0.5), crowded = {}, lastBottom = Number(bounds[2]) + 20;
             for (i = 0; i < labels.length; i++) {
+                labels[i].y = positions[labels[i].row].baseline;
+                if (positions[labels[i].row].crowded) { crowded[labels[i].row] = true; }
+                lastBottom = Math.max(lastBottom, labels[i].y + desc + 5);
                 var paragraph = overlay.parentStory.paragraphs.item(i);
                 paragraph.leftIndent = Math.max(0, labels[i].x - left); paragraph.firstLineIndent = 0; paragraph.rightIndent = 0;
-                paragraph.baselineShift = anchor - labelY[Math.round(labels[i].baseline * 100)];
+                paragraph.baselineShift = top + 5 + i * 0.01 - labels[i].y;
             }
-            // Font side bearings and the composer can add a small offset to
-            // an annotation's first glyph. Align against its composed position.
-            overlay.parentStory.recompose();
-            for (i = 0; i < labels.length; i++) {
-                var p = overlay.parentStory.paragraphs.item(i);
-                var correction = labels[i].x - Number(p.characters.firstItem().horizontalOffset);
-                p.leftIndent = Math.max(0, Number(p.leftIndent) + correction);
+            for (var crowdedKey in crowded) { plan.metricsCrowded++; }
+            overlay.geometricBounds = [top, left, lastBottom, Number(bounds[3]) + 25];
+            // Native leading has a nonzero minimum, and glyph origins can add
+            // offsets. Correct BOTH coordinates from the actual composition.
+            for (var correctionPass = 0; correctionPass < 2; correctionPass++) {
+                overlay.parentStory.recompose();
+                for (i = 0; i < labels.length; i++) {
+                    var p = overlay.parentStory.paragraphs.item(i), glyph = p.characters.firstItem();
+                    p.leftIndent = Math.max(0, Number(p.leftIndent) + labels[i].x - Number(glyph.horizontalOffset));
+                    p.baselineShift = Number(p.baselineShift) + Number(glyph.baseline) - labels[i].y;
+                }
             }
-            overlay.parentStory.recompose();
-            overlay.bringToFront(); overlay.locked = true; count++;
+            overlay.parentStory.recompose(); overlay.bringToFront(); overlay.locked = true; count++;
         }
         return count;
     }
@@ -903,10 +973,115 @@
         target.story.recompose(); return result;
     }
 
+    var LINE_LOCK_KEY = "TrackingRamp.v5.lineBreaks";
+    function countAtOrBefore(indices, value) {
+        var low = 0, high = indices.length;
+        while (low < high) { var middle = Math.floor((low + high) / 2); if (indices[middle] <= value) { low = middle + 1; } else { high = middle; } }
+        return low;
+    }
+    function remapSnapshot(rows, indices, removing) {
+        var result = [];
+        function add(start, end, values) {
+            if (start > end) { return; }
+            var a = countAtOrBefore(indices, start), z = countAtOrBefore(indices, end);
+            result.push({ start: removing ? start - a : start + a, end: removing ? end - z : end + z, values: values });
+        }
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i], start = row.start, first = countAtOrBefore(indices, start - 1);
+            for (var b = first; b < indices.length && indices[b] <= row.end; b++) {
+                add(start, indices[b] - 1, row.values); start = indices[b] + (removing ? 1 : 0);
+            }
+            add(start, row.end, row.values);
+        }
+        return result;
+    }
+    function remapBounds(bounds, indices, removing) {
+        if (removing) { return { start: bounds.start - countAtOrBefore(indices, bounds.start - 1), end: bounds.end - countAtOrBefore(indices, bounds.end) }; }
+        return { start: bounds.start + countAtOrBefore(indices, bounds.start), end: bounds.end + countAtOrBefore(indices, bounds.end) };
+    }
+    function remapHistory(history, indices, removing, before, after) {
+        for (var property in history.effects) {
+            var effect = history.effects[property];
+            if (effect.signature === before) { effect.original = remapSnapshot(effect.original, indices, removing); effect.signature = after; }
+        }
+    }
+    function isSoftLineBreak(value) {
+        if (value === "\n") { return true; }
+        try { return value == SpecialCharacters.FORCED_LINE_BREAK; } catch (_) { return false; }
+    }
+    function restoreOwnedLineBreaks(story, history, scope, settings) {
+        if (settings.textEnabled === false) { return; }
+        var raw = story.extractLabel(LINE_LOCK_KEY); if (!raw) { return; }
+        var saved = decode(raw); if (saved.property !== settings.property) { return; }
+        if (!settings.replace) { story.insertLabel(LINE_LOCK_KEY, ""); return; }
+        if (saved.version !== 1 || saved.signature !== signature(story)) { fail("Text changed after line breaks were fixed. Disable Replace to keep the current breaks and start a new baseline."); }
+        var positions = saved.positions;
+        for (var i = 0; i < positions.length; i++) {
+            if (positions[i] < 0 || positions[i] >= story.characters.length || positions[i] !== Math.floor(positions[i]) ||
+                    (i && positions[i] <= positions[i - 1]) || !isSoftLineBreak(story.characters.item(positions[i]).contents)) { fail("Saved fixed line breaks no longer match this story."); }
+        }
+        for (i = positions.length - 1; i >= 0; i--) { story.characters.item(positions[i]).remove(); }
+        var after = signature(story); remapHistory(history, positions, true, saved.signature, after);
+        if (scope.kind === "selection") { scope.bounds = remapBounds(scope.bounds, positions, true); }
+        story.insertLabel(LINE_LOCK_KEY, ""); story.recompose();
+    }
+    function fixTrackingLines(target, scope, fixedBounds, settings, baseline) {
+        var story = target.story, seedBounds = boundsFor(target, scope), hyphens = [], offsets = [];
+        if (!seedBounds) { fail("No visible text is available to fix line breaks."); }
+        // Seed with the widest permitted tracking. Turning off automatic
+        // hyphenation temporarily keeps new breaks at existing word gaps.
+        if (scope.kind === "frame") { seedBounds = { start: seedBounds.start, end: story.characters.length - 1 }; }
+        var paragraphs = story.characters.itemByRange(seedBounds.start, seedBounds.end).paragraphs.everyItem().getElements();
+        try {
+            for (var p = 0; p < paragraphs.length; p++) { hyphens.push({ paragraph: paragraphs[p], value: paragraphs[p].hyphenation }); paragraphs[p].hyphenation = false; }
+            var seedSettings = { property: "tracking", mode: "word", target: settings.target, restart: "never", curve: "linear", min: settings.max, max: settings.max, steps: 0 };
+            if (settings.clearTracking) { story.characters.itemByRange(seedBounds.start, seedBounds.end).tracking = 0; }
+            var seed = makePlan(capture(story, seedBounds), seedSettings); applyValues(story, seed, target.document); story.recompose();
+            var visible = boundsFor(target, scope); if (!visible) { fail("Max tracking leaves no visible line to fix. Reduce Max."); }
+            if (scope.kind === "selection") { visible = fixedBounds; }
+            var containers = scope.kind === "frame" ? [target.frame] : story.textContainers;
+            for (var f = 0; f < containers.length; f++) {
+                if (typeName(containers[f]) !== "TextFrame") { continue; }
+                for (var l = 0; l < containers[f].lines.length; l++) {
+                    var bounds = boundsOf(containers[f].lines.item(l));
+                    if (!bounds || bounds.end < visible.start || bounds.end > visible.end) { continue; }
+                    var end = story.characters.item(bounds.end).contents;
+                    if (end === "\r" || isSoftLineBreak(end) || bounds.end === story.characters.length - 1) { continue; }
+                    var offset = bounds.end + 1;
+                    while (offset < story.characters.length && contentKind(story.characters.item(offset).contents) === "space") { offset++; }
+                    if (scope.kind === "selection" && offset > visible.end + 1) { continue; }
+                    // An unbreakable word wider than the frame needs a smaller
+                    // Max; do not silently split a word or insert a new hyphen.
+                    if (contentKind(story.characters.item(offset - 1).contents) === "text" && offset < story.characters.length && contentKind(story.characters.item(offset).contents) === "text") { continue; }
+                    if (offset > visible.start && offset < story.characters.length) { offsets.push(offset); }
+                }
+            }
+        } finally {
+            restoreSnapshot(story, baseline, target.document);
+            for (var h = 0; h < hyphens.length; h++) { hyphens[h].paragraph.hyphenation = hyphens[h].value; }
+            story.recompose();
+        }
+        offsets.sort(function (a, b) { return a - b; });
+        var unique = [];
+        for (var i = 0; i < offsets.length; i++) { if (!i || offsets[i] !== offsets[i - 1]) { unique.push(offsets[i]); } }
+        if (!unique.length) { fail("No safe word boundaries are available to fix these lines. Reduce Max or use a larger scope."); }
+        var before = signature(story);
+        for (i = unique.length - 1; i >= 0; i--) { story.insertionPoints.item(unique[i]).contents = "\n"; }
+        var positions = []; for (i = 0; i < unique.length; i++) { positions.push(unique[i] + i); }
+        story.insertLabel(LINE_LOCK_KEY, encode({ version: 1, property: settings.property, signature: signature(story), positions: positions }));
+        story.recompose(); return { offsets: unique, positions: positions, before: before, after: signature(story) };
+    }
+    function clearedFramePlan(plan) {
+        var units = [{ spans: [{ start: plan.data.bounds.start, end: plan.data.bounds.end }] }], values = [0];
+        for (var i = 0; i < plan.units.length; i++) { units.push(plan.units[i]); values.push(plan.distribution.values[i]); }
+        return { settings: plan.settings, units: units, distribution: { values: values } };
+    }
     function applyEffect(target, settings) {
         var story = target.story, doc = target.document;
         var history = { version: 3, effects: {} }, raw = story.extractLabel(HISTORY_KEY);
         if (raw) { history = decode(raw); if (history.version !== 3 || !history.effects) { fail("Unsupported saved effect history."); } }
+        var selectedScope = target.scopes[settings.scope], scope = { kind: selectedScope.kind, bounds: selectedScope.bounds };
+        restoreOwnedLineBreaks(story, history, scope, settings);
         var effectKey = settings.property;
         var previous = history.effects[effectKey];
         if (settings.textEnabled !== false && settings.replace && previous) {
@@ -915,7 +1090,7 @@
         }
         var frameWidthResult = applyFrameWidth(target, settings);
         removeMetrics(doc, story.id);
-        var scope = target.scopes[settings.scope], bounds = boundsFor(target, scope);
+        var bounds = boundsFor(target, scope);
         if (!bounds && settings.textEnabled === false) { bounds = boundsOf(story); }
         if (!bounds) { fail("This frame has no visible text. Choose Entire story."); }
         var properties = propertiesFor(settings);
@@ -925,31 +1100,64 @@
             cleared = { start: bounds.start, end: bounds.end };
             story.characters.itemByRange(bounds.start, bounds.end).tracking = 0; story.recompose();
         }
-        var baseline = cleared ? takeSnapshot(story, properties) : original;
+        var liveClear = !!cleared && scope.kind === "frame", baseline = original;
+        if (cleared && !liveClear) { baseline = takeSnapshot(story, properties); }
         var fixedBounds = boundsFor(target, scope) || (settings.textEnabled === false ? bounds : null);
         function currentData() {
             var b = fixedBounds;
-            if (settings.textEnabled !== false && usesComposition(settings) && scope.kind === "frame") { b = boundsFor(target, scope); }
+            if (scope.kind === "frame") { b = boundsFor(target, scope); }
             if (!b) { fail("The current composition has no visible lines in this frame."); }
             return capture(story, b);
         }
         var plan;
         if (settings.textEnabled === false) { plan = makePlan(currentData(), settings); }
-        else if (usesComposition(settings)) {
-            var iterationTouched = {};
-            plan = settleLines({ capture: currentData, restore: function () { restoreSnapshot(story, filterSnapshot(baseline, iterationTouched), doc); },
-                apply: function (p) { iterationTouched = touchedIndices(p.units); applyValues(story, p, doc); }, recompose: function () { story.recompose(); } }, settings);
+        else if (scope.kind === "frame" || usesComposition(settings)) {
+            var iterationTouched = {}, baselineTracking = null;
+            if (liveClear) { iterationTouched = touchedIndices([{ spans: [cleared] }]); }
+            function solveComposition() { return settleLines({ capture: currentData, restore: function () { restoreSnapshot(story, filterSnapshot(baseline, iterationTouched), doc); },
+                apply: function (p) { var actual = liveClear ? clearedFramePlan(p) : p; iterationTouched = touchedIndices(actual.units); applyValues(story, actual, doc); },
+                matches: settings.property === "tracking" ? function (applied, desired) {
+                    if (baselineTracking === null) {
+                        baselineTracking = {};
+                        for (var row = 0; row < baseline.length; row++) {
+                            for (var index = baseline[row].start; index <= baseline[row].end; index++) { baselineTracking[index] = baseline[row].values.tracking; }
+                        }
+                    }
+                    if (liveClear) { applied = clearedFramePlan(applied); desired = clearedFramePlan(desired); }
+                    return trackingPlansEquivalent(applied, desired, baselineTracking);
+                } : null, recompose: function () { story.recompose(); } }, settings); }
+            try { plan = solveComposition(); }
+            catch (compositionError) {
+                var lineCurve = settings.mode === "line" || settings.restart === "line";
+                if (!settings.lockLines || settings.property !== "tracking" || !lineCurve || !/oscillates|did not settle/.test(compositionError.message)) { throw compositionError; }
+                restoreSnapshot(story, baseline, doc); story.recompose();
+                var locks = fixTrackingLines(target, scope, fixedBounds, settings, baseline);
+                original = remapSnapshot(original, locks.offsets, false); baseline = remapSnapshot(baseline, locks.offsets, false);
+                remapHistory(history, locks.offsets, false, locks.before, locks.after);
+                if (scope.kind === "story") { fixedBounds = boundsOf(story); }
+                else if (scope.kind === "selection") { fixedBounds = remapBounds(fixedBounds, locks.offsets, false); }
+                if (cleared) { cleared = remapBounds(cleared, locks.offsets, false); }
+                iterationTouched = {}; baselineTracking = null;
+                plan = solveComposition(); plan.lockedBreaks = locks.positions.length;
+            }
+            plan.composition = true;
         } else { plan = makePlan(currentData(), settings); applyValues(story, plan, doc); story.recompose(); }
         var touched = touchedIndices(plan.units);
+        if (liveClear) { cleared = plan.data.bounds; }
         if (cleared) { for (var i = cleared.start; i <= cleared.end; i++) { touched[i] = true; } }
         // An explicit clear establishes a new zero baseline for future
         // replacement runs. The surrounding Undo transaction still restores
         // the pre-clear document exactly on Cancel or manual Undo.
         var historyBaseline = original;
-        if (settings.textEnabled !== false && settings.property === "tracking" && settings.clearTracking) { historyBaseline = baseline; }
+        if (settings.textEnabled !== false && settings.property === "tracking" && settings.clearTracking) {
+            historyBaseline = baseline;
+            if (liveClear) { historyBaseline = [{ start: cleared.start, end: cleared.end, values: { tracking: 0 } }]; }
+        }
         var saved = filterSnapshot(historyBaseline, touched);
         if (settings.textEnabled !== false) { history.effects[effectKey] = { signature: signature(story), original: saved, settings: settings }; }
         story.insertLabel(HISTORY_KEY, encode(history));
+        var existingLocks = story.extractLabel(LINE_LOCK_KEY);
+        if (existingLocks && !plan.lockedBreaks) { var lineLocks = decode(existingLocks); if (lineLocks.signature === signature(story)) { plan.lockedBreaks = lineLocks.positions.length; } }
         plan.frameWidth = frameWidthResult;
         plan.metricsFrames = settings.metrics ? addMetrics(target, plan) : 0;
         return plan;
@@ -1120,6 +1328,8 @@
         var replace = targetPanel.add("checkbox", undefined, "Replace previous effect for this property in this story"); replace.value = true;
         var clearTracking = targetPanel.add("checkbox", undefined, "Clear tracking to 0 first (for older effects / a clean start)");
 
+        var lockLines = targetPanel.add("checkbox", undefined, "Fix line breaks if tracking line curves cannot settle"); lockLines.value = true;
+        lockLines.helpTip = "If a tracking curve cycles, insert tracked soft line breaks at word gaps. Reapply replaces these breaks; Cancel restores the original text.";
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
         var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom — drag control points"];
@@ -1136,7 +1346,7 @@
         var stepsInput = field(stepsRow, "Steps", 5, 6);
         var live = stepsRow.add("checkbox", undefined, "Live document preview"); live.value = true;
         var metrics = stepsRow.add("checkbox", undefined, "Metrics 5 pt");
-        metrics.helpTip = "Actual integer tracking in 5 pt nonprinting overlays. Use Normal view (W); Preview mode hides nonprinting objects.";
+        metrics.helpTip = "Printable 5 pt tracking labels below each source line, centered in the actual interline gap. Tight gaps are flagged; source leading stays unchanged.";
 
         var graph = dialog.add("panel"); graph.preferredSize = [600, 165];
         var editorRow = row(dialog);
@@ -1281,7 +1491,7 @@
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
-                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value };
+                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: lockLines.value };
             if (editorTrack && !widthOptions.linked) { copyCurve(result, widthOptions.curve); copyCurve(textCurve, result); }
             else { copyCurve(result, textCurve); }
             if (widthOptions.linked) { widthOptions.curve = decode(encode(textCurve)); }
@@ -1299,7 +1509,8 @@
             if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + settings.restart + " groups"; }
             summary.text += " / " + stepsLabel + " steps/group / " + propertyInfo(settings.property, axes[axis.selection.index]).label;
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
-            if (usesComposition(settings) && settings.textEnabled !== false) { summary.text += live.value && shown ? "  /  settled in " + result.passes + " pass(es)" : "  /  composition calculated on Apply"; }
+            if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? " / settled in " + result.passes + " pass(es)" : " / composition calculated on Apply"; }
+            if (result.lockedBreaks) { summary.text += " / " + result.lockedBreaks + " fixed line breaks"; }
             var displayed = selectedDistribution(result);
             if (editorTrack) {
                 displayed = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, graphSettings(settings));
@@ -1308,20 +1519,22 @@
             var values = [], count = Math.min(9, displayed.values.length);
             for (var k = 0; k < count; k++) { var at = count > 1 ? Math.round(k * (displayed.values.length - 1) / (count - 1)) : 0; values.push(displayed.values[at]); }
             samples.text = (editorTrack ? "Width samples: " : "Group " + (previewIndex + 1) + " values: ") + values.join("  >  ");
-            var text = "Cancel restores the document. Metrics are nonprinting; numbers show actual tracking.";
-            if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition; unstable layouts are rejected."; }
+            var text = "Cancel restores the document. Metrics print and show actual tracking below each line.";
+            if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use the fixed-break fallback."; }
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
             else if (settings.target === "spaces") { text += "\nOnly interword spaces change. Tabs, breaks, and leading/trailing spaces are excluded."; }
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
             if (settings.property === "baselineShift") { text += " Baseline shift moves glyphs without increasing leading."; }
             if (/^(characterRotation|skew|horizontalScale|verticalScale)$/.test(settings.property)) { text += " Large transforms can overlap or extend beyond the frame; rotation wraps at 360 degrees."; }
-            if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " overlay(s). Nonprinting labels are hidden in Preview mode; use Normal view (W)."; }
+            if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
+                if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
                 text = "Shared curve restarts in each " + settings.restart + ". Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". " + text;
                 if (isBell(settings.curve) && result.distribution.shortGroups) { text += " " + result.distribution.shortGroups + " group(s) have fewer than 3 steps and cannot represent the bell interior."; }
             }
             if (settings.mode === "sentence" || settings.restart === "sentence") { text += " Sentence boundaries use punctuation with abbreviation/decimal handling."; }
             if ((settings.mode === "frame" || settings.restart === "frame") && target.scopes[settings.scope].kind !== "story") { text += " Choose Entire story to distribute across linked frames."; }
+            if (result.lockedBreaks) { text += " Soft line breaks keep line curves stable; reapplying this property replaces its managed breaks."; }
             if (target.story.overflows) { text += " Overset text remains."; }
             if (editorTrack) { text = "Width curve: top → bottom. Set contour bands in Line width. " + (widthOptions.linked ? "Linked to text." : "Independent of text.") + "\n" + text; }
             note.text = text;
@@ -1331,7 +1544,7 @@
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = false; error.text = " ";
-                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; restart.enabled = textEnabled.value;
+                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; restart.enabled = textEnabled.value; lockLines.enabled = textEnabled.value && propertyIDs[property.selection.index] === "tracking";
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);
@@ -1444,7 +1657,7 @@
         };
         scope.onChange = function () { try { session.rollback(); updateAxes(); } catch (_) {} refresh(true); };
         mode.onChange = restart.onChange = change.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
-        textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = function () { refresh(true); };
+        textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = function () { refresh(true); };
         apply.onClick = function () {
             try { var s = readSettings(); session.commit(s); dialog.close(1); }
             catch (e) { try { session.rollback(); } catch (_) {} error.text = e.message; apply.enabled = false; }

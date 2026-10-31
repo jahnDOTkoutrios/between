@@ -44,9 +44,9 @@ Examples:
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
 - **Live preview:** changes appear in the actual document. Cancel restores the pre-preview state; Apply keeps one named Undo transaction.
-- **Resulting composition:** line/frame units and restart groups recompose until their boundaries match the applied values. Cycles are rejected and restored.
+- **Resulting composition:** frame scope follows text moving in or out in every unit mode. Line/frame groups recalculate against the final layout; tracking line curves can use managed soft line breaks if natural composition cycles.
 - **Frame contour:** minimum/maximum available width in %, pt, or mm; left/center/right anchoring; smooth or stepped sides; linked or independent curve.
-- **Metrics:** nonprinting 5 pt overlays show actual tracking values as integers. Use **Normal view (W)** to see them.
+- **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
 
 ## Important behavior
@@ -54,7 +54,8 @@ Examples:
 - Tracking **Letters** preserves the outgoing word gap, including the final glyph's tracking before a space. A single-letter word may have no internal tracking target.
 - Units crossing a restart boundary are split into disjoint fragments. Groups with one unit receive the curve's starting value; a bell needs at least three sampled stages to show an interior peak.
 - Sentence detection uses punctuation and common abbreviation/decimal handling. It is a heuristic; review ambiguous text.
-- Line/frame structures exclude overset. Semantic units can include overset when the scope is the entire story.
+- Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
+- **Fix line breaks** is on by default for tracking curves using Line units or Line restart groups. If natural composition cannot settle, it inserts real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces its managed breaks; Cancel restores the text. Other properties retain them. After manual text edits, disable Replace to adopt the current breaks as ordinary text.
 - Frame contour shapes only the selected frame. It requires one ordinary column, equal insets, auto-sizing off, and an unrotated/unsheared frame at 100% scale.
 - Baseline shift does not increase leading. Large scale, skew, rotation, or shift values can overlap text or extend beyond a frame.
 - Multiple-frame selection, table cells, notes, text on paths, and grouped-frame selection are not supported.
@@ -70,12 +71,12 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **61 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **74 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-The v5 implementation also passed **118 checks in native InDesign 2026 on macOS**
+The v5 implementation also passed **164 checks in native InDesign 2026 on macOS**
 during development. See [verification notes](docs/VERIFICATION.md) for the
 coverage and a manual smoke-test procedure.
 
