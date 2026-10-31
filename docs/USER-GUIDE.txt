@@ -1,11 +1,11 @@
-TRACKING RAMP 5.0.0 — TEXT DISTRIBUTION STUDIO
+TRACKING RAMP 6.0.0 — TEXT DISTRIBUTION STUDIO
 
 RUN
 
 In InDesign 2026, open Window > Utilities > Scripts > User > Tracking Ramp.jsx.
 Select one ordinary text frame, highlight text, or put the text cursor inside
-a frame, then double-click the script. V5 replaces the installed v4 entry.
-This repository contains the current v5 script.
+a frame, then double-click the script. V6 replaces the installed v5 entry.
+This repository contains the current v6 script.
 
 LIVE PREVIEW / CANCEL / APPLY
 
@@ -23,7 +23,7 @@ metadata, and removes any new preview metrics frames, layers and swatches.
 This uses document-scoped Undo, preserving style overrides and inherited
 formatting rather than merely rewriting numeric values.
 
-Apply keeps the current result as one Edit > Undo Tracking Ramp 5 action.
+Apply keeps the current result as one Edit > Undo Tracking Ramp 6 action.
 Turn Live document preview off to work with the graph alone; turning it off
 restores the document immediately. Apply still applies the configured effect.
 
@@ -39,7 +39,7 @@ the composition produced by the kept effects. Their actual numeric formatting
 stays frozen while the new property changes; they are not resampled against
 the later property's composition.
 
-Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 5
+Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 6
 transaction. Cancel, Escape, or closing restores the document from before the
 dialog opened, including kept effects, inserted breaks, contours and swatches.
 Keeping an effect does not create a separate permanent document commit.
@@ -54,49 +54,54 @@ Live document preview off restores the active draft while leaving kept effects
 visible. Metrics are refreshed for the final visible state. A contour kept with
 an earlier effect stays fixed; its width controls are disabled for later stages.
 
+ALLOW ADDED LINE BREAKS
+
+A separate toggle, off by default, controls whether the current effect may add
+managed breaks. Auto-stabilize stays on by default and does not imply permission
+to change text. With breaks off, cycling character-property distributions use
+Fixed sampling. With breaks on, tracking can first try managed soft breaks.
+Kept stages retain their saved policies and existing owned breaks.
+
 LINE LENGTH - CENTERED
 
-Choose Line length - centered in Property. Min and Max are percentages of the
-frame's usable width, from 1 to 100 (also at least 1 pt). The default is 40-100%.
-The remaining width becomes equal left and right paragraph indents. This
-controls available measure; a short final line may contain less ink.
+Min/Max specify 1-100% of the original usable frame width, with at least 1 pt
+available. Default: 40-100%. Scope is Current frame, Values per Line, Change
+Both and Restart Never. Former control choices return on selecting another
+property. Both modes support the existing curve, inversion and step controls.
 
-The script fits each row at its assigned width, then replaces an existing
-word gap with a paragraph return. Wider rows can therefore take more words.
-It never inserts a break inside a word. Existing paragraph returns remain
-unowned. Manual soft breaks can become managed paragraph returns and are
-restored on replacement. Character count and indices stay unchanged.
+Allow added line breaks OFF (default):
+- Preserve exact text, paragraph count and paragraph formatting.
+- Shape the frame symmetrically to vary available width from top to bottom.
+- The curve follows the full frame height; short text may use only part of it.
+- Existing paragraph indents remain and reduce the space inside that contour.
+- Auto steps uses a smooth contour; fixed Steps uses up to 200 contour bands.
 
-Use any existing curve, inversion and step controls. Scope is Current frame,
-Values per is Line, Change is Both and Restart is Never. These controls are
-locked while this property is selected and return to their previous settings
-on exit. The separate frame-contour controls are unavailable for this property.
+Allow added line breaks ON:
+- Fit each row at its assigned width; wider rows can take more words.
+- Replace an existing space, tab or manual soft break with a managed paragraph
+  return. Character count and indices stay unchanged. Do not split words.
+- Use equal left/right indents and zero first/last-line indents on each row.
+- Keep original paragraph returns and spacing at their outer edges. New internal
+  rows add no paragraph spacing. Hyphenation is disabled and keep options are
+  normalized; paragraph-aware styles can repeat on generated paragraphs.
+- Justified paragraphs retain full justification on nonfinal generated rows.
+- Refit changed row counts for up to eight passes. Auto-stabilize can retain the
+  last safe widths with a visible Fixed sampling status; final rows can use
+  only part of the sampled curve. Disable Auto-stabilize for strict rejection.
 
-This first pass requires one unthreaded rectangular frame, one ordinary column,
-equal insets, auto-sizing off, no rotation/shear/scale, and no existing contour.
-Automatic bullets/numbering and drop caps are excluded. The result really is
-one paragraph per fitted row: nested styles, paragraph rules or other
-paragraph-aware formatting may repeat. First/last-line indents are zeroed,
-hyphenation is disabled, and keep options are normalized on the shaped rows.
-Original paragraph spacing survives at its outer edges; new internal rows add
-no space-before/after. Justified paragraphs retain full justification on new
-nonfinal rows and the original alignment on their true final row. Original
-formatting is saved for restoration. Overset remainder retains its baseline.
+Both modes require one ordinary unthreaded rectangular frame, one column,
+equal insets, auto-sizing off and no frame rotation/shear/scale. Automatic
+lists/drop caps and combining a separate Line width contour are excluded.
+Available width is not exact ink length. Very narrow widths can be rejected.
 
-Replace restores the owned spaces/soft breaks before composing again. Cancel
-restores the starting document; Apply keeps one named Undo. + Add property can
-keep Line length before a tracking, color or other draft. Kept widths remain
-paragraph indents; a later font/tracking change can wrap those paragraphs again.
-Manual text edits invalidate ownership: disable Replace to adopt the current
-paragraphs as a new baseline. Never remove unverified owned returns silently.
+Reapply restores the owned frame shape or paragraph breaks before switching
+modes. Cancel restores the starting document; Apply creates one named Undo.
++ Add property can keep either result before applying another property. A later
+font/tracking change may rewrap paragraphs; kept indents/contours remain fixed.
+After manual text edits or reshaping, safe ownership checks may reject replacing
+an effect. A line-length contour remains separate from the Line width editor.
 
-Row-count changes are refitted for up to eight passes. If the count cycles,
-Auto-stabilize retains the last safe fitted widths and reports Fixed sampling
-and the sampled row count; final rows may not span the entire curve. Disable
-Auto-stabilize for strict rejection. The requested Min/Max are never rescaled.
-Very narrow widths that cannot fit a whole word report an error and roll back.
-
-See visual-guide examples 16 (long Gaussian) and 17 (short linear).
+Visual-guide example 16 has added breaks ON; example 17 has them OFF.
 
 TARGETS
 
@@ -128,7 +133,7 @@ em/en spaces. Tabs, control markers, paragraph breaks, and leading/trailing
 spaces are excluded. In line mode, spaces at the composed line edge are
 excluded. Blank lines and units with no eligible targets do not consume steps.
 
-STRUCTURE / RESTARTING THE CURVE (V5)
+STRUCTURE / RESTARTING THE CURVE
 
 Scope decides which text is included. Values per decides the unit that gets
 one value. Restart curve per decides where the complete curve starts again:
@@ -397,13 +402,15 @@ line, gets a different value, and moves back. The solver detects cycles or
 stops after 24 passes rather than retaining an inconsistent curve.
 
 Auto-stabilize composition is on by default. It first tries the exact live
-solver. On a cycle or pass-limit failure, tracking tries a conservative layout
+solver. Allow added line breaks is a separate toggle, off by default. Only
+when it is on, tracking can try a conservative layout on a cycle/pass limit
 at Max tracking and inserts managed soft line breaks at safe word gaps. This
 can fit fewer words than an unconstrained layout. Automatic hyphenation is
 temporarily disabled to find gaps and then restored. Composer and justification
 are unchanged. The status reports the number of fixed breaks.
 
-If tracking cannot be stabilized this way, or another property cycles, the
+With added breaks off, if tracking cannot be stabilized by permitted breaks,
+or when another property cycles, the
 fallback assigns the curve once and keeps those assignments as text reflows.
 The status says Fixed sampling. Min/Max and assigned numeric values are not
 rescaled. The final line/frame groups can differ from the sampled groups;
@@ -427,7 +434,7 @@ tracking through other spacing settings: numeric tracking and visible gaps diffe
 
 REAPPLYING / RESETTING OLDER EFFECTS
 
-Replace previous effect is on by default. V5 retains compatible v3/v4 history
+Replace previous effect is on by default. V6 retains compatible v3/v4/v5 history
 and saves the original affected
 property values in the story's metadata. Reapplying restores the previous
 baseline before calculating the new result, including old targets that are
@@ -466,7 +473,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-114 automated checks passed. Coverage includes 108 unit/group/target
+117 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -508,10 +515,15 @@ signatures. Native bulk reads have scalar fallbacks. Metrics retain both
 position-correction passes and every eligible label. Composition convergence,
 replacement baselines, Cancel restoration and the single Undo action remain.
 
-The Line length addition passed 77 focused native assertions, including the
+The original Line length addition passed 77 focused native assertions, including the
 actual UI, row widths, spacing, justification, overset, replacement and stacks.
 The visual guide now has three A2 pages, seventeen examples and 25 editable
 specimen frames. Its exported PDF was rendered and visually reviewed.
+
+V6 passed 102 native assertions: 23 break-policy fixtures, 72 repeated legacy
+line-length assertions and seven actual UI checks. No-break text/paragraph
+formatting, both switch directions, exact geometry baselines, metrics, stacks,
+Cancel and the v6 Undo action were verified.
 
 ADOBE REFERENCES
 

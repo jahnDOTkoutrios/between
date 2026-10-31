@@ -1,13 +1,13 @@
 #target "indesign"
 
-/* Tracking Ramp 5.0.0 — ExtendScript / ScriptUI, no dependencies.
+/* Tracking Ramp 6.0.0 — ExtendScript / ScriptUI, no dependencies.
  * Target collection, distribution, and application are separate deliberately:
  * stable snapshots feed character/word/sentence/paragraph/line/frame units,
  * then each restart group receives its own complete curve distribution.
  */
 (function () {
-    var TITLE = "Tracking Ramp 5";
-    // Preserve compatible v3/v4 effect baselines when applying v5.
+    var TITLE = "Tracking Ramp 6";
+    // Preserve compatible v3/v4/v5 effect baselines when applying v6.
     var HISTORY_KEY = "TrackingRamp.v3.history";
     var TOKEN_KEY = "TrackingRamp.v3.preview";
     var LOW = -1000;
@@ -1341,6 +1341,47 @@
         return plan;
     }
 
+    function allowsLineBreaks(settings) {
+        // Preserve explicitly saved v5 break policies; every new UI draft
+        // writes allowLineBreaks, so Auto-stabilize no longer implies consent.
+        return settings.allowLineBreaks === true || (settings.allowLineBreaks === undefined && settings.lockLines === true);
+    }
+    function hasLineLengthShape(frame) {
+        var raw = frame ? frame.extractLabel(SHAPE_KEY) : "";
+        return !!raw && decode(raw).options.owner === "lineLength";
+    }
+    function restoreLineLengthShape(target) {
+        if (hasLineLengthShape(target.frame)) { applyFrameWidth(target, { frameWidth: { enabled: false } }); }
+    }
+    function applyUnbrokenLineLength(target, settings, history) {
+        var geometry = lineLengthFrame(target), base = frameBase(target.frame), story = target.story;
+        if (settings.min > settings.max) { fail("Line length Min must not exceed Max."); }
+        centeredLineInsets(geometry.usable, settings.min); centeredLineInsets(geometry.usable, settings.max);
+        if (settings.steps > 200) { fail("Line length without added breaks supports up to 200 contour steps. Use Auto steps or a smaller step count."); }
+        var options = { enabled: true, linked: true, min: settings.min, max: settings.max, unit: "%", anchor: "center",
+            smooth: !settings.steps, steps: settings.steps || 12, curve: decode(encode(settings)), owner: "lineLength" };
+        var shape = applyFrameWidth(target, { frameWidth: options, curve: settings.curve, power: settings.power, width: settings.width,
+            invert: settings.invert, points: settings.points, smooth: settings.smooth });
+        var bounds = visibleBounds(target.frame); if (!bounds) { fail("No text fits in this line-length contour. Increase Min or enlarge the frame."); }
+        var plan = makePlan(capture(story, bounds), settings);
+        // Contours run down the frame, rather than restarting at the last row.
+        // Show the widths sampled at the actual row positions in the readout.
+        var values = [], bands = settings.steps ? buildDistribution(settings.steps, settings).values : null;
+        for (var i = 0; i < plan.units.length; i++) {
+            var fraction = Math.max(0, Math.min(1, (Number(story.characters.item(plan.units[i].spans[0].start).baseline) - base.bounds[0]) / (base.bounds[2] - base.bounds[0]))), value;
+            if (bands) { value = bands[Math.min(bands.length - 1, Math.floor(fraction * bands.length))]; }
+            else { var weight = curveValue(fraction, settings); if (settings.invert) { weight = 1 - weight; } value = settings.min + (settings.max - settings.min) * weight; }
+            values.push(Math.round(value * 1000) / 1000);
+        }
+        plan.distribution.values = values; if (plan.groups.length) { plan.groups[0].distribution.values = values; }
+        plan.lineLength = true; plan.lineLengthContour = true; plan.managedParagraphs = 0;
+        plan.breaks = []; plan.textEdits = []; plan.passes = 1; plan.composition = true; plan.frameWidth = shape;
+        history.effects.lineLength = { signature: signature(story), original: [], settings: settings, breaks: [] };
+        story.insertLabel(HISTORY_KEY, encode(history));
+        plan.metricsFrames = settings.metrics ? addMetrics(target, plan) : 0;
+        return plan;
+    }
+
     function applyEffect(target, settings) {
         settings = effectiveSettings(settings);
         var story = target.story, doc = target.document;
@@ -1369,6 +1410,7 @@
             }
             story.recompose();
         }
+        if (settings.property === "lineLength" && settings.textEnabled !== false) { restoreLineLengthShape(target); }
         var replaySafe = settings.textEnabled !== false && /^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|underlineWeight|underlineOffset|leftIndent|rightIndent|firstLineIndent)$/.test(settings.property) &&
             (!settings.frameWidth || (!settings.frameWidth.enabled && (!target.frame || !target.frame.extractLabel(SHAPE_KEY))));
         var frameWidthResult = applyFrameWidth(target, settings);
@@ -1378,7 +1420,7 @@
         if (!bounds) { fail("This frame has no visible text. Choose Entire story."); }
         var properties = propertiesFor(settings);
         var original = takeSnapshot(story, properties);
-        if (settings.property === "lineLength" && settings.textEnabled !== false) { return applyLineLength(target, settings, original, history); }
+        if (settings.property === "lineLength" && settings.textEnabled !== false) { return allowsLineBreaks(settings) ? applyLineLength(target, settings, original, history) : applyUnbrokenLineLength(target, settings, history); }
         var cleared = null;
         if (settings.textEnabled !== false && settings.property === "tracking" && settings.clearTracking) {
             cleared = { start: bounds.start, end: bounds.end };
@@ -1413,7 +1455,7 @@
             try { plan = solveComposition(); }
             catch (compositionError) {
                 var lineCurve = settings.mode === "line" || settings.restart === "line";
-                var tryBreaks = settings.lockLines && settings.property === "tracking" && (lineCurve || settings.autoStabilize);
+                var tryBreaks = allowsLineBreaks(settings) && settings.property === "tracking" && (lineCurve || settings.autoStabilize);
                 if (!compositionFailure(compositionError) || (!settings.autoStabilize && !tryBreaks)) { throw compositionError; }
                 restoreSnapshot(story, baseline, doc); story.recompose();
                 var locks = null;
@@ -1747,7 +1789,9 @@
         var clearTracking = targetPanel.add("checkbox", undefined, "Clear tracking to 0 first (for older effects / a clean start)");
 
         var lockLines = targetPanel.add("checkbox", undefined, "Auto-stabilize composition"); lockLines.value = true;
-        lockLines.helpTip = "Try exact live composition first, then managed tracking line breaks. If needed, freeze sampled assignments without reducing Min/Max. Cancel restores everything.";
+        lockLines.helpTip = "Try exact live composition, then freeze sampled assignments if needed. Added breaks require their own toggle. Min/Max are not reduced.";
+        var allowBreaks = targetPanel.add("checkbox", undefined, "Allow added line breaks"); allowBreaks.value = false;
+        allowBreaks.helpTip = "Allow managed tracking soft breaks when composition cycles. For Line length, allow real paragraph breaks for independent per-line indents. Off preserves paragraph structure and uses a frame contour for Line length. Cancel restores everything.";
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
         var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom — drag control points"];
@@ -1798,7 +1842,7 @@
         });
         var textCurve = { curve: "linear", power: 2, width: 22, invert: false, points: [], smooth: true, steps: 0 };
         var widthOptions = { enabled: false, linked: true, min: 40, max: 100, unit: "%", anchor: "center", smooth: true, steps: 12, curve: decode(encode(textCurve)) };
-        try { var storedShape = target.frame ? target.frame.extractLabel(SHAPE_KEY) : ""; if (storedShape) { widthOptions = decode(storedShape).options; if (widthOptions.linked) { textCurve = decode(encode(widthOptions.curve)); } } } catch (_) {}
+        try { var storedShape = target.frame ? target.frame.extractLabel(SHAPE_KEY) : ""; if (storedShape && !hasLineLengthShape(target.frame)) { widthOptions = decode(storedShape).options; if (widthOptions.linked) { textCurve = decode(encode(widthOptions.curve)); } } } catch (_) {}
         function copyCurve(from, to) { var keys = ["curve", "power", "width", "invert", "points", "smooth", "steps"]; for (var k = 0; k < keys.length; k++) { to[keys[k]] = from[keys[k]]; } return to; }
         function graphSettings(s) {
             if (!editorTrack) { return s; }
@@ -1922,11 +1966,11 @@
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
-                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: lockLines.value, autoStabilize: lockLines.value };
+                clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: allowBreaks.value, allowLineBreaks: allowBreaks.value, autoStabilize: lockLines.value };
             if (editorTrack && !widthOptions.linked) { copyCurve(result, widthOptions.curve); copyCurve(textCurve, result); }
             else { copyCurve(result, textCurve); }
             if (widthOptions.linked) { widthOptions.curve = decode(encode(textCurve)); }
-            result.textEnabled = textEnabled.value; result.frameWidth = session.hasKeptWidth() || id === "lineLength" ? null : decode(encode(widthOptions));
+            result.textEnabled = textEnabled.value; result.frameWidth = session.hasKeptWidth() || id === "lineLength" || hasLineLengthShape(target.frame) ? null : decode(encode(widthOptions));
             if (!result.textEnabled && (!result.frameWidth || !result.frameWidth.enabled)) { fail("Enable a text property or Line width."); }
             return effectiveSettings(result);
         }
@@ -1943,7 +1987,8 @@
             if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
             if (result.fixedSampling) { summary.text += " / Fixed sampling"; }
             if (result.lineLength && result.fixedSampling) { summary.text += " / sampled " + result.sampleCount + " rows"; }
-            if (result.lineLength) { summary.text += " / " + result.managedParagraphs + " managed paragraph breaks"; }
+            if (result.lineLengthContour) { summary.text += " / paragraphs preserved"; }
+            else if (result.lineLength) { summary.text += " / " + result.managedParagraphs + " managed paragraph breaks"; }
             if (result.lockedBreaks) { summary.text += " / " + result.lockedBreaks + " fixed line breaks"; }
             var displayed = selectedDistribution(result);
             if (editorTrack) {
@@ -1954,13 +1999,13 @@
             for (var k = 0; k < count; k++) { var at = count > 1 ? Math.round(k * (displayed.values.length - 1) / (count - 1)) : 0; values.push(displayed.values[at]); }
             samples.text = (editorTrack ? "Width samples: " : "Group " + (previewIndex + 1) + " values: ") + values.join("  >  ");
             var text = "Cancel restores the document. Metrics print and show actual tracking below each line.";
-            if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use the fixed-break fallback."; }
+            if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use fixed breaks when Allow added line breaks is on."; }
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
             else if (settings.target === "spaces") { text += "\nOnly interword spaces change. Tabs, breaks, and leading/trailing spaces are excluded."; }
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
             if (isParagraphProperty(settings.property)) { text += " Indents apply to whole intersecting paragraphs, including text beyond the selected scope. One curve runs across those paragraphs."; }
             if (/^underline/.test(settings.property)) { text += " Underlining is enabled on the targets. Offset is measured from the baseline; positive values move it downward."; }
-            if (settings.property === "lineLength") { text += " Available width is centered using left/right indents. Each fitted row is a paragraph; Replace restores the managed breaks. Original paragraph spacing is kept at its outer edges."; }
+            if (settings.property === "lineLength") { text += allowsLineBreaks(settings) ? " Each fitted row uses centered indents and a managed paragraph break. Replace restores owned whitespace before refitting." : " Paragraphs are preserved. Centered widths follow a frame contour from top to bottom; short text may use only part of the curve."; }
             if (settings.property === "baselineShift") { text += " Baseline shift moves glyphs without increasing leading."; }
             if (/^(characterRotation|skew|horizontalScale|verticalScale)$/.test(settings.property)) { text += " Large transforms can overlap or extend beyond the frame; rotation wraps at 360 degrees."; }
             if (dragging && settings.metrics) { text += " Metrics update on release."; }
@@ -2000,8 +2045,8 @@
                 if (!lengthProperty && previousLengthScope !== null) { scope.selection = previousLengthScope; previousLengthScope = null; }
                 scope.enabled = !lengthProperty;
                 mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty && !lengthProperty;
-                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = textEnabled.value;
-                widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !lengthProperty;
+                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
+                widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);
@@ -2048,7 +2093,7 @@
             for (i = 0; i < restartIDs.length; i++) { if (restartIDs[i] === saved.restart) { restart.selection = i; break; } }
             change.selection = saved.target === "letters" ? 0 : saved.target === "spaces" ? 1 : 2;
             textEnabled.value = saved.textEnabled !== false; replace.value = saved.replace; clearTracking.value = saved.clearTracking;
-            metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; strokeWidth.text = String(saved.strokeWidth);
+            metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
             savedRanges[saved.property] = [String(saved.min), String(saved.max)];
             if (saved.frameWidth) { widthOptions = decode(encode(saved.frameWidth)); }
@@ -2192,7 +2237,7 @@
         };
         scope.onChange = function () { try { session.rollback(); updateAxes(); } catch (_) {} refresh(true); };
         mode.onChange = restart.onChange = change.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
-        textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = function () { refresh(true); };
+        textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = allowBreaks.onClick = function () { refresh(true); };
         apply.onClick = function () {
             inputDelay.cancel();
             try { var s = readSettings(); session.commit(s); dialog.close(1); }

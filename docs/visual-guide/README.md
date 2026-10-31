@@ -1,7 +1,7 @@
 # Fading, by degrees.
 
 Three A2 pages, seventeen examples. The effects were applied in InDesign 2026 by the
-actual Tracking Ramp v5 engine. Labels stay neutral so the text does the work.
+actual Tracking Ramp v6 engine. Labels stay neutral so the text does the work.
 
 [PDF](Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Editable INDD](Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -41,8 +41,8 @@ on separate locked layers; metrics are on their own printable layer.
 | 13 | Underline weight | Character Linear / Word Gaussian; 0.2–6 pt; Letters |
 | 14 | Underline offset | Character Sine / Word Linear; −2–12 pt; weight held at 1 pt |
 | 15 | Paragraph indents | Left/right 0–72 pt; first line −18–36 pt; four paragraphs |
-| 16 | Longer line-length bell | Line length; Gaussian; centered 45–100%; Current frame |
-| 17 | Shorter line-length ramp | Line length; Linear; centered 40–100%; Current frame |
+| 16 | Longer line-length bell | Line length; Gaussian; centered 45–100%; added breaks ON |
+| 17 | Shorter line-length ramp | Line length; Linear contour; centered 40–100%; added breaks OFF |
 
 All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
 one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
@@ -72,13 +72,14 @@ specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.
 
-Auto-stabilize is enabled in the examples. It tries exact composition, managed
-tracking breaks, then Fixed sampling when needed. Fixed sampling keeps assigned
-values as text reflows, so final line groups may differ from the sampled groups.
+Auto-stabilize is enabled in the examples. Allow added line breaks is off
+by default, with explicit opt-in for 03 and 16. Fixed sampling keeps assigned
+values as text reflows when an exact composition cannot settle.
 
-Examples 16–17 fit rows at curve-driven widths before creating managed paragraph
-returns. Left and right indents share the remaining space equally. These are
-available widths, not exact ink lengths. Replace restores owned whitespace
-before refitting; original paragraph returns remain. Each shaped row is a real
-paragraph, so paragraph-aware styles may repeat. This first pass requires one
-ordinary unthreaded rectangular frame; it cannot combine with a frame contour.
+Example 16 fits each row before creating managed paragraph returns and equal
+left/right indents. Replace restores owned whitespace before refitting;
+original paragraph returns remain. Paragraph-aware styles may repeat.
+Example 17 keeps its original paragraph and uses a centered frame contour;
+the faint outline shows the shape. Its curve follows frame height, so short
+text can use only part of the curve. Cancel and Undo restore text and geometry
+in both modes. Both require one ordinary unthreaded rectangular frame.

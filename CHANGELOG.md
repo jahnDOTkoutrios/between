@@ -1,8 +1,14 @@
 # Changelog
 
-## 5.0.0
+## 6.0.0
 
-Additional features and fixes published without changing the version number:
+Consolidates the additions originally shipped after the initial v5 release.
+The initial v5 features remain listed under 5.0.0 below.
+
+- Separate Allow added line breaks from Auto-stabilize; default new drafts to off. Tracking can use Fixed sampling without inserting soft breaks.
+- Let Line length preserve paragraphs with a centered frame contour when breaks are off, or use managed per-line paragraph indents when enabled. Switching modes restores owned whitespace/geometry before applying the new mode.
+- Update the application title and Undo action to Tracking Ramp 6 while retaining compatible saved effect metadata.
+- Update the visual guide with an explicit breaks-on / breaks-off comparison.
 
 - Add Line length — centered: percentage widths per fitted row, equal left/right indents, and managed paragraph breaks. Keep original paragraph boundaries and spacing at their outer edges.
 - Preserve text indices by replacing owned whitespace; restore and refit on replacement, and retain cross-property histories through managed tracking breaks.
@@ -17,7 +23,7 @@ Additional features and fixes published without changing the version number:
 
 - Add + Add property, a read-only Kept strip, Undo addition, and Apply all. Freeze kept numeric formatting and commit the whole stack as one Undo action; Cancel restores the entire session.
 - Prevent duplicate properties in a stack and preserve kept colors, contours, and managed break ownership during replay.
-- Add default Auto-stabilize: exact composition first, managed tracking breaks next, then labeled Fixed sampling without rescaling Min/Max. Frozen assignments remove the line-boundary redistribution feedback loop.
+- Add default Auto-stabilize: exact composition first, optional managed tracking breaks when permitted, then labeled Fixed sampling without rescaling Min/Max. Frozen assignments remove the line-boundary redistribution feedback loop.
 - Keep outgoing frame text and its clear-first baseline intact when trimming fallback targets.
 
 - Add underline weight and offset with automatic activation, fractional values, saved automatic baselines, and shared activation preservation during replacement.
@@ -31,7 +37,7 @@ Additional features and fixes published without changing the version number:
 - Accept exact effective tracking convergence even when line geometry changes; improve cycle diagnostics.
 - Add optional managed soft line breaks when tracking Line units or Line restart curves cycle. Cancel/reapply and other property histories account for inserted/removed breaks.
 
-Initial v5 features:
+## 5.0.0
 
 - Separate value units from curve restart groups.
 - Add sentence, paragraph, and frame units; restart within words, sentences, paragraphs, lines, or frames.

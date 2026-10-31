@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 114 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 117 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -26,7 +26,7 @@ New performance coverage checks trailing numeric input, cancellation/disposal,
 immediate Apply, bulk-read fallbacks, lazy snapshots, exact kept patches,
 narrow replacement restoration, advanced-stage fallback and stale signatures.
 
-## Native verification performed during development
+## Historical v5 native verification
 
 231 checks passed in Adobe InDesign 2026 on macOS. These are development-time
 native checks and are not run by the Node test command. They covered:
@@ -79,7 +79,7 @@ movement, one full preview on release, final value retained, metrics rebuilt,
 and a single Undo restoring formatting and removing annotations. The previous
 231-assertion broad native run predates this isolated slider change.
 
-## Line length follow-up
+## Historical v5 Line length follow-up
 
 Eight additional automated checks cover percentage metadata/structure,
 centered inset math, refitting counts, bounded cycle fallback, strict rejection,
@@ -100,6 +100,28 @@ frames. New long Gaussian and short linear specimens use the actual engine.
 The long specimen was checked for one row per paragraph and equal indents;
 all three PDF pages were rendered and visually reviewed. Only the existing
 frame-scope comparison stories intentionally contain overset text.
+
+## V6 break-policy verification
+
+117 automated checks pass. New coverage exercises the default-off toggle,
+separation from Auto-stabilize, explicit no-break policy overriding the old
+tracking flag, and compatibility with explicitly saved v5 break settings.
+
+102 native assertions passed in the v6 source: 23 break-policy checks, 72
+repeated legacy Line length checks, and seven actual UI assertions. No-break
+Line length preserves exact text, paragraph count and paragraph formatting;
+custom/stepped contours, metrics, reapply, original-frame preservation, both
+switch directions, kept contours, Cancel and independent Undo were checked.
+Tracking completes without inserted soft breaks when disabled. A deterministic
+cycle in the automated suite confirms Fixed sampling is used without invoking
+the insertion path. The actual UI starts off, switches on/off, applies the
+selected mode and undoes text/geometry as one Tracking Ramp 6 transaction.
+
+The guide was rebuilt in v6. Example 16 explicitly permits managed paragraph
+breaks; example 17 preserves its single paragraph with a centered contour.
+The contour follows frame height, so no-break width samples can cover only
+part of the curve when the text is short. All exported PDF pages are rendered
+and visually reviewed before publishing.
 
 ## Manual smoke test
 
@@ -131,7 +153,7 @@ Use a disposable document for the checks below.
    Repeat with Clear tracking and verify incoming gaps are zeroed.
 9. Try a fully justified **Tracking → Word → restart per Line → Gaussian**,
    Min 0/Max 300. For a cycling layout, confirm the fixed-break count appears
-   with Auto-stabilize enabled and final values match each line. Cancel must
+   with Auto-stabilize and Allow added line breaks enabled; final values should match each line. Cancel must
    remove the inserted text; Apply/reapply must not accumulate breaks. A zero
    range should insert none. Disable Auto-stabilize to test strict rejection. Other property cycles should
    complete with a visible Fixed sampling status; final groups may differ.
@@ -152,8 +174,9 @@ Use a disposable document for the checks below.
     Turn draft preview off and confirm only the kept effects remain visible.
 
 14. Select an unthreaded rectangular frame and choose Line length - centered.
-    Try Linear and Gaussian with Min 40/Max 100%, then a fixed step count and
-    Custom curve. Wider rows should fit more words; each fitted row should be
+    Start with Allow added line breaks OFF: confirm text and paragraph counts
+    remain unchanged while a centered contour is used. Turn it ON.
+    Try Linear and Gaussian with Min 40/Max 100%, fixed steps and Custom. Wider rows should fit more words; each fitted row should be
     a paragraph with equal left/right indents. Cancel restores original returns.
     Apply and reapply a wider range without accumulating paragraph returns.
     Try existing paragraph spacing, a short passage and overset. Outgoing

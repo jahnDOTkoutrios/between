@@ -1,6 +1,6 @@
 # Preview performance
 
-This v5 update reduces native InDesign calls and avoids calculating each digit
+This optimization pass, included in v6, reduces native InDesign calls and avoids calculating each digit
 while entering a numeric value. The composition solver and final sampling
 rules are unchanged.
 
@@ -22,7 +22,7 @@ rules are unchanged.
 - Metrics batch paragraph properties and geometry reads. Both correction
   passes, 5 pt type, glyph-gap positioning and every eligible label remain.
 
-## Native measurements
+## Historical native measurements (development v5 builds)
 
 Adobe InDesign 2026 on macOS; 500 words, 2672 characters; all text fits.
 The baseline is the immediately preceding v5 source. Both versions use the
@@ -48,7 +48,7 @@ still cost time. Numeric input that pauses longer than 350 ms can preview an
 intermediate value. The update does not reduce final curve accuracy, label
 count or composition iteration limits to obtain these gains.
 
-The regression suite passes 114 automated checks and 231 native assertions.
+The regression suite passes 117 automated checks and 231 native assertions.
 A focused native slider rerun also passed eight assertions.
 See [verification](VERIFICATION.md) for scope, platform limits and native
 UI timing-test details.
