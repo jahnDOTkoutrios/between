@@ -63,11 +63,27 @@ Examples:
 - **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, and left/right/first-line paragraph indents.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
+- **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Curve/slider previews are throttled, with a complete final refresh on release.
 - **Live preview and stacking:** adjust one property, click **+ Add property**, choose the next property, and continue. A read-only Kept strip and Undo addition appear for stacks. Apply all commits one named Undo transaction; Cancel restores the whole session.
 - **Auto-stabilize composition:** starts with exact resulting composition, then tries managed tracking breaks if needed. Remaining cycles use **Fixed sampling**, retaining assigned values while allowing text to reflow. The status identifies the fallback; Min/Max are not rescaled.
 - **Frame contour:** minimum/maximum available width in %, pt, or mm; left/center/right anchoring; smooth or stepped sides; linked or independent curve.
 - **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
+
+## Preview performance
+
+Measured in native InDesign 2026 on the same 500-word fixture:
+
+| Preview | Before | Updated v5 |
+| --- | ---: | ---: |
+| One property | 0.828 s | 0.556 s |
+| Two-property stack | 2.507 s | 1.296 s |
+| With tracking metrics | 12.368 s | 1.440 s |
+
+Single/stack figures are medians of three previews; metrics is one run per
+version. Formatting matched the baseline, including all 462 labels and their
+positions. These are local measurements, not timing guarantees. See
+[performance notes](docs/PERFORMANCE.md) for the method and safeguards.
 
 ## Important behavior
 
@@ -94,12 +110,12 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **94 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **104 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-The v5 implementation also passed **225 checks in native InDesign 2026 on macOS**
+The v5 implementation also passed **231 checks in native InDesign 2026 on macOS**
 during development. See [verification notes](docs/VERIFICATION.md) for the
 coverage and a manual smoke-test procedure.
 

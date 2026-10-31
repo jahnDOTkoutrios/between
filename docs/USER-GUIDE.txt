@@ -13,6 +13,11 @@ Live document preview is on by default. The actual selected text changes as
 you adjust controls. Each update starts from the document state before the
 current preview, so changes do not accumulate while experimenting.
 
+Numeric fields wait until you pause typing for 350 ms before updating, so
+entering 200 does not normally calculate after 2 and 20. Apply uses the latest
+field values immediately. Cancel discards pending work and restores the session.
+A pause longer than 350 ms can still preview a partially entered number.
+
 Cancel, Escape, or closing the dialog restores the original formatting and
 metadata, and removes any new preview metrics frames, layers and swatches.
 This uses document-scoped Undo, preserving style overrides and inherited
@@ -279,7 +284,10 @@ Dragging updates the preview while movement notifications are available and
 always uses the final release position. This accommodates InDesign/macOS
 hosts that omit some drag-move events. The graph explicitly invalidates its cached native surface so handles and
 curves repaint during adjustment. InDesign still needs time to recompose
-the actual text. The final slider position also triggers a refresh.
+the actual text. Curve and slider previews leave at least 250 ms after a
+calculation before starting another during movement. Metrics are omitted
+during curve dragging and rebuilt on release with the complete final result.
+The final slider position also triggers a refresh.
 
 STEPS
 
@@ -413,7 +421,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-94 automated checks passed. Coverage includes 108 unit/group/target
+104 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -421,7 +429,7 @@ New coverage checks underline activation/automatic baselines, shared activation,
 whole-paragraph targeting, native collection resolution, narrow replacement,
 normalized preview reuse, and UI structure locking/restoration.
 
-225 native InDesign 2026 checks passed on macOS. Existing property, grouping,
+231 native InDesign 2026 checks passed on macOS. Existing property, grouping,
 contour, curve-editor and Undo coverage is retained. New checks cover incoming
 and outgoing frame text, zero-first frame scope, exact justified line values,
 fixed-break Character/Word and entire-story curves, stable curves without
@@ -441,12 +449,19 @@ Gaussian graph refresh, fixed-break status,
 printable metrics, and a committed Undo transaction. Other InDesign versions
 and Windows remain unverified.
 
-Before these composition fixes, the 500-word fixture measured a v5 median of 810 ms per fresh
-preview (v4 measured 854 ms; v3 1118 ms on this machine). An unchanged
-preview request took about 0–1 ms. New grouped modes naturally depend on their
-number of units and required composition passes. These are local measurements, not universal
-timing promises. Bulk native reads have a scalar fallback, and duplicate
-snapshots are avoided. Composition and Undo safeguards remain in place.
+Current local measurements on a 500-word / 2672-character fixture:
+- Single-property preview: median 828 ms before, 556 ms after.
+- Two-property stack: median 2507 ms before, 1296 ms after.
+- Preview with metrics: 12368 ms before, 1440 ms after (one run each).
+Single/stack medians use three previews. Every formatting value and all 462
+metrics labels matched the baseline, including text, size and position.
+These are local measurements, not universal timing promises. See PERFORMANCE.md.
+
+Safe numeric kept stages reuse their exact saved formatting patches. Advanced
+color/axis/contour/text-edit stages retain full replay, as do stale text
+signatures. Native bulk reads have scalar fallbacks. Metrics retain both
+position-correction passes and every eligible label. Composition convergence,
+replacement baselines, Cancel restoration and the single Undo action remain.
 
 ADOBE REFERENCES
 

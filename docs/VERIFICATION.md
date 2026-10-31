@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 94 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 104 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -22,9 +22,13 @@ actual script functions in a mocked document/ScriptUI host. Coverage includes:
 - Glyph-gap metrics placement/crowding, soft-break bounds and snapshot remapping,
   and width-only processing preserving break ownership.
 
+New performance coverage checks trailing numeric input, cancellation/disposal,
+immediate Apply, bulk-read fallbacks, lazy snapshots, exact kept patches,
+narrow replacement restoration, advanced-stage fallback and stale signatures.
+
 ## Native verification performed during development
 
-225 checks passed in Adobe InDesign 2026 on macOS. These are development-time
+231 checks passed in Adobe InDesign 2026 on macOS. These are development-time
 native checks and are not run by the Node test command. They covered:
 
 - Actual word-gap measurements and numeric property application/restoration.
@@ -59,12 +63,25 @@ Cancel/Undo, duplicate rejection, Undo addition, kept-only preview, failed draft
 color swatches, baked contours, managed breaks, cycling tracking/font-size
 fixtures, clearing with outgoing overset, and the actual Add property/Apply all UI.
 
+An additional six native assertions cover typed numeric input, Apply/Undo and
+pending Cancel. The production 350 ms dialog accepted 2 → 27 → 275 without
+calculating 2 or 27. The isolated pending-Cancel fixture widened its delay to
+3000 ms to accommodate UI automation latency; Escape cancelled the pending
+value and restored the original formatting. The 350 ms cancellation/deadline
+logic is also covered deterministically by the automated suite.
+
+Performance differential checks compare old/new formatting, unit boundaries,
+distributions and all 462 annotation positions. See [performance notes](PERFORMANCE.md).
+
 ## Manual smoke test
 
 Use a disposable document for the checks below.
 
 1. Create a text frame containing several sentences and words of different lengths.
-2. Run the script. Choose **Font size**, **Values per → Character**,
+2. Type a multi-digit Max value without pausing between digits. Confirm one
+   update after a short pause. Apply must use the latest value; Cancel before
+   the delay must restore the document without applying queued work.
+   Run the script. Choose **Font size**, **Values per → Character**,
    **Restart curve per → Word**, and **Gaussian bell**; choose at least three
    characters per test word. Confirm each word receives the complete pattern.
 3. Change **Preview group**. Confirm only the graph/readout changes. Drag a point;

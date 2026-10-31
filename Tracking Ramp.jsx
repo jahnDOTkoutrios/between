@@ -28,18 +28,37 @@
     }
 
     function visibleBounds(frame) {
-        // Lines belong to the frame's current composition; overset has no line.
-        // Freeze character indices BEFORE any tracking changes cause reflow.
-        var start = null;
-        var end = null;
-        for (var i = 0; i < frame.lines.length; i++) {
-            var bounds = boundsOf(frame.lines.item(i));
-            if (bounds) {
-                if (start === null) { start = bounds.start; }
-                end = bounds.end;
-            }
+        var lines = frame.lines, count = lines.length;
+        if (!count) { return null; }
+        var first = boundsOf(lines.firstItem()), last = boundsOf(lines.lastItem());
+        if (first && last) { return { start: first.start, end: last.end }; }
+        // Empty edge lines are uncommon; retain the complete fallback.
+        var start = null, end = null;
+        for (var i = 0; i < count; i++) {
+            var bounds = boundsOf(lines.item(i));
+            if (bounds) { if (start === null) { start = bounds.start; } end = bounds.end; }
         }
         return start === null ? null : { start: start, end: end };
+    }
+
+    function collectionBounds(collection) {
+        var count = collection.length, starts, ends, result = [];
+        if (!count) { return result; }
+        try {
+            starts = collection.everyItem().characters.firstItem().index;
+            ends = collection.everyItem().characters.lastItem().index;
+            if (count === 1 && typeof starts === "number" && typeof ends === "number") { starts = [starts]; ends = [ends]; }
+            if (!(starts instanceof Array) || !(ends instanceof Array) || starts.length !== count || ends.length !== count) { throw new Error("No scalar bounds column"); }
+            for (var i = 0; i < count; i++) {
+                if (typeof starts[i] !== "number" || typeof ends[i] !== "number" || !isFinite(starts[i]) || !isFinite(ends[i]) || starts[i] > ends[i]) { throw new Error("Unresolved bounds"); }
+                result.push({ start: starts[i], end: ends[i] });
+            }
+            return result;
+        } catch (_) {
+            result = [];
+            for (var k = 0; k < count; k++) { result.push(boundsOf(collection.item(k))); }
+            return result;
+        }
     }
 
     function assertMainStoryText(text) {
@@ -158,9 +177,9 @@
             var content = normalizeContents(allContents ? allContents[i] : objects[i].contents);
             data.characters.push({ index: bounds.start + i, kind: contentKind(content), text: typeof content === "string" ? content : "" });
         }
-        var words = range.words;
+        var words = collectionBounds(range.words);
         for (i = 0; i < words.length; i++) {
-            span = boundsOf(words.item(i));
+            span = words[i];
             if (span) { data.words.push({ start: Math.max(bounds.start, span.start), end: Math.min(bounds.end, span.end) }); }
         }
         // Story.lines can expose overset lines. Frame-owned lines describe
@@ -168,9 +187,9 @@
         var containers = story.textContainers;
         for (var f = 0; f < containers.length; f++) {
             if (typeName(containers[f]) !== "TextFrame") { continue; }
-            var lines = containers[f].lines, frameStart = null, frameEnd = null;
+            var lines = collectionBounds(containers[f].lines), frameStart = null, frameEnd = null;
             for (i = 0; i < lines.length; i++) {
-                span = boundsOf(lines.item(i));
+                span = lines[i];
                 if (span && span.end >= bounds.start && span.start <= bounds.end) {
                     data.lines.push({ start: Math.max(bounds.start, span.start), end: Math.min(bounds.end, span.end) });
                     if (frameStart === null) { frameStart = Math.max(bounds.start, span.start); } frameEnd = Math.min(bounds.end, span.end);
@@ -605,19 +624,23 @@
         } else { range[property] = property === "underline" ? !!value : value; }
     }
     function takeSnapshot(story, properties) {
-        var characters = story.characters.everyItem().getElements(), rows = [], previousKey = null, columns = {};
+        var count = story.characters.length, characters = null, rows = [], previousKey = null, columns = {};
         for (var b = 0; b < properties.length; b++) {
             var prop = properties[b];
             if (/^(strokeColor|fillColor|designAxes|underline)$/.test(prop)) { continue; }
             try {
                 var bulk = story.characters.everyItem()[prop];
-                if (bulk instanceof Array && bulk.length === characters.length) { columns[prop] = bulk; }
+                if (bulk instanceof Array && bulk.length === count) { columns[prop] = bulk; }
                 else if (typeof bulk === "number") { columns[prop] = bulk; }
             } catch (_) {}
         }
-        for (var i = 0; i < characters.length; i++) {
+        for (var i = 0; i < count; i++) {
             var values = {};
-            for (var j = 0; j < properties.length; j++) { var column = columns[properties[j]]; values[properties[j]] = column === undefined ? readProperty(characters[i], properties[j]) : Number(column instanceof Array ? column[i] : column); }
+            for (var j = 0; j < properties.length; j++) {
+                var column = columns[properties[j]];
+                if (column === undefined && !characters) { characters = story.characters.everyItem().getElements(); }
+                values[properties[j]] = column === undefined ? readProperty(characters[i], properties[j]) : Number(column instanceof Array ? column[i] : column);
+            }
             var key = encode(values);
             if (key === previousKey) { rows[rows.length - 1].end = i; }
             else { rows.push({ start: i, end: i, values: values }); previousKey = key; }
@@ -857,6 +880,20 @@
             }
         }
     }
+    function scalarColumn(value, count) {
+        if (typeof value === "number" && isFinite(value)) {
+            var repeated = []; for (var i = 0; i < count; i++) { repeated.push(value); } return repeated;
+        }
+        if (!(value instanceof Array) || value.length !== count) { return null; }
+        for (var n = 0; n < count; n++) { if (typeof value[n] !== "number" || !isFinite(value[n])) { return null; } }
+        return value;
+    }
+    function paragraphColumn(paragraphs, property, count, firstGlyph) {
+        try {
+            var source = paragraphs.everyItem();
+            return scalarColumn(firstGlyph ? source.characters.firstItem()[property] : source[property], count);
+        } catch (_) { return null; }
+    }
     function metricsRows(lines, ascent, descent, padding) {
         var columns = {}, result = {}, height = ascent + descent;
         for (var i = 0; i < lines.length; i++) {
@@ -883,9 +920,9 @@
             var value = Number(values instanceof Array ? values[index] : values);
             return isFinite(value) ? value : fallback;
         }
-        var baseline = Number(line.baseline), top = Infinity, bottom = -Infinity;
+        var baseline = Number(line.baseline), fallbackAscent = Number(line.ascent), fallbackDescent = Number(line.descent), top = Infinity, bottom = -Infinity;
         for (var i = 0; i < count; i++) {
-            var base = at(bases, i, baseline), asc = at(ascents, i, Number(line.ascent)), desc = at(descents, i, Number(line.descent));
+            var base = at(bases, i, baseline), asc = at(ascents, i, fallbackAscent), desc = at(descents, i, fallbackDescent);
             top = Math.min(top, base - asc); bottom = Math.max(bottom, base + desc);
         }
         var first = chars.firstItem(), leading = Number(first.leading);
@@ -954,18 +991,17 @@
             text.horizontalScale = 100; text.verticalScale = 100; text.characterRotation = 0; text.skew = 0;
             text.fillColor = doc.swatches.itemByName("Black"); text.fillTint = 100; text.strokeWeight = 0; text.noBreak = true;
             text.justification = Justification.LEFT_ALIGN; text.spaceBefore = 0; text.spaceAfter = 0;
-            text.alignToBaseline = false; text.hyphenation = false;
+            text.alignToBaseline = false; text.hyphenation = false; text.firstLineIndent = 0; text.rightIndent = 0;
             overlay.parentStory.recompose();
             var firstLabel = text.characters.firstItem();
             var asc = Number(firstLabel.ascent), desc = Number(firstLabel.descent);
             var positions = metricsRows(geometries[source.id], asc, desc, 0.5), crowded = {}, lastBottom = Number(bounds[2]) + 20;
+            var paragraphCollection = overlay.parentStory.paragraphs, paragraphs = paragraphCollection.everyItem().getElements();
             for (i = 0; i < labels.length; i++) {
                 labels[i].y = positions[labels[i].row].baseline;
                 if (positions[labels[i].row].crowded) { crowded[labels[i].row] = true; }
                 lastBottom = Math.max(lastBottom, labels[i].y + desc + 5);
-                var paragraph = overlay.parentStory.paragraphs.item(i);
-                paragraph.leftIndent = Math.max(0, labels[i].x - left); paragraph.firstLineIndent = 0; paragraph.rightIndent = 0;
-                paragraph.baselineShift = top + 5 + i * 0.01 - labels[i].y;
+                paragraphs[i].properties = { leftIndent: Math.max(0, labels[i].x - left), baselineShift: top + 5 + i * 0.01 - labels[i].y };
             }
             for (var crowdedKey in crowded) { plan.metricsCrowded++; }
             overlay.geometricBounds = [top, left, lastBottom, Number(bounds[3]) + 25];
@@ -973,10 +1009,18 @@
             // offsets. Correct BOTH coordinates from the actual composition.
             for (var correctionPass = 0; correctionPass < 2; correctionPass++) {
                 overlay.parentStory.recompose();
+                var xs = paragraphColumn(paragraphCollection, "horizontalOffset", labels.length, true);
+                var ys = paragraphColumn(paragraphCollection, "baseline", labels.length, true);
+                var indents = paragraphColumn(paragraphCollection, "leftIndent", labels.length, false);
+                var shifts = paragraphColumn(paragraphCollection, "baselineShift", labels.length, false);
                 for (i = 0; i < labels.length; i++) {
-                    var p = overlay.parentStory.paragraphs.item(i), glyph = p.characters.firstItem();
-                    p.leftIndent = Math.max(0, Number(p.leftIndent) + labels[i].x - Number(glyph.horizontalOffset));
-                    p.baselineShift = Number(p.baselineShift) + Number(glyph.baseline) - labels[i].y;
+                    var p = paragraphs[i], glyph = !xs || !ys ? p.characters.firstItem() : null;
+                    var dx = labels[i].x - (xs ? xs[i] : Number(glyph.horizontalOffset));
+                    var dy = (ys ? ys[i] : Number(glyph.baseline)) - labels[i].y;
+                    var corrections = {}, changed = false;
+                    if (Math.abs(dx) > 0.0000001) { corrections.leftIndent = Math.max(0, (indents ? indents[i] : Number(p.leftIndent)) + dx); changed = true; }
+                    if (Math.abs(dy) > 0.0000001) { corrections.baselineShift = (shifts ? shifts[i] : Number(p.baselineShift)) + dy; changed = true; }
+                    if (changed) { p.properties = corrections; }
                 }
             }
             overlay.parentStory.recompose(); overlay.bringToFront(); overlay.locked = true; count++;
@@ -1181,6 +1225,8 @@
             }
             story.recompose();
         }
+        var replaySafe = settings.textEnabled !== false && /^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|underlineWeight|underlineOffset|leftIndent|rightIndent|firstLineIndent)$/.test(settings.property) &&
+            (!settings.frameWidth || (!settings.frameWidth.enabled && (!target.frame || !target.frame.extractLabel(SHAPE_KEY))));
         var frameWidthResult = applyFrameWidth(target, settings);
         removeMetrics(doc, story.id);
         var bounds = boundsFor(target, scope);
@@ -1271,10 +1317,20 @@
         }
         var saved = filterSnapshot(historyBaseline, touched);
         if (settings.textEnabled !== false) { history.effects[effectKey] = { signature: signature(story), original: saved, settings: settings }; }
-        story.insertLabel(HISTORY_KEY, encode(history));
+        var historyText = encode(history); story.insertLabel(HISTORY_KEY, historyText);
         var existingLocks = story.extractLabel(LINE_LOCK_KEY);
         if (existingLocks && !plan.lockedBreaks) { var lineLocks = decode(existingLocks); if (lineLocks.signature === signature(story)) { plan.lockedBreaks = lineLocks.positions.length; } }
         plan.textEdits = textEdits;
+        if (replaySafe && !textEdits.length) {
+            var replayTouched = {}, index;
+            for (index in touched) { replayTouched[index] = true; }
+            if (settings.replace && previous) {
+                for (var oldRow = 0; oldRow < previous.original.length; oldRow++) {
+                    for (index = previous.original[oldRow].start; index <= previous.original[oldRow].end; index++) { replayTouched[index] = true; }
+                }
+            }
+            plan.replay = { touched: replayTouched, history: historyText, locks: existingLocks || "", signature: history.effects[effectKey].signature };
+        }
         plan.frameWidth = frameWidthResult;
         plan.metricsFrames = settings.metrics ? addMetrics(target, plan) : 0;
         return plan;
@@ -1334,13 +1390,28 @@
                 try {
                     app.scriptPreferences.enableRedraw = false;
                     self.liveTarget = sessionTarget(self.target);
+                    if (self.stages.length) { removeMetrics(self.liveTarget.document, self.liveTarget.story.id); }
                     for (var i = 0; i < self.stages.length; i++) {
                         var stage = self.stages[i], replay = decode(encode(stage.settings));
                         // Metrics are refreshed once, for the final visible state.
                         replay.metrics = !settings && i === self.stages.length - 1 && stage.settings.metrics;
-                        result = applyEffect(self.liveTarget, replay);
-                        restoreSnapshot(self.liveTarget.story, stage.frozen, self.liveTarget.document);
-                        self.liveTarget.story.recompose(); advanceScopes(self.liveTarget, result);
+                        if (stage.patch && signature(self.liveTarget.story) === stage.replay.signature) {
+                            // Numeric, text-preserving stages can replay their exact
+                            // final patch. Curves, captures and solvers are already
+                            // baked; advanced stages retain the complete safe path.
+                            restoreSnapshot(self.liveTarget.story, stage.patch, self.liveTarget.document);
+                            var restoredHistory = decode(stage.replay.history);
+                            restoredHistory.effects[replay.property].settings = replay;
+                            self.liveTarget.story.insertLabel(HISTORY_KEY, encode(restoredHistory));
+                            self.liveTarget.story.insertLabel(LINE_LOCK_KEY, stage.replay.locks);
+                            self.liveTarget.story.recompose();
+                            result = {}; for (var field in stage.plan) { result[field] = stage.plan[field]; }
+                            result.settings = replay; result.metricsFrames = replay.metrics ? addMetrics(self.liveTarget, result) : 0;
+                        } else {
+                            result = applyEffect(self.liveTarget, replay);
+                            restoreSnapshot(self.liveTarget.story, stage.frozen, self.liveTarget.document);
+                            self.liveTarget.story.recompose(); advanceScopes(self.liveTarget, result);
+                        }
                     }
                     if (settings) { result = applyEffect(self.liveTarget, settings); advanceScopes(self.liveTarget, result); }
                     if (result) { result.keptCount = self.stages.length; }
@@ -1357,7 +1428,9 @@
         settings = effectiveSettings(settings);
         if (settings.textEnabled === false) { fail("Enable a text property before adding another property."); }
         this.preview(settings);
-        this.stages.push({ settings: decode(encode(settings)), frozen: takeSnapshot(this.target.story, propertiesFor(settings)) });
+        var frozen = takeSnapshot(this.target.story, propertiesFor(settings)), replay = this.result.replay;
+        this.stages.push({ settings: decode(encode(settings)), frozen: frozen, replay: replay || null,
+            patch: replay ? filterSnapshot(frozen, replay.touched) : null, plan: this.result });
         this.cacheKey = "";
     };
     PreviewSession.prototype.undoAddition = function () {
@@ -1366,6 +1439,34 @@
     };
     PreviewSession.prototype.commit = function (settings) {
         this.preview(settings); this.committed = true; return this.result;
+    };
+
+    function PreviewDelay(milliseconds, run, environment) {
+        this.delay = milliseconds; this.run = run; this.environment = environment;
+        this.pending = false; this.waiting = false; this.closed = false; this.deadline = 0;
+    }
+    PreviewDelay.prototype.cancel = function () { this.pending = false; };
+    PreviewDelay.prototype.dispose = function () { this.closed = true; this.pending = false; };
+    PreviewDelay.prototype.flush = function () {
+        if (this.pending && !this.closed) { this.pending = false; this.run(); }
+    };
+    PreviewDelay.prototype.request = function () {
+        if (this.closed) { return; }
+        var env = this.environment;
+        this.deadline = env.now() + this.delay; this.pending = true;
+        if (this.waiting || !env.wait || !env.pump) { return; }
+        this.waiting = true;
+        try {
+            // Idle tasks do not fire inside InDesign's modal ScriptUI window.
+            // Pump that window while waiting so new keystrokes extend the same
+            // deadline, and buttons/Cancel remain responsive.
+            while (this.pending && !this.closed && (!env.alive || env.alive())) {
+                env.pump();
+                if (!this.pending || this.closed) { break; }
+                if (env.now() >= this.deadline) { this.flush(); }
+                else { env.wait(Math.min(12, Math.max(1, this.deadline - env.now()))); }
+            }
+        } finally { this.waiting = false; }
     };
 
     function graphGeometry(control) { return { x: 48, y: 18, width: control.size.width - 68, height: control.size.height - 45 }; }
@@ -1543,6 +1644,13 @@
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
         var lastValid = { curve: "linear", power: 2, width: 22, invert: false };
         var lastPreview = 0, dragOrigin = null, switching = false, editorTrack = 0, previewIndex = 0;
+        var windowClosed = false;
+        var inputDelay = new PreviewDelay(350, function () { refresh(true); }, {
+            now: function () { return new Date().getTime(); },
+            wait: typeof $ !== "undefined" && $.sleep ? function (milliseconds) { $.sleep(milliseconds); } : null,
+            pump: typeof $ !== "undefined" && $.sleep ? function () { if (!windowClosed && shown) { dialog.update(); } } : null,
+            alive: function () { return !windowClosed && shown; }
+        });
         var textCurve = { curve: "linear", power: 2, width: 22, invert: false, points: [], smooth: true, steps: 0 };
         var widthOptions = { enabled: false, linked: true, min: 40, max: 100, unit: "%", anchor: "center", smooth: true, steps: 12, curve: decode(encode(textCurve)) };
         try { var storedShape = target.frame ? target.frame.extractLabel(SHAPE_KEY) : ""; if (storedShape) { widthOptions = decode(storedShape).options; if (widthOptions.linked) { textCurve = decode(encode(widthOptions.curve)); } } } catch (_) {}
@@ -1560,6 +1668,7 @@
             lastValid = c; switching = false; curveChanged();
         }
         widthButton.onClick = function () {
+            inputDelay.cancel();
             var w = new Window("dialog", "Line width — selected frame"); w.orientation = "column"; w.alignChildren = ["fill", "top"]; w.margins = 16;
             var enabled = w.add("checkbox", undefined, "Shape frame to control available line width"); enabled.value = widthOptions.enabled;
             var link = w.add("checkbox", undefined, "Use the text curve (linked)"); link.value = widthOptions.linked;
@@ -1703,7 +1812,8 @@
             if (/^underline/.test(settings.property)) { text += " Underlining is enabled on the targets. Offset is measured from the baseline; positive values move it downward."; }
             if (settings.property === "baselineShift") { text += " Baseline shift moves glyphs without increasing leading."; }
             if (/^(characterRotation|skew|horizontalScale|verticalScale)$/.test(settings.property)) { text += " Large transforms can overlap or extend beyond the frame; rotation wraps at 360 degrees."; }
-            if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
+            if (dragging && settings.metrics) { text += " Metrics update on release."; }
+            else if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
                 if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
                 text = "Shared curve restarts in each " + settings.restart + ". Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". " + text;
@@ -1718,7 +1828,8 @@
             note.text = text;
         }
         function refresh(force) {
-            if (switching) { return; }
+            if (switching || windowClosed) { return; }
+            inputDelay.cancel();
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = addProperty.enabled = false; error.text = " ";
@@ -1735,7 +1846,11 @@
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);
-                if (live.value && shown) { plan = session.preview(settings); }
+                if (live.value && shown) {
+                    var previewSettings = settings;
+                    if (dragging && !force && settings.metrics) { previewSettings = decode(encode(settings)); previewSettings.metrics = false; }
+                    plan = session.preview(previewSettings);
+                }
                 else {
                     if (session.stages.length) { session.preview(null); } else { session.rollback(); }
                     var b = scopeBounds(); if (!b) { fail("No visible text in this frame."); }
@@ -1784,6 +1899,7 @@
             minInput.text = String(saved.min); maxInput.text = String(saved.max); loadEditor(saved); syncStack(); refresh(true);
         }
         addProperty.onClick = function () {
+            inputDelay.cancel();
             try {
                 var current = readSettings(), choices = [], ids = [];
                 for (var i = 0; i < propertyIDs.length; i++) { if (propertyIDs[i] !== current.property && !session.hasProperty(propertyIDs[i])) { choices.push(propertyLabels[i]); ids.push(i); } }
@@ -1798,7 +1914,7 @@
                 editorTrack = 0; curveTrack.selection = 0; propertyChanged(); loadEditor(textCurve); syncStack();
             } catch (e) { error.text = e.message; }
         };
-        undoAddition.onClick = function () { try { var saved = session.undoAddition(); if (saved) { loadSettings(saved); } } catch (e) { error.text = e.message; } };
+        undoAddition.onClick = function () { inputDelay.cancel(); try { var saved = session.undoAddition(); if (saved) { loadSettings(saved); } } catch (e) { error.text = e.message; } };
         function propertyChanged() {
             if (switching) { return; }
             var chosen = propertyIDs[property.selection.index];
@@ -1842,6 +1958,7 @@
             return { x: Math.max(0, Math.min(1, (x - box.x) / box.width)), y: Math.max(0, Math.min(1, 1 - (y - box.y) / box.height)) };
         }
         graph.addEventListener("mousedown", function (event) {
+            inputDelay.cancel();
             if (event.button === 2) { return; }
             dragOrigin = { x: event.screenX - event.clientX, y: event.screenY - event.clientY };
             ensureCustom(); var p = mousePosition(event), box = graphGeometry(graph), nearest = -1, distance = 144;
@@ -1860,7 +1977,7 @@
             if (!dragging || selected < 0) { return; }
             var p = mousePosition(event); movePoint(points, selected, p.x, p.y);
             var now = new Date().getTime();
-            if (now - lastPreview > 180) { lastPreview = now; refresh(false); } else { redraw(); }
+            if (now - lastPreview > 250) { refresh(false); lastPreview = new Date().getTime(); } else { redraw(); }
         }
         graph.addEventListener("mousemove", moveDrag);
         dialog.addEventListener("mousemove", moveDrag, true);
@@ -1885,8 +2002,19 @@
             if (selected > 0 && selected < points.length - 1) { points.splice(selected, 1); selected = -1; refresh(true); }
         };
         resetCurve.onClick = function () { points = []; selected = -1; customEditing = false; dragging = false; dragOrigin = null; curve.selection = 0; invert.value = false; curveChanged(); };
-        shapeSlider.onChange = shapeSlider.onChanging = function () { shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10); refresh(false); };
-        minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = function () { refresh(false); };
+        shapeSlider.onChanging = function () {
+            shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10);
+            var now = new Date().getTime();
+            if (now - lastPreview > 250) { refresh(false); lastPreview = new Date().getTime(); }
+        };
+        shapeSlider.onChange = function () { shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10); refresh(true); };
+        function numberChanging() {
+            if (switching || windowClosed || !shown) { return; }
+            summary.text = "Preview waits for typing to pause…"; inputDelay.request();
+        }
+        function numberCommitted() { if (!inputDelay.pending) { refresh(true); } }
+        minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = numberChanging;
+        minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = numberCommitted;
         property.onChange = propertyChanged; curve.onChange = curveChanged;
         axis.onChange = function () {
             if (propertyIDs[property.selection.index] === "designAxes" && axes[axis.selection.index]) {
@@ -1898,13 +2026,14 @@
         mode.onChange = restart.onChange = change.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
         textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = function () { refresh(true); };
         apply.onClick = function () {
+            inputDelay.cancel();
             try { var s = readSettings(); session.commit(s); dialog.close(1); }
             catch (e) { try { session.rollback(); } catch (_) {} error.text = e.message; apply.enabled = false; }
         };
-        cancel.onClick = function () { try { session.rollback(); dialog.close(0); } catch (e) { error.text = e.message; } };
+        cancel.onClick = function () { inputDelay.cancel(); try { session.rollback(); dialog.close(0); } catch (e) { error.text = e.message; } };
         dialog.onClose = function () {
             if (!session.committed) { try { session.rollback(); } catch (e) { error.text = e.message; return false; } }
-            return true;
+            windowClosed = true; inputDelay.dispose(); return true;
         };
         dialog.onShow = function () {
             shown = true; refresh(true); minInput.active = true;

@@ -4,6 +4,12 @@
 
 Additional features and fixes published without changing the version number:
 
+- Debounce numeric previews until typing pauses for 350 ms; keep Apply immediate and discard pending work on Cancel.
+- Throttle curve/slider previews from calculation completion; rebuild metrics on curve release.
+- Batch native text/metrics reads and writes, retaining scalar fallbacks and both annotation correction passes.
+- Replay exact patches for safe kept numeric properties; retain full replay for colors, axes, contours, text edits, and stale content signatures.
+- Verify unchanged formatting and annotation positions against the previous v5, with native preview benchmarks.
+
 - Add + Add property, a read-only Kept strip, Undo addition, and Apply all. Freeze kept numeric formatting and commit the whole stack as one Undo action; Cancel restores the entire session.
 - Prevent duplicate properties in a stack and preserve kept colors, contours, and managed break ownership during replay.
 - Add default Auto-stabilize: exact composition first, managed tracking breaks next, then labeled Fixed sampling without rescaling Min/Max. Frozen assignments remove the line-boundary redistribution feedback loop.
