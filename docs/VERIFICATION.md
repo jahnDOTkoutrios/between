@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 74 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 83 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -15,12 +15,16 @@ actual script functions in a mocked document/ScriptUI host. Coverage includes:
   cached graph invalidation, and inactive Clear tracking behavior.
 - Frame contraction/expansion with baseline restoration, live zero-first scope,
   exact effective tracking comparison, and changing-line cycle diagnostics.
+- Underline activation, automatic baselines, and shared activation during replacement.
+- Atomic paragraphs, partial selections, mixed baselines, narrow replacement,
+  normalized preview reuse, and paragraph UI constraints.
+- Resolving plural native paragraph specifiers before reading scalar indices.
 - Glyph-gap metrics placement/crowding, soft-break bounds and snapshot remapping,
   and width-only processing preserving break ownership.
 
 ## Native verification performed during development
 
-164 checks passed in Adobe InDesign 2026 on macOS. These are development-time
+194 checks passed in Adobe InDesign 2026 on macOS. These are development-time
 native checks and are not run by the Node test command. They covered:
 
 - Actual word-gap measurements and numeric property application/restoration.
@@ -43,6 +47,12 @@ native checks and are not run by the Node test command. They covered:
   hyphenation. Stable curves insert no breaks.
 - Fixed-break Cancel/reapply without accumulation, cross-property history,
   zero-first tracking, and safe rejection after manual text edits.
+
+The previous 164 native checks were rerun, plus 30 new checks for underline
+weight/offset endpoints, automatic settings and flags, partial paragraph
+selection, mixed indent baselines, narrower reapplication, hanging indents,
+frame-scope paragraph continuations, Cancel and Undo. The actual UI was also
+checked for all new property choices and paragraph-only control locking.
 
 ## Manual smoke test
 
@@ -76,6 +86,14 @@ Use a disposable document for the checks below.
    range should insert none. Disable Fix line breaks to test strict rejection.
 10. Test **Line width** on an eligible frame. Confirm the anchor and envelope,
    linked/independent curve behavior, and exact original-path restoration on Cancel.
+
+11. Test Underline weight on words and characters. Switch to Underline offset,
+    try negative/positive values, Cancel, and reapply with a smaller scope.
+    Excluded text should recover its original automatic values and flags.
+12. Highlight the middle of two paragraphs. Test all three Paragraph indent
+    properties: complete touched paragraphs change; adjacent paragraphs do not.
+    Confirm Paragraph/Both/Never are locked and the former structure returns
+    when switching back to a character property. Test a narrower reapply and Undo.
 
 Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,

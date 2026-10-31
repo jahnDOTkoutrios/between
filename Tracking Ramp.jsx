@@ -274,7 +274,30 @@
         return /^(line|frame)$/.test(settings.mode) || /^(line|frame)$/.test(settings.restart || "never");
     }
 
+    function isParagraphProperty(id) { return /^(leftIndent|rightIndent|firstLineIndent)$/.test(id); }
+    function effectiveSettings(settings) {
+        if (!isParagraphProperty(settings.property)) { return settings; }
+        var copy = {}; for (var key in settings) { copy[key] = settings[key]; }
+        copy.mode = "paragraph"; copy.restart = "never"; copy.target = "both";
+        return copy;
+    }
+    function captureEffect(story, bounds, settings) {
+        var data = capture(story, bounds);
+        if (isParagraphProperty(settings.property)) {
+            data.wholeParagraphs = [];
+            var paragraphs = story.characters.itemByRange(bounds.start, bounds.end).paragraphs.everyItem().getElements();
+            for (var i = 0; i < paragraphs.length; i++) {
+                var span = boundsOf(paragraphs[i]); if (span) { data.wholeParagraphs.push(span); }
+            }
+        }
+        return data;
+    }
     function collectUnits(data, settings) {
+        if (isParagraphProperty(settings.property)) {
+            var paragraphs = data.wholeParagraphs || paragraphSpans(data), paragraphUnits = [];
+            for (var p = 0; p < paragraphs.length; p++) { paragraphUnits.push({ spans: [{ start: paragraphs[p].start, end: paragraphs[p].end }] }); }
+            return paragraphUnits;
+        }
         var units = [], chars = data.characters, eligibleSpaces = {}, i, j;
         var gaps = runsIn(data, data.bounds, "space", true);
         for (i = 0; i < gaps.length; i++) {
@@ -537,7 +560,12 @@
             strokeTint: ["Text stroke tint", "%", 0, 100, 0, 100, false],
             strokeColor: ["Text stroke color", "blend %", 0, 100, 0, 100, false],
             fillColor: ["Character color", "blend %", 0, 100, 0, 100, false],
-            fillTint: ["Character tint", "%", 0, 100, 0, 100, false]
+            fillTint: ["Character tint", "%", 0, 100, 0, 100, false],
+            underlineWeight: ["Underline weight", "pt", 0, 100, 0.25, 3, false],
+            underlineOffset: ["Underline offset", "pt", -1000, 1000, 0, 8, false],
+            leftIndent: ["Paragraph left indent", "pt", 0, 1000, 0, 36, false],
+            rightIndent: ["Paragraph right indent", "pt", 0, 1000, 0, 36, false],
+            firstLineIndent: ["Paragraph first-line indent", "pt", -1000, 1000, 0, 36, false]
         };
         if (id === "designAxes") {
             if (!axis) { return { label: "Variable-font axis", unit: "axis units", low: 0, high: 1000, min: 0, max: 1000, integer: false }; }
@@ -548,12 +576,14 @@
         return { label: info[0], unit: info[1], low: info[2], high: info[3], min: info[4], max: info[5], integer: info[6] };
     }
     function propertiesFor(settings) {
+        if (/^underline/.test(settings.property)) { return ["underline", settings.property]; }
         if (/^stroke/.test(settings.property)) { return ["strokeWeight", "strokeColor", "strokeTint"]; }
         return [settings.property];
     }
     function readProperty(character, property) {
         var value;
         try { value = character[property]; } catch (_) { return null; }
+        if (property === "underline") { return !!value; }
         if (/^(strokeColor|fillColor)$/.test(property)) { return { swatch: value.id, name: value.name }; }
         if (property === "designAxes") {
             if (!axisInfo(character.appliedFont).length) { return null; }
@@ -572,13 +602,13 @@
             if (!swatch.isValid) { swatch = doc.swatches.itemByName(value.name); }
             if (!swatch.isValid) { fail("A saved stroke swatch is no longer available."); }
             range[property] = swatch;
-        } else { range[property] = value; }
+        } else { range[property] = property === "underline" ? !!value : value; }
     }
     function takeSnapshot(story, properties) {
         var characters = story.characters.everyItem().getElements(), rows = [], previousKey = null, columns = {};
         for (var b = 0; b < properties.length; b++) {
             var prop = properties[b];
-            if (/^(strokeColor|fillColor|designAxes)$/.test(prop)) { continue; }
+            if (/^(strokeColor|fillColor|designAxes|underline)$/.test(prop)) { continue; }
             try {
                 var bulk = story.characters.everyItem()[prop];
                 if (bulk instanceof Array && bulk.length === characters.length) { columns[prop] = bulk; }
@@ -598,7 +628,7 @@
         for (var i = 0; i < rows.length; i++) {
             if (rows[i].start < 0 || rows[i].end >= story.characters.length || rows[i].end < rows[i].start) { fail("Saved text bounds no longer match this story."); }
             for (var property in rows[i].values) {
-                if (!/^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|strokeWeight|strokeColor|strokeTint|fillColor|fillTint|designAxes)$/.test(property)) { fail("Unsupported saved property."); }
+                if (!/^(tracking|pointSize|baselineShift|horizontalScale|verticalScale|characterRotation|skew|strokeWeight|strokeColor|strokeTint|fillColor|fillTint|designAxes|underline|underlineWeight|underlineOffset|leftIndent|rightIndent|firstLineIndent)$/.test(property)) { fail("Unsupported saved property."); }
                 writeProperty(story, rows[i], property, rows[i].values[property], doc);
             }
         }
@@ -637,6 +667,7 @@
         return parts.join("|");
     }
     function makePlan(data, settings) {
+        settings = effectiveSettings(settings);
         var baseUnits = collectUnits(data, settings), restart = settings.restart || "never";
         var spans = structureSpans(data, restart, true), units = [], groups = [], values = [], cursor = 0;
         var minSteps = null, maxSteps = 0, shortGroups = 0;
@@ -754,6 +785,8 @@
                         if (value < axis.min || value > axis.max) { fail("Value is outside the " + axis.min + "–" + axis.max + " range of " + character.appliedFont.name + "."); }
                         character.setNthDesignAxis(axis.index, value);
                     }
+                } else if (/^underline/.test(settings.property)) {
+                    range.underline = true; range[settings.property] = value;
                 } else if (/^stroke/.test(settings.property)) {
                     var chars = range.characters.everyItem().getElements();
                     for (k = 0; k < chars.length; k++) {
@@ -1077,6 +1110,7 @@
         return { settings: plan.settings, units: units, distribution: { values: values } };
     }
     function applyEffect(target, settings) {
+        settings = effectiveSettings(settings);
         var story = target.story, doc = target.document;
         var history = { version: 3, effects: {} }, raw = story.extractLabel(HISTORY_KEY);
         if (raw) { history = decode(raw); if (history.version !== 3 || !history.effects) { fail("Unsupported saved effect history."); } }
@@ -1086,7 +1120,19 @@
         var previous = history.effects[effectKey];
         if (settings.textEnabled !== false && settings.replace && previous) {
             if (previous.signature !== signature(story)) { fail("Text changed since the previous effect. Disable Replace previous effect to start a new baseline."); }
-            restoreSnapshot(story, previous.original, doc); story.recompose();
+            restoreSnapshot(story, previous.original, doc);
+            // Both underline effects share the activation flag. Replacing one
+            // must retain underlining owned by the other valid effect.
+            if (/^underline/.test(settings.property)) {
+                var otherKey = settings.property === "underlineWeight" ? "underlineOffset" : "underlineWeight";
+                var other = history.effects[otherKey];
+                if (other && other.signature === signature(story)) {
+                    for (var u = 0; u < other.original.length; u++) {
+                        var owned = other.original[u]; story.characters.itemByRange(owned.start, owned.end).underline = true;
+                    }
+                }
+            }
+            story.recompose();
         }
         var frameWidthResult = applyFrameWidth(target, settings);
         removeMetrics(doc, story.id);
@@ -1107,7 +1153,7 @@
             var b = fixedBounds;
             if (scope.kind === "frame") { b = boundsFor(target, scope); }
             if (!b) { fail("The current composition has no visible lines in this frame."); }
-            return capture(story, b);
+            return captureEffect(story, b, settings);
         }
         var plan;
         if (settings.textEnabled === false) { plan = makePlan(currentData(), settings); }
@@ -1174,6 +1220,7 @@
         this.target.document.undo(); this.active = false; this.result = null;
     };
     PreviewSession.prototype.preview = function (settings) {
+        settings = effectiveSettings(settings);
         if (this.active && this.result && encode(this.result.settings) === encode(settings) &&
                 this.target.document.undoName === TITLE && this.target.story.extractLabel(TOKEN_KEY) === this.token) { return this.result; }
         this.rollback();
@@ -1196,6 +1243,7 @@
         } finally { app.scriptPreferences.enableRedraw = oldRedraw; }
     };
     PreviewSession.prototype.commit = function (settings) {
+        settings = effectiveSettings(settings);
         if (!this.active || !this.result || encode(this.result.settings) !== encode(settings)) { this.preview(settings); }
         this.committed = true; return this.result;
     };
@@ -1307,9 +1355,10 @@
         var restart = dropdown(row(targetPanel), "Restart curve per", ["Never — entire scope", "Word", "Sentence", "Paragraph", "Line — resulting composition", "Frame — resulting composition"], 320);
         restart.helpTip = "Each group receives the complete curve. Units crossing group boundaries are split. Min/Max and steps are shared by every group.";
         var propRow = row(targetPanel);
-        var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint"];
-        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint"];
+        var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint", "underlineWeight", "underlineOffset", "leftIndent", "rightIndent", "firstLineIndent"];
+        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Paragraph left indent", "Paragraph right indent", "Paragraph first-line indent"];
         var property = dropdown(propRow, "Property", propertyLabels, 220);
+        var previousStructure = null;
         var axis = dropdown(propRow, "Axis", ["Select a variable font"], 215);
         var colors = target.document.colors.everyItem().getElements(), colorLabels = [], colorObjects = [];
         for (i = 0; i < colors.length; i++) {
@@ -1497,7 +1546,7 @@
             if (widthOptions.linked) { widthOptions.curve = decode(encode(textCurve)); }
             result.textEnabled = textEnabled.value; result.frameWidth = decode(encode(widthOptions));
             if (!result.textEnabled && !result.frameWidth.enabled) { fail("Enable a text property or Line width."); }
-            return result;
+            return effectiveSettings(result);
         }
         function showResult(result) {
             syncPreviewGroup(result);
@@ -1524,6 +1573,8 @@
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
             else if (settings.target === "spaces") { text += "\nOnly interword spaces change. Tabs, breaks, and leading/trailing spaces are excluded."; }
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
+            if (isParagraphProperty(settings.property)) { text += " Indents apply to whole intersecting paragraphs, including text beyond the selected scope. One curve runs across those paragraphs."; }
+            if (/^underline/.test(settings.property)) { text += " Underlining is enabled on the targets. Offset is measured from the baseline; positive values move it downward."; }
             if (settings.property === "baselineShift") { text += " Baseline shift moves glyphs without increasing leading."; }
             if (/^(characterRotation|skew|horizontalScale|verticalScale)$/.test(settings.property)) { text += " Large transforms can overlap or extend beyond the frame; rotation wraps at 360 degrees."; }
             if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
@@ -1544,7 +1595,15 @@
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = false; error.text = " ";
-                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; restart.enabled = textEnabled.value; lockLines.enabled = textEnabled.value && propertyIDs[property.selection.index] === "tracking";
+                var paragraphProperty = isParagraphProperty(propertyIDs[property.selection.index]);
+                if (paragraphProperty && !previousStructure) { previousStructure = [mode.selection.index, change.selection.index, restart.selection.index]; }
+                switching = true;
+                try {
+                    if (paragraphProperty) { mode.selection = 4; change.selection = 2; restart.selection = 0; }
+                    else if (previousStructure) { mode.selection = previousStructure[0]; change.selection = previousStructure[1]; restart.selection = previousStructure[2]; previousStructure = null; }
+                } finally { switching = false; }
+                mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty;
+                auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = textEnabled.value && propertyIDs[property.selection.index] === "tracking";
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
                 settings = readSettings(); lastValid = graphSettings(settings);

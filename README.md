@@ -9,8 +9,9 @@ runtime dependencies are needed in InDesign.
 
 ## Visual guide
 
-A minimal, one-page A2 specimen sheet with short and long fading-themed text,
-12 labeled examples, and 16 named editable specimen frames.
+A minimal, two-page A2 visual guide with short and long fading-themed text,
+15 labeled examples, and 23 named editable specimen frames. The second page
+covers underline weight, underline offset, and paragraph indents.
 
 [View the PDF](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Download INDD](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -18,6 +19,13 @@ A minimal, one-page A2 specimen sheet with short and long fading-themed text,
 [Explore the examples](docs/visual-guide/README.md)
 
 [![Tracking Ramp visual guide: twelve typography and frame specimens](docs/visual-guide/preview.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
+
+<details>
+<summary>Underlines and paragraph indents</summary>
+
+![Underline and paragraph-indent specimens](docs/visual-guide/preview-underlines.png)
+
+</details>
 
 ## Install and run
 
@@ -52,7 +60,7 @@ Examples:
 
 ## Features
 
-- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, and text stroke width/color/tint.
+- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, and left/right/first-line paragraph indents.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
 - **Live preview:** changes appear in the actual document. Cancel restores the pre-preview state; Apply keeps one named Undo transaction.
@@ -66,8 +74,10 @@ Examples:
 - Tracking **Letters** preserves the outgoing word gap, including the final glyph's tracking before a space. A single-letter word may have no internal tracking target.
 - Units crossing a restart boundary are split into disjoint fragments. Groups with one unit receive the curve's starting value; a bell needs at least three sampled stages to show an interior peak.
 - Sentence detection uses punctuation and common abbreviation/decimal handling. It is a heuristic; review ambiguous text.
-- Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
+- For character properties, Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
 - **Fix line breaks** is on by default for tracking curves using Line units or Line restart groups. If natural composition cannot settle, it inserts real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces its managed breaks; Cancel restores the text. Other properties retain them. After manual text edits, disable Replace to adopt the current breaks as ordinary text.
+- Underline properties enable underlining on eligible targets and preserve original automatic values for replacement/Cancel.
+- Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph, Change is Both, and Restart is Never; previous structure choices return when selecting another property.
 - Frame contour shapes only the selected frame. It requires one ordinary column, equal insets, auto-sizing off, and an unrotated/unsheared frame at 100% scale.
 - Baseline shift does not increase leading. Large scale, skew, rotation, or shift values can overlap text or extend beyond a frame.
 - Multiple-frame selection, table cells, notes, text on paths, and grouped-frame selection are not supported.
@@ -83,12 +93,12 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **74 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **83 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-The v5 implementation also passed **164 checks in native InDesign 2026 on macOS**
+The v5 implementation also passed **194 checks in native InDesign 2026 on macOS**
 during development. See [verification notes](docs/VERIFICATION.md) for the
 coverage and a manual smoke-test procedure.
 

@@ -1,18 +1,20 @@
 # Fading, by degrees.
 
-One A2 page, twelve examples. The effects were applied in InDesign 2026 by the
+Two A2 pages, fifteen examples. The effects were applied in InDesign 2026 by the
 actual Tracking Ramp v5 engine. Labels stay neutral so the text does the work.
 
 [PDF](Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Editable INDD](Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
 [Interchange IDML](Tracking%20Ramp%20-%20Visual%20Guide.idml)
 
-![Visual guide](preview.png)
+![Original specimens](preview.png)
+
+![Underline and paragraph-indent specimens](preview-underlines.png)
 
 ## Try it
 
 Open the INDD or IDML. Expand **02 - Editable numbered specimens** in Layers.
-Select a frame named **01…12 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
+Select a frame named **01…15 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
 Use the printed caption to recreate its settings. Keep **Replace previous effect**
 on to replace the saved effect without stacking values. Labels and rules are
 on separate locked layers; metrics are on their own printable layer.
@@ -31,8 +33,12 @@ on separate locked layers; metrics are on their own printable layer.
 | 10 | Frame contour | Centered, smooth; width 58–100%; independent Gaussian, bell width 29% |
 | 11 | Live frame scope | Original vs Character tracking 0–100; Linear |
 | 12 | Linked story | Frame; Linear; 0–140; Both; Entire story |
+| 13 | Underline weight | Character Linear / Word Gaussian; 0.2–6 pt; Letters |
+| 14 | Underline offset | Character Sine / Word Linear; −2–12 pt; weight held at 1 pt |
+| 15 | Paragraph indents | Left/right 0–72 pt; first line −18–36 pt; four paragraphs |
 
-All examples use Auto steps. Unless a caption specifies a restart group, the
+All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
+one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
 curve runs once across the local scope. Semantic samples use Entire story;
 03 and 11 use Current frame, and 12 uses Entire story across linked frames. Example 10 changes only frame width;
 its faint contour is a guide rule. Example 11 intentionally has overset text:
@@ -42,8 +48,8 @@ Metrics remain tracking values even when another property is selected.
 
 ## Files and fonts
 
-The INDD and IDML contain 16 uniquely named specimen frames with saved effect
-history. The PDF is one 420 × 594 mm page with live, selectable text. Arial,
+The INDD and IDML contain 23 uniquely named specimen frames with saved effect
+history. The PDF has two 420 × 594 mm pages with live, selectable text. Arial,
 Minion Pro, and Acumin Variable Concept were used; font files are not bundled.
 Activate or substitute missing fonts before editing; substitution can reflow text.
 
@@ -51,10 +57,10 @@ Activate or substitute missing fonts before editing; substitution can reflow tex
 current repository engine. Keep it in this folder and run it from InDesign's
 Scripts panel. It creates a new document, overwrites the guide INDD/IDML/PDF
 beside the builder, and records `build-report.txt`. Render the PDF again to
-refresh `preview.png`. The builder needs the fonts listed above (or its listed
+refresh `preview.png` (page 1) and `preview-underlines.png` (page 2). The builder needs the fonts listed above (or its listed
 fallbacks), including a variable font with a Weight axis.
 
-The export was visually reviewed. All twelve headings and sixteen editable
+The export was visually reviewed. All fifteen example headings and twenty-three editable
 specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.

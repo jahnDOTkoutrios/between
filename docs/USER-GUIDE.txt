@@ -154,6 +154,32 @@ swatches are used. Min and Max control the blend position as a percentage.
 Character tint: 0% to 100%, retaining the existing character fill color.
 Character color retains existing fill tint.
 
+Underline weight: 0 to 100 pt (default range 0.25 to 3 pt).
+Underline offset: -1000 to 1000 pt (default range 0 to 8 pt).
+Both enable underlining on eligible targets. Existing underline color, stroke
+style and the other underline parameter are retained. Offset is relative to
+the baseline: positive moves below, negative moves above. Characters, words,
+spaces and restart groups work as with other character properties. Cancel
+restores the exact starting state, including automatic weight/offset values.
+Reapply restores previous targets before assigning new values. When weight
+and offset effects coexist, replacing either retains the other's activation.
+
+Paragraph left/right indent: 0 to 1000 pt (default range 0 to 36 pt).
+Paragraph first-line indent: -1000 to 1000 pt (default 0 to 36 pt).
+Negative first-line values create a hanging indent. Indent properties use
+Values per Paragraph, Change Both and Restart Never; these controls are locked
+while an indent property is selected. Selecting another property restores the
+previous structure choices. Min/Max, steps and all curves remain available.
+
+Indent scope means whole paragraphs intersecting the selected text or visible
+frame range. A partial paragraph is included in full, even if it continues
+in another frame or overset. Every paragraph, including blank paragraphs,
+receives one value; the curve runs across those paragraphs. Reapplying a
+narrower scope restores the previously affected paragraphs. Left, right and
+first-line effects retain independent baselines. Large values can narrow the
+measure too far, cause overset, or be rejected by InDesign; failed previews
+restore the starting state.
+
 Baseline shift moves glyphs without increasing leading. Large shifts, scale
 values, skew or rotation can overlap neighboring text or extend past the
 frame. Rotation is periodic: 360 degrees looks like 0. Native outline tests
@@ -357,12 +383,15 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-74 automated checks passed. Coverage includes 108 unit/group/target
+83 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
+New coverage checks underline activation/automatic baselines, shared activation,
+whole-paragraph targeting, native collection resolution, narrow replacement,
+normalized preview reuse, and UI structure locking/restoration.
 
-164 native InDesign 2026 checks passed on macOS. Existing property, grouping,
+194 native InDesign 2026 checks passed on macOS. Existing property, grouping,
 contour, curve-editor and Undo coverage is retained. New checks cover incoming
 and outgoing frame text, zero-first frame scope, exact justified line values,
 fixed-break Character/Word and entire-story curves, stable curves without
@@ -370,7 +399,11 @@ extra breaks, Cancel/reapply, cross-property history, and manual text edits.
 Metrics were measured against actual glyph bounds, including tight gaps,
 without accumulated row drift or changes to source leading. A PDF export
 retained all 90 integer labels in a 30-row fixture and was visually inspected.
-Actual UI checks confirmed Gaussian graph refresh, fixed-break status,
+Thirty new native checks cover underline fractional/signed endpoints, automatic
+values, mixed paragraph baselines, partial selections, hanging indents, whole
+paragraph frame continuations, Cancel/reapply and independent Undo.
+Actual UI checks confirmed the new property choices and paragraph control locks,
+Gaussian graph refresh, fixed-break status,
 printable metrics, and a committed Undo transaction. Other InDesign versions
 and Windows remain unverified.
 

@@ -2,7 +2,12 @@
 
 ## 5.0.0
 
-Additional fixes published without changing the version number:
+Additional features and fixes published without changing the version number:
+
+- Add underline weight and offset with automatic activation, fractional values, saved automatic baselines, and shared activation preservation during replacement.
+- Add paragraph left, right and first-line indents. Treat intersecting paragraphs atomically; preserve whole-paragraph baselines for partial selection, reapply, Cancel and Undo.
+- Resolve native paragraph objects before storing their scalar story indices.
+- Extend the minimal editable visual guide to two A2 pages with underline and indent specimens.
 
 - Make metrics visible and printable; center 5 pt labels in the glyph gap below each line, including tight leading without changing it.
 - Correct accumulating annotation drift and verify printed/PDF labels.

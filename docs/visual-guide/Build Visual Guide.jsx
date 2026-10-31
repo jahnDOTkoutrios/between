@@ -1,5 +1,5 @@
 #target "indesign"
-/* Build the editable, one-page Tracking Ramp specimen using the actual v5 engine.
+/* Build the editable, two-page Tracking Ramp specimen using the actual v5 engine.
  * Run from this folder beside the shipped Tracking Ramp source checkout.
  * Outputs are recreated beside this script. No existing document is edited.
  */
@@ -32,6 +32,14 @@
         var axes = api.axisInfo(variable), weight = null;
         for (var a = 0; a < axes.length; a++) { if (/weight|wght/i.test(axes[a].name)) { weight = axes[a]; break; } }
         require(weight, "A weight axis is required for specimen 09.");
+        var destination = File(folder.fsName + "/Tracking Ramp - Visual Guide.indd");
+        for (var openIndex = app.documents.length - 1; openIndex >= 0; openIndex--) {
+            var openDocument = app.documents[openIndex];
+            if (openDocument.saved && openDocument.fullName.fsName === destination.fsName) {
+                require(!openDocument.modified, "The visual guide has unsaved edits. Save a separate copy before rebuilding it.");
+                openDocument.close(SaveOptions.NO);
+            }
+        }
         doc = app.documents.add();
         doc.documentPreferences.properties = {facingPages:false, pagesPerDocument:1, pageWidth:"420mm", pageHeight:"594mm"};
         doc.viewPreferences.horizontalMeasurementUnits = MeasurementUnits.POINTS;
@@ -150,13 +158,56 @@
         text("Footer - compare","READ THE RESULTS",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Footer - compare instructions","Auto steps samples every eligible unit. Frame/line groups exclude overset. Examples 11 and 12 intentionally contain longer stories.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
         text("Footer - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v5.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
+        // Page 2 keeps the same quiet typography and adds the new v5 targets.
+        page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
+        box("Page 2 - white paper",[0,0,H,W],paper,ground);
+        text("Page 2 - eyebrow","TRACKING RAMP 5  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 2 - format","02  /  UNDERLINES & INDENTS",[44,W-345,66,W-48],st.eye);
+        text("Page 2 - title","A line can change.",[79,45,159,W-48],st.title);
+        text("Page 2 - introduction","Weight and offset follow characters or words. Indents move complete paragraphs.\rEach example keeps its saved baseline, so you can replace the curve and explore.",[169,48,218,W-48],st.intro);
+        function section(number,title,caption,y){
+            box(number+" - section rule",[y,48,y+.5,W-48],rule,ground);
+            text(number+" - section title",number+"   "+title,[y+15,62,y+43,W-62],st.card);
+            text(number+" - section settings",caption,[y+49,62,y+87,W-62],st.settings);
+        }
+        var half=(W-124-34)/2;
+        section("13","Underline weight","Character or Word / Auto steps / 0.2 to 6 pt / Change: Letters\rThe text stays the same size while the underline grows or forms a bell.",246);
+        text("13A - sublabel","CHARACTER / LINEAR",[350,62,370,62+half],st.eye);
+        f=specimen("13A - Underline weight - character linear 0.2-6 pt","the ink grows quiet",[393,62,492,62+half],42,64);apply(f,{property:"underlineWeight",mode:"character",min:.2,max:6});
+        text("13B - sublabel","WORD / GAUSSIAN",[350,96+half,370,W-62],st.eye);
+        f=specimen("13B - Underline weight - word Gaussian 0.2-6 pt","one line holds a memory",[393,96+half,515,W-62],34,60);apply(f,{property:"underlineWeight",mode:"word",curve:"gaussian",min:.2,max:6});
+        text("13 - observation","Underlining switches on automatically. Existing underline color, style and offset are retained.",[530,62,554,W-62],st.note);
+        section("14","Underline offset","Character: Sine / Word: Linear / -2 to 12 pt / Underline weight held at 1 pt\rNegative offsets move above the baseline; positive offsets move below it.",588);
+        text("14A - sublabel","CHARACTER / SINE",[691,62,711,W-62],st.eye);
+        f=specimen("14A - Underline offset - character sine minus2-plus12 pt","the line drifts below the letters",[731,62,824,W-62],40,68);f.parentStory.texts[0].underlineWeight=1;apply(f,{property:"underlineOffset",mode:"character",curve:"sine",min:-2,max:12});
+        text("14B - sublabel","WORD / LINEAR",[839,62,859,W-62],st.eye);
+        f=specimen("14B - Underline offset - word linear minus2-plus12 pt","the words hold another horizon",[881,62,974,W-62],38,68);f.parentStory.texts[0].underlineWeight=1;apply(f,{property:"underlineOffset",mode:"word",min:-2,max:12});
+        section("15","Paragraph indents","Paragraph / Linear / Four steps per sample / One value for each complete paragraph\rLeft and right: 0 to 72 pt. First line: -18 to 36 pt, with a fixed 18 pt left indent.",1012);
+        var paragraphText="Light reaches the table. A little color leaves the room.\rMemory keeps the edges. A familiar shape becomes less exact.\rThe page grows quieter. We read what remains between words.\rNothing leaves at once. The last trace takes its time.";
+        var indentNames=["leftIndent","rightIndent","firstLineIndent"],indentLabels=["LEFT INDENT / 0 TO 72 PT","RIGHT INDENT / 0 TO 72 PT","FIRST LINE / -18 TO 36 PT"];
+        for(var ind=0;ind<3;ind++){
+            var px=62+ind*(cw+gap);
+            text("15"+String.fromCharCode(65+ind)+" - sublabel",indentLabels[ind],[1117,px,1138,px+cw-28],st.eye);
+            f=specimen("15"+String.fromCharCode(65+ind)+" - Paragraph "+indentNames[ind]+" - four paragraph linear ramp",paragraphText,[1160,px,1460,px+cw-28],17,24);
+            f.parentStory.texts[0].spaceAfter=12;
+            if(ind===2)f.parentStory.texts[0].leftIndent=18;
+            apply(f,{property:indentNames[ind],mode:"paragraph",target:"both",min:ind===2?-18:0,max:ind===2?36:72});
+        }
+        box("Page 2 - footer rule",[1538,48,1538.5,W-48],rule,ground);
+        text("Page 2 - footer label","WHOLE PARAGRAPHS",[1553,48,1572,48+cw],st.eye);
+        text("Page 2 - footer scope","A partial selection includes each paragraph it touches. Indents can also affect a continuation in another frame or overset.",[1578,48,1630,48+cw],st.foot);
+        text("Page 2 - footer replace label","REPLACE & RESTORE",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
+        text("Page 2 - footer replace","Cancel restores the starting formatting. Reapplying restores old targets before assigning new values. Underline automatic values are preserved.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
+        text("Page 2 - footer paragraph label","ONE CURVE PER SCOPE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
+        text("Page 2 - footer paragraph","Indent properties use Paragraph, Both and Never restart. Curves run across the selected paragraphs without splitting their formatting.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
+        text("Page 2 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v5.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
         doc.recompose();
         for(var i=0;i<allText.length;i++){
             var tf=allText[i];
             if(tf.overflows&&!tf.extractLabel("TrackingRamp.guide.expectedOverset"))log("OVERSET "+tf.name);
         }
         doc.metadataPreferences.documentTitle="Fading, by degrees. - Tracking Ramp visual guide";
-        doc.metadataPreferences.description="One editable A2 specimen sheet demonstrating Tracking Ramp 5 text curves, metrics, scopes, and frame contours. Generated with the actual script engine.";
+        doc.metadataPreferences.description="Two editable A2 specimen sheets demonstrating Tracking Ramp 5 text curves, metrics, scopes, and frame contours. Generated with the actual script engine.";
         ground.locked=true;labels.locked=true;doc.activeLayer=examples;
         var indd=File(folder.fsName+"/Tracking Ramp - Visual Guide.indd");doc.save(indd);
         doc.exportFile(ExportFormat.INDESIGN_MARKUP,File(folder.fsName+"/Tracking Ramp - Visual Guide.idml"),false);
