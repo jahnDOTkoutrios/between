@@ -178,6 +178,17 @@ $('cancel-edit').addEventListener('click',()=>{$('editor').hidden=true;$('edit')
 $('use-text').addEventListener('click',()=>selectSample($('text-input').value,'custom'));
 function eventPoint(event){if(!stageRect)cacheRect();return{x:event.clientX-stageRect.left+stage.scrollLeft,y:event.clientY-stageRect.top};}
 stage.addEventListener('pointerenter',cacheRect);
+stage.addEventListener('selectstart',stopPlayback);
+// Select the document text, never chrome or anonymous text inside controls.
+document.addEventListener('keydown',event=>{
+  if(!(event.metaKey||event.ctrlKey)||event.altKey||event.key.toLowerCase()!=='a')return;
+  if(event.target.closest('input,textarea,select,[contenteditable=true]'))return;
+  event.preventDefault();stopPlayback();
+  const selection=window.getSelection();selection.removeAllRanges();
+  const first=stage.firstElementChild?.querySelector('.word-ink')?.firstChild,last=stage.lastElementChild?.querySelector('.word-ink')?.firstChild;
+  if(!first||!last)return;
+  const range=document.createRange();range.setStart(first,0);range.setEnd(last,last.length);selection.addRange(range);
+});
 stage.addEventListener('pointerdown',event=>{
   if(benchmarkController)return;
   if(mode==='pointer'){pointer=eventPoint(event);requestPaint();}

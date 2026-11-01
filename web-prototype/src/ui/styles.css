@@ -27,6 +27,8 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; }
+.sidebar,.specimen-toolbar,.interaction-toolbar,.popover,.performance,#editor,#hint,#status { user-select:none;-webkit-user-select:none; }
+input:focus:not([type=range]):not([type=checkbox]):not([type=color]):not([type=file]),textarea,[contenteditable=true] { user-select:text;-webkit-user-select:text; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { border: 0; background: none; cursor: pointer; }
 button:disabled, select:disabled { opacity: .4; cursor: default; }
@@ -85,7 +87,15 @@ textarea:focus-visible, summary:focus-visible, .stage:focus-visible {
 .stage .word { position: absolute; left: 0; top: 0; display: block; white-space: pre; contain: layout style; transform-origin: 0 0; }
 .stage .word-ink { vertical-align: baseline; font-optical-sizing: none; }
 .stage.is-preparing { opacity: .4; }
-.stage.pointer-mode { user-select: none; -webkit-user-select: none; }
+/* Specimen selection stays browser-native; UI labels cannot join the range. */
+.stage,.stage .word,.stage .word-ink,.stage .word-gap { user-select:text;-webkit-user-select:text; }
+.stage { cursor:text; }
+.stage .word-gap { position:relative;display:inline-block;line-height:1;white-space:pre; }
+.stage .paragraph-gap { height:0;vertical-align:top; }
+.stage ::selection,textarea::selection,input::selection { background:Highlight;color:HighlightText; }
+.stage .word.is-space .word-ink::before { content:" "; }
+.stage .word.is-space,.stage .word.is-space * { user-select:none;-webkit-user-select:none; }
+
 #status { margin: 18px 0 0; }
 
 #editor { margin-top: 20px; }
@@ -144,7 +154,8 @@ textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid v
 .setting-row select { max-width:140px;border:0;border-bottom:1px solid var(--border);background:var(--paper);padding:4px 0; }
 .setting-row input[type=checkbox] { accent-color:var(--accent); }
 .stage .word-ink { display:inline-block;line-height:1;transform-origin:center center; }
-.stage.gesture-mode { touch-action:none;user-select:none;-webkit-user-select:none; }
+.stage.gesture-mode { touch-action:none;cursor:default; }
+.stage.gesture-mode,.stage.gesture-mode * { user-select:none;-webkit-user-select:none; }
 
 @media(max-width:600px) {
   .interaction-toolbar { flex-wrap:wrap; }

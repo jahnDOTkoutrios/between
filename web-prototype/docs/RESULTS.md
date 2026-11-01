@@ -351,3 +351,22 @@ Actual keyboard navigation (Home, Down, Return) chose Center successfully.
 Base-select preserves browser-managed option selection, focus and semantics;
 fallback browsers retain native pickers. Left alignment keeps the original
 single-pass paint path, and alignment edits reuse the prepared font cache.
+
+
+## Native text selection
+
+89 tests and the production build pass. Added checks for logical word spaces,
+blank paragraph breaks, stable/live character gaps, justified spacing, inherited
+opacity/baseline and zero repeat writes on cached idle frames.
+
+Browser reproduction before the change selected `Thelightleavesslowly` with
+separate word highlight boxes. The same word-mode drag now selects
+`The light leaves slowly.` with one joined highlight. Character selections keep
+spaces once, and live character Select All retained two paragraphs separated by
+a blank line. Paragraph separator spans did not shift glyph baselines (0 px
+spread among equal-style glyphs on a line).
+
+UI label dragging cannot select labels or buttons. App Select All is scoped to
+specimen text and does not highlight numeric controls. The textarea's native
+Select All still selects its full editable value. Selection colors use system
+Highlight/HighlightText, with no fixed palette or synthetic highlight overlay.

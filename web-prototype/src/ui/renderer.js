@@ -20,14 +20,21 @@ export class TextRenderer {
     this.stage.style.height = `${layout.height}px`;this.stageHeight=layout.height;
     const fragment = document.createDocumentFragment();
     const entries=layout.entries||model.words.map(word=>({word}));
-    for (const entry of entries) {
-      const word=entry.word;
+    for (let renderIndex=0;renderIndex<entries.length;renderIndex++) {
+      const entry=entries[renderIndex],nextEntry=entries[renderIndex+1],word=entry.word;
       const node = document.createElement('span'), ink = document.createElement('span');
-      node.className = 'word'; ink.className = 'word-ink'; ink.textContent = word;
+      node.className = entry.isSpace?'word is-space':'word'; ink.className = 'word-ink'; ink.textContent = entry.isSpace?'':word;
       node.style.fontSize = `${model.maxSize}px`; node.style.lineHeight = `${layout.autoLineHeight??layout.lineHeight}px`;
       node.setAttribute('aria-hidden', 'true'); node.append(ink); fragment.append(node);
-      if (!model.characters && this.nodes.length < entries.length - 1) fragment.append(document.createTextNode(' '));
-      this.nodes.push({ node, ink, index: -1, family:'', color: '', x: NaN, y: NaN, amount: null, effectsKey: '',hidden:false,hostSize:model.maxSize,hostLeading:layout.autoLineHeight??layout.lineHeight });
+      let gap=null;
+      const lastGlyph=!entry.isSpace&&(!model.characters||nextEntry?.isSpace||nextEntry?.wordIndex!==entry.wordIndex);
+      const wordIndex=entry.wordIndex??renderIndex,following=model.structure?.words[wordIndex+1];
+      if(lastGlyph&&wordIndex<model.words.length-1){
+        gap=document.createElement('span');gap.className='word-gap';
+        const paragraphs=following?following.paragraphIndex-(entry.paragraphIndex??0):0;
+        gap.textContent=paragraphs>0?'\n'.repeat(paragraphs):' ';if(paragraphs>0)gap.className+=' paragraph-gap';node.append(gap);
+      }
+      this.nodes.push({ node, ink, gap, gapKey:'', index: -1, family:'', color: '', x: NaN, y: NaN, amount: null, effectsKey: '',hidden:false,hostSize:model.maxSize,hostLeading:layout.autoLineHeight??layout.lineHeight });
     }
     this.stage.append(fragment);
   }
@@ -78,10 +85,12 @@ export class TextRenderer {
           if(item.hostLeading!==line.autoLineHeight){item.node.style.lineHeight=`${line.autoLineHeight}px`;item.hostLeading=line.autoLineHeight;writes++;}
         }
         const color = mixColor(a.color, b.color, t);
-        const family=fontStack(style.fontFamily);if(item.family!==family){item.ink.style.fontFamily=family;item.family=family;writes++;}
+        const family=fontStack(style.fontFamily);if(item.family!==family){item.ink.style.fontFamily=family;if(item.gap)item.gap.style.fontFamily=family;item.family=family;writes+=item.gap?2:1;}
         if (item.index !== index) {
           item.ink.style.fontSize = `${style.size}px`; item.ink.style.fontWeight = String(style.weight);
-          item.ink.style.letterSpacing = `${style.tracking}px`; item.index = index; writes += 3;
+          item.ink.style.letterSpacing = `${style.tracking}px`;
+          if(item.gap){item.gap.style.fontSize=`${style.size}px`;item.gap.style.fontWeight=String(style.weight);item.gap.style.letterSpacing=`${style.tracking}px`;}
+          item.index = index; writes += item.gap?6:3;
         }
         if (item.color !== color) { item.ink.style.color = color; item.color = color; writes++; }
         const outlineA=a.outlineColor??NEUTRAL_STYLE.outlineColor,outlineB=b.outlineColor??NEUTRAL_STYLE.outlineColor;
@@ -89,6 +98,7 @@ export class TextRenderer {
         const effectsKey=JSON.stringify(effects)+outlineColor;
         if(item.effectsKey!==effectsKey){
           item.ink.style.opacity=String(effects.opacity/100);
+          if(item.gap){item.gap.style.opacity=String(effects.opacity/100);item.gap.style.transform=`translateY(${effects.baseline}px)`;}
           item.ink.style.transform=`translateY(${effects.baseline}px) rotate(${effects.rotation}deg) skewX(${-effects.skew}deg) scale(${effects.scaleX/100},${effects.scaleY/100})`;
           item.ink.style.webkitTextStrokeWidth=`${effects.outlineWidth}px`;
           item.ink.style.webkitTextStrokeColor=outlineColor;
@@ -110,6 +120,16 @@ export class TextRenderer {
         if(item.x!==nodeX||item.y!==y){item.node.style.transform=`translate(${nodeX}px,${y}px)`;item.x=nodeX;item.y=y;writes++;}
         if(isWordGap(entry))shift+=spacing.space;
       }
+      }
+      // Real selectable whitespace bridges the positioned words. Rendered
+      // character-space boxes are decorative; each logical gap occurs once.
+      for(let i=0;i<line.length;i++){
+        const entry=line[i],item=this.nodes[entry.index];if(!item.gap)continue;
+        const next=line[i+1]?.isSpace?line[i+2]:line[i+1],position=this.positions[entry.index];
+        const width=next?Math.max(0,this.positions[next.index].x-position.x-position.width):0;
+        const left=position.x+position.width-item.x-model.widths.get(entry.word)[position.state],wordSpacing=width-model.space[position.state];
+        const key=`${left}:${width}:${wordSpacing}`;
+        if(item.gapKey!==key){item.gap.style.left=`${left}px`;item.gap.style.width=`${width}px`;item.gap.style.wordSpacing=`${wordSpacing}px`;item.gapKey=key;writes+=3;}
       }
       if(!liveFrame)y+=advance||(leadingA+(leadingB-leadingA)*amount);
     }

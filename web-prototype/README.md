@@ -387,3 +387,18 @@ where supported, preserving native keyboard and accessibility behavior. Other
 browsers keep the styled button and their native picker as a fallback.
 
 ![Base alignment and themed dropdown menu](docs/alignment-menu.png)
+
+
+## Text selection
+
+UI labels, buttons, menus and inactive controls cannot join a text selection.
+The specimen uses browser-native selection with system highlight colors; real
+whitespace joins the positioned runs so dragging and copying retain word spaces
+and paragraph breaks. This works in word and character rendering, including live
+reflow and justified gaps. Beginning a text selection pauses playback.
+
+Cmd/Ctrl+A outside a text field selects the specimen only. Inside the text editor
+or a focused value field, normal field selection and editing remain available.
+Press/Scroll gesture modes keep their existing drag behavior.
+
+![Native selection without selected UI labels](docs/native-selection.png)
