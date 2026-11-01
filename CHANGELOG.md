@@ -1,5 +1,10 @@
 # Changelog
 
+## Web prototype — 0.1.0
+
+- Add Between in `web-prototype/`: Pretext-based character-style morphing with shared Base settings and A/B overrides, optional properties, structural scopes/restarts, built-in and custom curves, interactive playback, live reflow, dark mode, local font loading, refresh persistence, and Restore defaults.
+- Include pinned dependencies, the bundled font and its license, source, tests, screenshots, benchmark reports and run instructions. The InDesign version remains 8.0.0.
+
 ## 8.0.0
 
 - Simplify the Style blend section: stack Style A/B and Missing values in aligned 240 pt controls, group Attributes/Refresh actions underneath, and align the Min input with the control column. Keep all blend, saved-setup and preview behavior unchanged.

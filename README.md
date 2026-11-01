@@ -7,6 +7,31 @@ inside words, sentences, paragraphs, composed lines, or linked frames.
 A standalone ExtendScript `.jsx` with a ScriptUI interface; no plugin build or
 runtime dependencies are needed in InDesign.
 
+## Web prototype — Between
+
+[Between](web-prototype/) brings style morphing, curves and structural
+text distribution to a local web editor built with
+[Pretext](https://github.com/chenglou/pretext). It includes interactive playback,
+live reflow, shared Base typography, optional properties, custom fonts, dark mode,
+and settings that survive refresh.
+
+The InDesign script remains **v8.0.0**; the web prototype is a separate app.
+
+From this repository, using Node 22.12+ or 24+:
+
+```sh
+cd web-prototype
+npm ci
+npm run dev
+```
+
+Open **http://127.0.0.1:5173/**. Run `npm test` for the web checks and
+`npm run build` to generate a production build. See the
+[web README](web-prototype/README.md) and
+[validation results](web-prototype/docs/RESULTS.md) for details.
+
+![Between web editor](web-prototype/docs/restore-defaults.png)
+
 ## Visual guide
 
 A minimal, five-page A2 visual guide with short and long fading-themed text,

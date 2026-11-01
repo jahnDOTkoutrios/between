@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Between</title>
+  <link rel="preload" href="/fonts/manrope-latin-variable.woff2" as="font" type="font/woff2" crossorigin />
+</head>
+<body>
+  <main class="app">
+    <div class="workspace">
+      <aside class="sidebar" aria-label="Endpoint styles">
+        <div class="base-controls"><button id="base-settings" class="text-button" popovertarget="base-panel" aria-label="Base settings" title="Shared defaults for A and B">Base</button><button id="theme-toggle" class="icon-button theme-toggle" aria-label="Dark mode" aria-pressed="false" title="Dark mode">◐</button></div>
+        <div id="base-panel" class="popover base-panel" popover="auto" aria-label="Base settings"></div>
+        <form id="styles" autocomplete="off"></form>
+        <div class="sidebar-actions"><button id="reset" class="text-button" title="Restore all editor defaults">Restore defaults</button><button id="add-property" class="icon-button" aria-label="Add property" title="Add a property to both styles" popovertarget="property-menu">+</button></div>
+        <div id="property-menu" class="popover property-menu" popover="auto" aria-label="Add property"></div>
+      </aside>
+      <section class="specimen" aria-label="Interactive specimen">
+        <div class="specimen-toolbar">
+          <div class="sample-picker" role="group" aria-label="Sample text"><button id="phrase" class="active" aria-pressed="true">Phrase</button><button id="paragraph" aria-pressed="false">Paragraph</button></div>
+          <label class="reflow-control" title="Fit current styles to the frame. Line-dependent curves settle in bounded passes; cycling assignments remain sampled until input changes."><input id="live-reflow" type="checkbox" />Live reflow</label>
+          <button id="edit" class="text-button" aria-expanded="false">Edit text</button>
+        </div>
+        <div id="editor" hidden><label for="text-input">Your text</label><textarea id="text-input" maxlength="3000" rows="4"></textarea><div class="editor-actions"><button id="cancel-edit" class="text-button">Cancel</button><button id="use-text" class="small-button">Use text</button></div></div>
+        <div class="interaction-toolbar">
+          <label class="morph-control" for="morph"><span id="morph-start">A</span><input id="morph" aria-label="Morph amount" type="range" min="0" max="100" step="0.1" value="0" /><span id="morph-end">B</span><output id="amount" for="morph">0%</output></label>
+          <label class="mode-control"><span class="sr-only">Interaction</span><select id="interaction" aria-label="Interaction"><option value="scrub">Scrub</option><option value="curve">Curve</option><option value="pointer">Proximity</option><option value="wipe">Wipe</option><option value="wave">Wave</option><option value="scroll">Scroll</option><option value="press">Press</option></select></label>
+          <button id="distribution-settings" class="icon-button" aria-label="Distribution" title="Distribution and curve" popovertarget="distribution-panel">∿</button>
+          <button id="interaction-settings" class="icon-button" aria-label="Interaction settings" title="Interaction settings" popovertarget="interaction-panel">⋯</button>
+          <button id="play" class="small-button" aria-pressed="false">Play</button>
+        </div>
+        <div id="distribution-panel" class="popover distribution-panel" popover="auto" aria-label="Distribution"></div>
+        <div id="interaction-panel" class="popover interaction-panel" popover="auto" aria-label="Interaction settings"></div>
+        <p id="hint" class="sr-only">Drag the slider to move every word between A and B.</p>
+        <div id="stage" class="stage" tabindex="0" aria-label="Morphing text" aria-describedby="hint"></div>
+        <p id="status" role="status">Loading…</p>
+        <details id="performance" class="performance" hidden><summary>Performance test <span>↗</span></summary>
+          <p>Compare cached measurements with per-frame preparation. Both use the same 65 type states and fixed lines; color stays continuous. The test uses the default styles and includes phrase, paragraph and pointer runs.</p>
+          <button id="benchmark" class="small-button">Run comparison</button><p id="benchmark-status" role="status"></p><div id="benchmark-results"></div>
+        </details>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

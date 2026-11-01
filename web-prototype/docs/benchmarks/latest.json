@@ -1,0 +1,544 @@
+{
+  "schemaVersion": 1,
+  "featureSet": "live-reflow",
+  "timestamp": "2026-11-01T21:17:33.750Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 968,
+    "height": 1194,
+    "devicePixelRatio": 2
+  },
+  "specimenWidth": 624,
+  "fontLoaded": true,
+  "baselineFrameMs": 8.300000000000182,
+  "baselineFps": 120.48192771084074,
+  "typeStates": 65,
+  "endpoints": {
+    "a": {
+      "size": 30,
+      "weight": 350,
+      "tracking": -0.5,
+      "color": "#252525"
+    },
+    "b": {
+      "size": 46,
+      "weight": 720,
+      "tracking": 1.4,
+      "color": "#a2a29b"
+    }
+  },
+  "preparation": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "workMs": 2.0999999791383743,
+      "wallMs": 12.200000002980232,
+      "uniqueWords": 6,
+      "measuredStates": 65,
+      "entries": 390
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "workMs": 60.599999994039536,
+      "wallMs": 70.90000000596046,
+      "uniqueWords": 82,
+      "measuredStates": 65,
+      "entries": 5330
+    },
+    {
+      "sample": "Paragraph + effects",
+      "words": 97,
+      "workMs": 8.099999979138374,
+      "wallMs": 19.799999997019768,
+      "uniqueWords": 82,
+      "measuredStates": 65,
+      "entries": 5330
+    },
+    {
+      "sample": "Paragraph characters",
+      "words": 97,
+      "renderedUnits": 537,
+      "workMs": 4.100000023841858,
+      "wallMs": 15.800000011920929,
+      "uniqueWords": 34,
+      "measuredStates": 65,
+      "entries": 2210
+    }
+  ],
+  "cases": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Cached",
+      "frames": 253,
+      "fps": 119.99620565357614,
+      "frameIntervalP95Ms": 8.5,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.3999999910593033,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Reprepare",
+      "frames": 256,
+      "fps": 121.66143902670845,
+      "frameIntervalP95Ms": 8.400000000001455,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.29999999701976776,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Pointer · cached",
+      "frames": 252,
+      "fps": 120,
+      "frameIntervalP95Ms": 8.799999999999272,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.4000000059604645,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Cached",
+      "frames": 252,
+      "fps": 119.99428598638147,
+      "frameIntervalP95Ms": 8.5,
+      "updateMedianMs": 0.3999999910593033,
+      "updateP95Ms": 0.5999999940395355,
+      "updateMaxMs": 0.6000000089406967,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Reprepare",
+      "frames": 253,
+      "fps": 120.00189726319788,
+      "frameIntervalP95Ms": 8.5,
+      "updateMedianMs": 0.5,
+      "updateP95Ms": 0.7000000029802322,
+      "updateMaxMs": 0.7999999970197678,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Pointer · cached",
+      "frames": 252,
+      "fps": 119.99428598638147,
+      "frameIntervalP95Ms": 9.299999999999272,
+      "updateMedianMs": 0.29999999701976776,
+      "updateP95Ms": 0.9000000059604645,
+      "updateMaxMs": 1.2999999970197678,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Wave + effects",
+      "frames": 149,
+      "fps": 70.36267472610507,
+      "frameIntervalP95Ms": 25.099999999998545,
+      "updateMedianMs": 0.7000000029802322,
+      "updateP95Ms": 0.800000011920929,
+      "updateMaxMs": 1.0999999940395355,
+      "slowFrames": 74,
+      "estimatedMissedFrames": 105
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Line wipe + effects",
+      "frames": 238,
+      "fps": 113.32793676491603,
+      "frameIntervalP95Ms": 16.200000000000728,
+      "updateMedianMs": 0.29999999701976776,
+      "updateP95Ms": 1,
+      "updateMaxMs": 1.5,
+      "slowFrames": 14,
+      "estimatedMissedFrames": 14
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Press response + effects",
+      "frames": 144,
+      "fps": 68.54531607006845,
+      "frameIntervalP95Ms": 25,
+      "updateMedianMs": 0.6000000089406967,
+      "updateP95Ms": 0.7000000029802322,
+      "updateMaxMs": 1,
+      "slowFrames": 92,
+      "estimatedMissedFrames": 108
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "renderedUnits": 537,
+      "method": "Letter curves",
+      "frames": 252,
+      "fps": 119.52191235059773,
+      "frameIntervalP95Ms": 9,
+      "updateMedianMs": 1.4000000059604645,
+      "updateP95Ms": 1.7999999970197678,
+      "updateMaxMs": 2.2000000029802322,
+      "slowFrames": 1,
+      "estimatedMissedFrames": 1
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "renderedUnits": 537,
+      "method": "Letter wave",
+      "frames": 215,
+      "fps": 102.38095238095238,
+      "frameIntervalP95Ms": 16.700000000000728,
+      "updateMedianMs": 1.8999999910593033,
+      "updateP95Ms": 2.5,
+      "updateMaxMs": 8.799999997019768,
+      "slowFrames": 37,
+      "estimatedMissedFrames": 37
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Font and leading overrides",
+      "frames": 253,
+      "fps": 119.99620565357608,
+      "frameIntervalP95Ms": 8.799999999995634,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.5,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Live reflow",
+      "frames": 253,
+      "fps": 120.00189726319809,
+      "frameIntervalP95Ms": 8.400000000001455,
+      "updateMedianMs": 0.5999999940395355,
+      "updateP95Ms": 0.7999999970197678,
+      "updateMaxMs": 0.9000000059604645,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Live line curves",
+      "frames": 253,
+      "fps": 120.00758941276894,
+      "frameIntervalP95Ms": 8.400000000001455,
+      "updateMedianMs": 1.2000000029802322,
+      "updateP95Ms": 1.5,
+      "updateMaxMs": 1.800000011920929,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Live letter wave",
+      "frames": 183,
+      "fps": 86.45941604459959,
+      "frameIntervalP95Ms": 16.700000000004366,
+      "updateMedianMs": 2.6000000089406967,
+      "updateP95Ms": 3.699999988079071,
+      "updateMaxMs": 8.100000008940697,
+      "slowFrames": 71,
+      "estimatedMissedFrames": 71
+    }
+  ],
+  "validation": [
+    {
+      "sample": "Phrase",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.0077056884765625
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "A endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "B endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.0077972412109375
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "A endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "B endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Combined transforms fit reserved frame bounds",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Transformed width math matches actual DOM bounds",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.008284592673589941
+      }
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Opacity and outline reach the added endpoint",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Wave distributes independent word amounts",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Line wipe gives each line one shared amount",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Character distribution",
+      "name": "Grapheme widths match actual DOM bounds",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.00783996582031321
+      }
+    },
+    {
+      "sample": "Character distribution",
+      "name": "Character curves fit fixed lines without overlap",
+      "pass": true,
+      "detail": {
+        "maxOverflow": 0,
+        "minGap": -2.842170943040401e-14
+      }
+    },
+    {
+      "sample": "Character distribution",
+      "name": "Each word restarts at A and longer odd words reach B",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Character distribution",
+      "name": "Scope leaves outside text at A while the target reaches B",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Base typography",
+      "name": "Mixed serif/mono measurements match DOM across the font switch",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.007617187499988631
+      }
+    },
+    {
+      "sample": "Base typography",
+      "name": "Font family switches at exactly half without changing before it",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Base typography",
+      "name": "Actual baseline rows follow shared/overridden leading and interpolate",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Base typography",
+      "name": "Shared system-sans measurements match DOM at A/B and midpoint",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.007226562499994316
+      }
+    },
+    {
+      "sample": "Live words",
+      "name": "Current styles change the fitted line count",
+      "pass": true,
+      "detail": {
+        "atA": 12,
+        "atB": 25
+      }
+    },
+    {
+      "sample": "Live words",
+      "name": "Live widths match DOM without overlap or frame clipping",
+      "pass": true,
+      "detail": {
+        "maxWidthErrorPx": 0.007781982421875,
+        "maxOverflowPx": 0,
+        "minGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Live words",
+      "name": "Animation reuses the exact existing text nodes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Live words",
+      "name": "Line restart curves settle or retain fitted sampled assignments in bounded passes",
+      "pass": true,
+      "detail": {
+        "sampledFallbackFrames": 4
+      }
+    },
+    {
+      "sample": "Live words",
+      "name": "Disabling live reflow restores the original stable lines",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Live characters",
+      "name": "Current styles change the fitted line count",
+      "pass": true,
+      "detail": {
+        "atA": 13,
+        "atB": 25
+      }
+    },
+    {
+      "sample": "Live characters",
+      "name": "Live widths match DOM without overlap or frame clipping",
+      "pass": true,
+      "detail": {
+        "maxWidthErrorPx": 0.0077026367187507105,
+        "maxOverflowPx": 0,
+        "minGapPx": -4.618527782440651e-14
+      }
+    },
+    {
+      "sample": "Live characters",
+      "name": "Animation reuses the exact existing text nodes",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Live characters",
+      "name": "Line restart curves settle or retain fitted sampled assignments in bounded passes",
+      "pass": true,
+      "detail": {
+        "sampledFallbackFrames": 4
+      }
+    },
+    {
+      "sample": "Live characters",
+      "name": "Disabling live reflow restores the original stable lines",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "notes": [
+    "Same text, font, line allocation, 65 type states and renderer in both methods. Color remains continuous.",
+    "Reprepare invokes the public Pretext prepare/measure API for each word each frame; Pretext internal caches are warm. It does not represent a DOM layout benchmark.",
+    "Update timing measures JavaScript preparation and style writes; RAF intervals also reflect scheduling and browser rendering. Neither is a GPU profiler.",
+    "A slow frame exceeds 1.5 times this tab’s idle median RAF interval. Missed frames are an estimate relative to that measured cadence.",
+    "Browser visibility, viewport, other applications and thermal load affect results. No claim of universal 60 fps.",
+    "Validation geometry reads occur before timed cases, never inside the animation loop.",
+    "The specimen is scrolled into view for every case. Long paragraphs extend beyond the viewport; all words update, but only visible text needs painting."
+  ]
+}

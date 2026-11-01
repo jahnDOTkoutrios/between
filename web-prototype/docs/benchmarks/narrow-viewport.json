@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "timestamp": "2026-11-01T19:19:27.316Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "devicePixelRatio": 1
+  },
+  "specimenWidth": 350,
+  "fontLoaded": true,
+  "baselineFrameMs": 8.300000000000182,
+  "baselineFps": 120.48192771084074,
+  "typeStates": 65,
+  "endpoints": {
+    "a": {
+      "size": 30,
+      "weight": 350,
+      "tracking": -0.5,
+      "color": "#252525"
+    },
+    "b": {
+      "size": 46,
+      "weight": 720,
+      "tracking": 1.4,
+      "color": "#a2a29b"
+    }
+  },
+  "preparation": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "workMs": 1.800000011920929,
+      "wallMs": 12.300000011920929,
+      "uniqueWords": 6,
+      "measuredStates": 65,
+      "entries": 390
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "workMs": 60.49999998509884,
+      "wallMs": 71.09999999403954,
+      "uniqueWords": 82,
+      "measuredStates": 65,
+      "entries": 5330
+    }
+  ],
+  "cases": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Cached",
+      "frames": 253,
+      "fps": 119.99051458382736,
+      "frameIntervalP95Ms": 9.100000000000364,
+      "updateMedianMs": 0,
+      "updateP95Ms": 0.19999998807907104,
+      "updateMaxMs": 0.20000000298023224,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Reprepare",
+      "frames": 253,
+      "fps": 120.45898205018324,
+      "frameIntervalP95Ms": 9.200000000000728,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.30000001192092896,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Pointer · cached",
+      "frames": 253,
+      "fps": 120.2757309246494,
+      "frameIntervalP95Ms": 9.200000000000728,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.10000000894069672,
+      "updateMaxMs": 0.20000000298023224,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Cached",
+      "frames": 254,
+      "fps": 120.47049895655475,
+      "frameIntervalP95Ms": 9.200000000000728,
+      "updateMedianMs": 0.29999999701976776,
+      "updateP95Ms": 0.4000000059604645,
+      "updateMaxMs": 0.5,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Reprepare",
+      "frames": 254,
+      "fps": 120.23668639053265,
+      "frameIntervalP95Ms": 9.200000000000728,
+      "updateMedianMs": 0.3999999910593033,
+      "updateP95Ms": 0.5,
+      "updateMaxMs": 0.6000000089406967,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Pointer · cached",
+      "frames": 254,
+      "fps": 120.00944956295771,
+      "frameIntervalP95Ms": 9.299999999999272,
+      "updateMedianMs": 0.20000000298023224,
+      "updateP95Ms": 0.699999988079071,
+      "updateMaxMs": 3.0999999940395355,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    }
+  ],
+  "validation": [
+    {
+      "sample": "Phrase",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.00766754150390625
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "A endpoint size and weight are exact",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "B endpoint size and weight are exact",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.0077972412109375
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "A endpoint size and weight are exact",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "B endpoint size and weight are exact",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "notes": [
+    "Same text, font, line allocation, 65 type states and renderer in both methods. Color remains continuous.",
+    "Reprepare invokes the public Pretext prepare/measure API for each word each frame; Pretext internal caches are warm. It does not represent a DOM layout benchmark.",
+    "Update timing measures JavaScript preparation and style writes; RAF intervals also reflect scheduling and browser rendering. Neither is a GPU profiler.",
+    "A slow frame exceeds 1.5 times this tab’s idle median RAF interval. Missed frames are an estimate relative to that measured cadence.",
+    "Browser visibility, viewport, other applications and thermal load affect results. No claim of universal 60 fps.",
+    "Validation geometry reads occur before timed cases, never inside the animation loop.",
+    "The specimen is scrolled into view for every case. Long paragraphs extend beyond the viewport; all words update, but only visible text needs painting."
+  ]
+}

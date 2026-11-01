@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 1,
+  "featureSet": "optional-properties-and-interactions",
+  "timestamp": "2026-11-01T20:03:43.983Z",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 968,
+    "height": 1194,
+    "devicePixelRatio": 2
+  },
+  "specimenWidth": 624,
+  "fontLoaded": true,
+  "baselineFrameMs": 8.300000000000068,
+  "baselineFps": 120.48192771084238,
+  "typeStates": 65,
+  "endpoints": {
+    "a": {
+      "size": 30,
+      "weight": 350,
+      "tracking": -0.5,
+      "color": "#252525"
+    },
+    "b": {
+      "size": 46,
+      "weight": 720,
+      "tracking": 1.4,
+      "color": "#a2a29b"
+    }
+  },
+  "preparation": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "workMs": 1.9000000208616257,
+      "wallMs": 13.100000008940697,
+      "uniqueWords": 6,
+      "measuredStates": 65,
+      "entries": 390
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "workMs": 69.80000001192093,
+      "wallMs": 81.5,
+      "uniqueWords": 82,
+      "measuredStates": 65,
+      "entries": 5330
+    },
+    {
+      "sample": "Paragraph + effects",
+      "words": 97,
+      "workMs": 5.299999997019768,
+      "wallMs": 15.5,
+      "uniqueWords": 82,
+      "measuredStates": 65,
+      "entries": 5330
+    }
+  ],
+  "cases": [
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Cached",
+      "frames": 276,
+      "fps": 131.3722690275596,
+      "frameIntervalP95Ms": 10.099999999999909,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.4000000059604645,
+      "slowFrames": 1,
+      "estimatedMissedFrames": 1
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Reprepare",
+      "frames": 255,
+      "fps": 120.6244087038789,
+      "frameIntervalP95Ms": 9.400000000000546,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.6000000089406967,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Phrase",
+      "words": 7,
+      "method": "Pointer · cached",
+      "frames": 252,
+      "fps": 119.92576024365873,
+      "frameIntervalP95Ms": 9.800000000000182,
+      "updateMedianMs": 0.09999999403953552,
+      "updateP95Ms": 0.20000000298023224,
+      "updateMaxMs": 0.4000000059604645,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Cached",
+      "frames": 253,
+      "fps": 119.97344461305012,
+      "frameIntervalP95Ms": 9.5,
+      "updateMedianMs": 0.3999999910593033,
+      "updateP95Ms": 0.5,
+      "updateMaxMs": 0.6000000089406967,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Reprepare",
+      "frames": 261,
+      "fps": 124.17927490722242,
+      "frameIntervalP95Ms": 10.099999999998545,
+      "updateMedianMs": 0.5,
+      "updateP95Ms": 0.6000000089406967,
+      "updateMaxMs": 0.7999999970197678,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Pointer · cached",
+      "frames": 253,
+      "fps": 119.96206733048838,
+      "frameIntervalP95Ms": 9.700000000000728,
+      "updateMedianMs": 0.30000001192092896,
+      "updateP95Ms": 0.8999999910593033,
+      "updateMaxMs": 1.1000000089406967,
+      "slowFrames": 0,
+      "estimatedMissedFrames": 0
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Wave + effects",
+      "frames": 129,
+      "fps": 60.91802040045328,
+      "frameIntervalP95Ms": 25.30000000000109,
+      "updateMedianMs": 0.7000000029802322,
+      "updateP95Ms": 0.9000000059604645,
+      "updateMaxMs": 1,
+      "slowFrames": 91,
+      "estimatedMissedFrames": 125
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Line wipe + effects",
+      "frames": 234,
+      "fps": 111.34373810430137,
+      "frameIntervalP95Ms": 16.600000000002183,
+      "updateMedianMs": 0.29999999701976776,
+      "updateP95Ms": 1.0999999940395355,
+      "updateMaxMs": 2.300000011920929,
+      "slowFrames": 18,
+      "estimatedMissedFrames": 18
+    },
+    {
+      "sample": "Paragraph",
+      "words": 97,
+      "method": "Press response + effects",
+      "frames": 144,
+      "fps": 68.30147512213634,
+      "frameIntervalP95Ms": 25,
+      "updateMedianMs": 0.699999988079071,
+      "updateP95Ms": 0.7999999970197678,
+      "updateMaxMs": 0.9000000059604645,
+      "slowFrames": 92,
+      "estimatedMissedFrames": 109
+    }
+  ],
+  "validation": [
+    {
+      "sample": "Phrase",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.0077056884765625
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Phrase",
+      "name": "A endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "B endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Phrase",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pretext word widths match rendered DOM",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.0077972412109375
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "All sampled sizes fit their fixed lines",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Words do not overlap",
+      "pass": true,
+      "detail": {
+        "minimumGapPx": 5.5
+      }
+    },
+    {
+      "sample": "Paragraph",
+      "name": "A endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "B endpoint has exact size, weight, tracking and color",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Pointer changes words independently",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph",
+      "name": "Morphing preserves line membership",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Combined transforms fit reserved frame bounds",
+      "pass": true,
+      "detail": {
+        "maxOverflowPx": 0
+      }
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Transformed width math matches actual DOM bounds",
+      "pass": true,
+      "detail": {
+        "maxErrorPx": 0.008284592673589941
+      }
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Opacity and outline reach the added endpoint",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Wave distributes independent word amounts",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "sample": "Paragraph + effects",
+      "name": "Line wipe gives each line one shared amount",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "notes": [
+    "Same text, font, line allocation, 65 type states and renderer in both methods. Color remains continuous.",
+    "Reprepare invokes the public Pretext prepare/measure API for each word each frame; Pretext internal caches are warm. It does not represent a DOM layout benchmark.",
+    "Update timing measures JavaScript preparation and style writes; RAF intervals also reflect scheduling and browser rendering. Neither is a GPU profiler.",
+    "A slow frame exceeds 1.5 times this tab’s idle median RAF interval. Missed frames are an estimate relative to that measured cadence.",
+    "Browser visibility, viewport, other applications and thermal load affect results. No claim of universal 60 fps.",
+    "Validation geometry reads occur before timed cases, never inside the animation loop.",
+    "The specimen is scrolled into view for every case. Long paragraphs extend beyond the viewport; all words update, but only visible text needs painting."
+  ]
+}
