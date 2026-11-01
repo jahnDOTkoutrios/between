@@ -2,6 +2,8 @@
 
 ## 8.0.0
 
+- Simplify the Style blend section: stack Style A/B and Missing values in aligned 240 pt controls, group Attributes/Refresh actions underneath, and align the Min input with the control column. Keep all blend, saved-setup and preview behavior unchanged.
+
 - Add Every … words to Restart Word (1–10000, default 1). Group consecutive words from the scope start; distribute a complete curve within each group, including a shorter final group. Preserve the count in saved setups and property stacks, with debounced preview input.
 
 - Fix additional stroke fallback cases: preserve explicit None paint, use visible zero for a missing width behind None, and never borrow fill paint when both endpoint styles omit stroke paint, even with positive latent widths. Keep synthetic zero endpoints at true None and retain exact paint-only baselines.

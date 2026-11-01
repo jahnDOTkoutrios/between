@@ -81,7 +81,7 @@ Examples:
 
 Choose **Character-style blend**, then **Style A** and **Style B**. Min/Max
 become blend percentages (0 = A, 100 = B). The existing curve, value units and
-restart controls drive every included attribute together. **Blend attributes…**
+restart controls drive every included attribute together. **Attributes…**
 lets you exclude attributes and explains unsupported or missing values.
 
 Shared supported values are automatic, including inherited values. New UI
@@ -224,3 +224,7 @@ stroke paint, the original paint is left unchanged; stored width values alone
 never borrow the fill color. Zero endpoints remain None. Explicit None in both
 styles keeps stroke off, even if the styles store nonzero widths.
 Paint-only blends preserve original None paint and its hidden stored width.
+
+The Style blend section uses one aligned column for Style A, Style B and Missing
+values. Attributes… and Refresh styles sit together beneath the selectors. The
+Min field starts on the same control column as the other property controls.

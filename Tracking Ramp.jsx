@@ -2290,8 +2290,9 @@
         var textEnabled = heading.add("checkbox", undefined, "Apply text property"); textEnabled.value = true;
         try { title.graphics.font = ScriptUI.newFont(title.graphics.font.name, "BOLD", 16); } catch (_) {}
         function row(parent) { var r = parent.add("group"); r.orientation = "row"; r.alignChildren = ["left", "center"]; return r; }
-        function field(parent, label, text, size) {
-            parent.add("statictext", undefined, label);
+        function field(parent, label, text, size, labelWidth) {
+            var caption = parent.add("statictext", undefined, label);
+            if(labelWidth){caption.preferredSize.width=labelWidth;caption.minimumSize=[labelWidth,0];caption.maximumSize=[labelWidth,10000];}
             var f = parent.add("edittext", undefined, String(text)); f.characters = size || 6; return f;
         }
         function dropdown(parent, label, choices, width, labelWidth) {
@@ -2316,10 +2317,10 @@
         var styleObjects = characterStyleList(target.document), styleLabels = [], styleAttributes = null;
         for (i = 0; i < styleObjects.length; i++) { styleLabels.push(stylePath(styleObjects[i])); }
         if (!styleLabels.length) { styleLabels.push("Create character styles first"); }
-        var styleRow = row(targetPanel);
-        var styleA = dropdown(styleRow, "Style A", styleLabels, 170), styleB = dropdown(styleRow, "Style B", styleLabels, 170);
+        var styleRow = targetPanel.add("group");styleRow.orientation="column";styleRow.alignChildren=["fill","top"];styleRow.spacing=8;
+        var styleA = dropdown(row(styleRow), "Style A", styleLabels, 240, 96);
+        var styleB = dropdown(row(styleRow), "Style B", styleLabels, 240, 96);
         styleA.selection = 0; styleB.selection = Math.max(0, Math.min(1, styleObjects.length - 1));
-        var blendAttributes = styleRow.add("button", undefined, "Blend attributes…");
         styleRow.visible = false; styleRow.maximumSize = [0, 0];
         function selectBlendStyles(saved) {
             var foundA=false,foundB=false;
@@ -2333,8 +2334,12 @@
             blendLoadError=(!foundA||!foundB)?"A saved endpoint style was renamed or deleted. Choose Style A and Style B before reapplying.":"";
             definitionCacheKey="";
         }
-        var policyRow=row(targetPanel),missingStyle=dropdown(policyRow,"Missing values",["Original text","Skip"],240,96);
-        var refreshStyles=policyRow.add("button",undefined,"Refresh styles");policyRow.visible=false;policyRow.maximumSize=[0,0];
+        var policyRow=row(styleRow),missingStyle=dropdown(policyRow,"Missing values",["Original text","Skip"],240,96);
+        var blendActionRow=row(styleRow);blendActionRow.spacing=10;
+        var actionIndent=blendActionRow.add("statictext",undefined,"");actionIndent.preferredSize.width=96;actionIndent.minimumSize=[96,0];actionIndent.maximumSize=[96,10000];
+        var actionButtons=row(blendActionRow);actionButtons.spacing=8;
+        var blendAttributes=actionButtons.add("button",undefined,"Attributes…"),refreshStyles=actionButtons.add("button",undefined,"Refresh styles");
+        blendAttributes.preferredSize.width=refreshStyles.preferredSize.width=116;
         missingStyle.helpTip="Use the original text when exactly one style omits an attribute. Both missing leaves it unchanged. Skip preserves the v7 rule.";
         try { var blendHistory = target.story.extractLabel(HISTORY_KEY); if (blendHistory) { var lastBlend = decode(blendHistory).effects.styleBlend; if (lastBlend) { selectBlendStyles(lastBlend.settings); } } } catch (_) {}
         var colors = target.document.colors.everyItem().getElements();try{colors=colors.concat(target.document.tints.everyItem().getElements());}catch(_){}
@@ -2350,7 +2355,7 @@
         for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].name === "Black") { colorA.selection = i; break; } }
         colorB.selection = Math.min(colorObjects.length - 1, colorA.selection.index + 1);
         var valueRow = row(targetPanel);
-        var minInput = field(valueRow, "Min", 0, 8), maxInput = field(valueRow, "Max", 200, 8);
+        var minInput = field(valueRow, "Min", 0, 8, 96), maxInput = field(valueRow, "Max", 200, 8);
         var unitLabel = valueRow.add("statictext", undefined, "1/1000 em"); unitLabel.preferredSize.width = 130;
         var distributionPanel=panel("Distribution");
         var labels = [];
@@ -2655,7 +2660,7 @@
                 apply.enabled = addProperty.enabled = false; error.text = " ";
                 var blendProperty = propertyIDs[property.selection.index] === "styleBlend";
                 var styleVisibilityChanged = styleRow.visible !== blendProperty;
-                styleRow.visible = policyRow.visible = blendProperty; styleRow.maximumSize = policyRow.maximumSize = blendProperty ? [10000, 30] : [0, 0];
+                styleRow.visible = blendProperty; styleRow.maximumSize = blendProperty ? [10000, 10000] : [0, 0];
                 styleA.enabled = styleB.enabled = blendAttributes.enabled = !!styleObjects.length;
                 if (styleVisibilityChanged) { try { dialog.layout.layout(true); } catch (_) {} }
                 var lengthProperty = propertyIDs[property.selection.index] === "lineLength";
