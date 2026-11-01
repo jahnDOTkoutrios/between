@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Use `between` as the repository name and public Pages path; update canonical web, source and script download links.
+
 - Add Base → Text width in pixels, with Auto, responsive fitting, stable/live composition and saved setup support. Restore defaults returns the block to Auto; width edits reuse cached font measurements.
 
 - Publish Between on GitHub Pages with automatic tested deployments, a production base path, and public links in the project documentation. Keep benchmark report writes development-only.

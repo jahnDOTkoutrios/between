@@ -1,6 +1,6 @@
 # Between
 
-**[Open the public web tool](https://jahndotkoutrios.github.io/indesign-tracking-ramp/)**
+**[Open the public web tool](https://jahndotkoutrios.github.io/between/)**
 
 A small, local web prototype for morphing between two character styles with
 [Pretext](https://github.com/chenglou/pretext). Separate from the InDesign script.
@@ -409,12 +409,12 @@ Press/Scroll gesture modes keep their existing drag behavior.
 ## Public hosting
 
 GitHub Pages serves the built app at
-[the public tool URL](https://jahndotkoutrios.github.io/indesign-tracking-ramp/).
+[the public tool URL](https://jahndotkoutrios.github.io/between/).
 The repository's **Publish web tool** workflow checks both test suites, builds
 the web source and deploys automatically after web changes reach `main`.
 It can also be started manually from GitHub Actions.
 
-Production and `npm run preview` use `/indesign-tracking-ramp/` as the base path;
+Production and `npm run preview` use `/between/` as the base path;
 local development stays at `/`. Only `dist/` is deployed. Browser settings and
 custom font files remain in each visitor's browser, and the development-only
 benchmark report writer is excluded from the public build.

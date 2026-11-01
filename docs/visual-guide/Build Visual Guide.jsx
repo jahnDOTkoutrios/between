@@ -167,7 +167,7 @@
         text("Footer - reapply instructions","Set an effect, click + Add property, then choose the next property. Apply all keeps the stack; Cancel restores the starting state.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Footer - compare","READ THE RESULTS",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Footer - compare instructions","Allow added line breaks is off by default. Auto-stabilize can use Fixed sampling without changing paragraph structure.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Footer - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
+        text("Footer - repository","github.com/jahnDOTkoutrios/between   /   v8.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
         // Page 2 keeps the same quiet typography and adds the additional targets.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 2 - white paper",[0,0,H,W],paper,ground);
@@ -210,7 +210,7 @@
         text("Page 2 - footer replace","Cancel restores the starting formatting. Reapplying restores old targets before assigning new values. Underline automatic values are preserved.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 2 - footer paragraph label","ONE CURVE PER SCOPE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 2 - footer paragraph","Indent properties use Paragraph, Both and Never restart. Curves run across the selected paragraphs without splitting their formatting.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 2 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
+        text("Page 2 - repository","github.com/jahnDOTkoutrios/between   /   v8.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
         // Page 3 demonstrates managed, independently indented rows.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 3 - white paper",[0,0,H,W],paper,ground);
@@ -236,7 +236,7 @@
         text("Page 3 - footer restore","Replace restores owned gaps or the original frame before applying the new mode. Cancel restores everything. Apply keeps one Undo action.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 3 - footer frame label","ONE RECTANGULAR FRAME",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 3 - footer frame","Both modes need one unthreaded rectangular frame. With added breaks, paragraph-aware styles may repeat on the new rows.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 3 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Centered per-line measures",[1650,48,1670,W-48],st.note);
+        text("Page 3 - repository","github.com/jahnDOTkoutrios/between   /   v8.0.0   /   Centered per-line measures",[1650,48,1670,W-48],st.note);
         // Page 4 blends the actual values of editable character styles.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 4 - white paper",[0,0,H,W],paper,ground);
@@ -273,7 +273,7 @@
         text("Page 4 - footer attributes","Shared supported attributes are automatic. Blend attributes lets you exclude them and lists missing or unsupported values.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 4 - footer keep label","KEEP & RESTORE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 4 - footer keep","Add another property to keep the blend. Cancel restores the starting state. Apply all commits the stack as one Undo action.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 4 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Shared attributes, one blend curve",[1650,48,1670,W-48],st.note);
+        text("Page 4 - repository","github.com/jahnDOTkoutrios/between   /   v8.0.0   /   Shared attributes, one blend curve",[1650,48,1670,W-48],st.note);
         // Page 5 demonstrates original-text endpoints and saved complete setups.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 5 - white paper",[0,0,H,W],paper,ground);
@@ -303,7 +303,7 @@
         text("Page 5 - footer baseline","The full stack restores its previous baseline first. Source styles are reread; previews do not accumulate earlier values. Cancel restores the committed appearance.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 5 - footer forget label","FORGET, KEEP THE APPEARANCE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 5 - footer forget","Forget saved setup adopts the current formatting, breaks and shape. It stops recall, leaves the appearance in place, and has its own Undo step.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 5 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Original endpoints and saved property stacks",[1650,48,1670,W-48],st.note);
+        text("Page 5 - repository","github.com/jahnDOTkoutrios/between   /   v8.0.0   /   Original endpoints and saved property stacks",[1650,48,1670,W-48],st.note);
         doc.recompose();
         for(var i=0;i<allText.length;i++){
             var tf=allText[i];

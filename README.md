@@ -2,7 +2,7 @@
 
 **Text distribution for Adobe InDesign — v8.0.0**
 
-[**Open the web tool — Between**](https://jahndotkoutrios.github.io/indesign-tracking-ramp/)
+[**Open the web tool — Between**](https://jahndotkoutrios.github.io/between/)
 
 Apply tracking and other text properties along a curve, then repeat that curve
 inside words, sentences, paragraphs, composed lines, or linked frames.
@@ -11,7 +11,7 @@ runtime dependencies are needed in InDesign.
 
 ## Web prototype — Between
 
-**[Use Between in your browser](https://jahndotkoutrios.github.io/indesign-tracking-ramp/)** — no installation or account needed.
+**[Use Between in your browser](https://jahndotkoutrios.github.io/between/)** — no installation or account needed.
 
 [Between](web-prototype/) brings style morphing, curves and structural
 text distribution to a local web editor built with
@@ -61,7 +61,7 @@ endpoints and saved property stacks.
 
 ## Install and run
 
-1. Download [Tracking Ramp.jsx](https://raw.githubusercontent.com/jahnDOTkoutrios/indesign-tracking-ramp/main/Tracking%20Ramp.jsx), or clone this repository.
+1. Download [Tracking Ramp.jsx](https://raw.githubusercontent.com/jahnDOTkoutrios/between/main/Tracking%20Ramp.jsx), or clone this repository.
 2. In InDesign, open **Window → Utilities → Scripts**.
 3. Right-click the **User** folder and choose **Reveal in Finder** / **Reveal in Explorer**. Copy `Tracking Ramp.jsx` into the Scripts Panel folder revealed there.
 4. Select a text frame, highlight text, or place the text cursor inside a frame. Double-click **Tracking Ramp.jsx** in the Scripts panel.
