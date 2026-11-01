@@ -32,7 +32,9 @@ npm run dev
   It becomes the shared font and appears in A/B font choices. Files are retained
   in this browser for refreshes; nothing is uploaded or installed. Different
   families switch at the midpoint; variable weight works when the font supports it.
-- **Base:** shared typography and defaults. Choose font, line height, alignment and text-block width here;
+- **Width ruler:** drag the vertical handle above the specimen to resize its text box.
+  Text refits at its current styles; Auto fills the available space.
+- **Base:** shared typography and defaults. Choose font, line height and alignment here;
   active property defaults also live here.
 - **A / B:** override size, weight, tracking, color or other active fields.
   The small **↶** on a field restores inheritance from Base.
@@ -81,9 +83,9 @@ state interval. Outline width uses the same 65 states to
 avoid rasterizing a new stroke width on every frame. With the default endpoints, the maximum
 sampling error is 0.125 px in size, about 2.9 weight units and 0.015 px in tracking.
 
-With Live reflow off, Pretext's rich-inline box layout allocates words to lines using their maximum
-measured widths across those states. This deliberately keeps line membership
-fixed while animating. Current word positions are then computed from cached
+Box resizing and committed text/type edits fit lines at the current sampled
+styles, using the prepared widths. With Live reflow off, those line memberships
+then stay fixed while animating. Enable Live reflow to wrap as styles change. Current word positions are then computed from cached
 widths, so words move apart as they grow. Resizing recomputes line allocation;
 editing text or type endpoints rebuilds the measurements. Color and opacity edits reuse them. Transform/outline edits reuse
 font measurements and recalculate conservative geometry reservations. Width and
@@ -124,6 +126,7 @@ src/
     styles.css             Minimal, responsive UI
     property-editor.js     Paired rows, Base inheritance, add/remove and reset
     base-editor.js         Shared font, leading and active property defaults
+    width-control.js       Width ruler, pixel readout and responsive Auto
     style-fields.js        Consistent inputs and field validation
     local-fonts.js         FontFace loading and restoring locally saved files
     font-storage.js        IndexedDB font storage, separate from JSON settings
@@ -153,7 +156,7 @@ text. Named reports in that folder preserve the development test runs.
 
 ## Deliberate limits
 
-- Stable, conservative line breaks by default; optional live word wrapping.
+- Stable line membership while morphing by default; optional live word wrapping.
   No automatic hyphenation.
 - A bundled Latin variable font, three system font stacks and locally retained font files. Word mode keeps
   shaped words; Letter/Character mode measures and renders individual graphemes.
@@ -313,7 +316,7 @@ fitter works on numeric word advances, excludes outgoing line-end spaces, then
 repositions the same DOM nodes. Letter/Character mode keeps stable grapheme IDs;
 interword spaces hide at line ends and return when their words join a line.
 Toggling or changing rendering granularity may remount the nodes; animation does
-not. Turning Live reflow off restores the original conservative composition at
+not. Turning Live reflow off restores the last fitted fixed composition at
 the same current blend amount.
 
 Word/sentence/paragraph groups remain tied to their text identities. Line-based
@@ -422,14 +425,20 @@ benchmark report writer is excluded from the public build.
 
 ## Text-block width
 
-Base → **Text width** sets the shared text block in pixels. Empty or 0 is Auto,
-which fills the available space. Positive finite widths, including fractions,
-are accepted. The block fits smaller screens while retaining the entered width
-for when more space becomes available. The toolbar keeps its usual width.
+The **Width ruler** sits above the specimen, outside Base/A/B parameters. Drag
+its vertical right-edge handle to resize the text box; the pixel readout shows
+its effective width. **Auto**, or dragging to the far right, fills the available
+space. Existing saved pixel widths are retained, and the control adapts to
+smaller screens without losing the preference. Restore defaults returns to Auto.
 
-Both stable composition and Live reflow fit the chosen block, and alignment is
-calculated within it. Width changes use cached font measurements and wait for
-the normal 220 ms typing pause. The width survives refresh; Restore defaults
-returns it to Auto.
+Width changes always reflow the **current** text, with Live reflow on or off.
+Live reflow controls whether morphing itself continually changes line breaks.
+Fixed mode holds the last fitted memberships until the box or type/text settings
+change again. Fitted curve samples remain latched while their inputs stay the
+same, so cycling line-dependent curves do not spill on a later repaint.
 
-![Base text-block width control](docs/text-width.png)
+Dragging updates the box and refits at most once per animation frame, without
+preparing fonts again. The toolbar keeps its full width and alignment remains
+relative to the resized box. The chosen width survives refresh.
+
+![Width ruler above the specimen](docs/width-ruler.png)

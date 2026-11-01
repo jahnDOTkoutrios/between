@@ -100,3 +100,18 @@ export class LiveReflow {
     this.key=key;this.result=result;return result;
   }
 }
+
+
+// Fit on a box resize, then keep those line memberships while live reflow is off.
+// Stable character layouts need dense IDs because line-end spaces are omitted.
+export function fittingKey(amount,{mode='scrub',pointer=null,settings,distribution,alignment='left'}={}){
+  return JSON.stringify([amount,mode,pointer,{...defaultInteraction(mode),...settings,response:0},distribution||defaultDistribution(),alignment]);
+}
+export function fitReferenceLayout(model,reference,amount,options={}){
+  const controls={alignment:reference.alignment||'left',...options};
+  const result=new LiveReflow(model,reference).compose(amount,{...controls,settings:{...defaultInteraction(controls.mode||'scrub'),...controls.settings,response:0}}),fitted=result.layout,amounts=[];
+  let index=0;
+  const lines=fitted.lines.map((line,lineIndex)=>line.map(entry=>{amounts.push(result.amounts[entry.index]);return{...entry,index:index++,anchorY:(lineIndex+.5)*reference.lineHeight};}));
+  const height=Math.max(reference.lineHeight,lines.length*reference.lineHeight,(lines.length-1)*reference.lineHeight+reference.autoLineHeight);
+  return{...reference,lines,entries:lines.flat(),height,oversized:fitted.oversized,fitSnapshot:{amount,key:fittingKey(amount,controls),amounts}};
+}

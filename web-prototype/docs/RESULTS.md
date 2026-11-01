@@ -384,3 +384,18 @@ actual refresh. An entered 2000 px preference fitted the 624 px available space
 while keeping 2000 in the control. Restore defaults returned the control to Auto
 and the block to the available 624 px. Width changes reuse the prepared model;
 recording its composed width also avoids a duplicate ResizeObserver mount.
+
+
+## Width ruler and current-style refitting
+
+96 tests and the production build pass. New regression checks cover fitting
+current states instead of the larger endpoint, stable/live word and character
+identities after resizing, fixed membership during morphing, blank paragraphs,
+alignment, native-selection whitespace and cached font-model reuse. Additional
+line-curve cases retain the exact fitted targets to avoid post-fit overflow.
+
+In-browser, a 300 px box had matching line counts with Live reflow off and on.
+Narrowing to 160 px produced five lines with Live reflow off, and the ruler/box
+width survived an actual refresh. Auto returned to the full 624 px workspace.
+A real pointer drag changed 380 px to about 220 px and immediately refitted to
+four lines. Width is absent from Base and is now the ruler above the specimen.

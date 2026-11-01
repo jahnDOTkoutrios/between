@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Move text width from Base to a ruler slider above the specimen. Resize using current-style composition even with Live reflow off; retain fitted curve samples, saved widths and Auto, and coalesce drag refits to one per animation frame.
+
 - Use `between` as the repository name and public Pages path; update canonical web, source and script download links.
 
 - Add Base → Text width in pixels, with Auto, responsive fitting, stable/live composition and saved setup support. Restore defaults returns the block to Auto; width edits reuse cached font measurements.

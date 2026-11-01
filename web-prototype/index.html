@@ -34,6 +34,13 @@
         <div id="distribution-panel" class="popover distribution-panel" popover="auto" aria-label="Distribution"></div>
         <div id="interaction-panel" class="popover interaction-panel" popover="auto" aria-label="Interaction settings"></div>
         <p id="hint" class="sr-only">Drag the slider to move every word between A and B.</p>
+        <div class="width-control" aria-label="Text block width">
+          <div class="width-caption">
+            <label for="text-width"><svg viewBox="0 0 24 16" width="20" height="16" aria-hidden="true"><path d="M2 2v12M22 2v12M3 8h18M6 5 3 8l3 3m12-6 3 3-3 3" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>Width</label>
+            <span><output id="text-width-value" for="text-width"></output><button id="width-auto" type="button" class="width-auto" aria-label="Auto text width" aria-pressed="true" title="Fit the available width">Auto</button></span>
+          </div>
+          <input id="text-width" type="range" min="1" max="1000" step="any" value="1000" aria-label="Text block width" title="Resize the text block" />
+        </div>
         <div id="stage" class="stage" tabindex="0" aria-label="Morphing text" aria-describedby="hint"></div>
         <p id="status" role="status">Loading…</p>
         <details id="performance" class="performance" hidden><summary>Performance test <span>↗</span></summary>

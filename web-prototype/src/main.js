@@ -4,6 +4,8 @@ import { layoutKey } from './engine/properties.js';
 import { envelope } from './engine/geometry.js';
 import { MODES, defaultInteraction, timelineAmount } from './engine/interactions.js';
 import { prepareModel, layoutModel } from './engine/measurements.js';
+import { fitReferenceLayout } from './engine/reflow.js';
+import { WidthControl } from './ui/width-control.js';
 import { TextRenderer } from './ui/renderer.js';
 import { PropertyEditor } from './ui/property-editor.js';
 import { InteractionEditor } from './ui/interaction-editor.js';
@@ -21,13 +23,13 @@ if(!stored){let legacyDark=false;try{legacyDark=settingsStorage.getItem('between
 const initialSetup=normalizeSetup(stored);
 let canSave=false,saveTimer=0;
 
-const $=id=>document.getElementById(id),stage=$('stage'),renderer=new TextRenderer(stage);
+const $=id=>document.getElementById(id),stage=$('stage'),specimen=stage.parentElement,renderer=new TextRenderer(stage);
 let text=initialSetup.text,a={...DEFAULT_A},b={...DEFAULT_B},model=null,layout=null;
 const OVERSIZE_MESSAGE='A word is wider than the frame. Reduce the size or widen the window.';
 let liveReflow=initialSetup.liveReflow,currentStatus=null,stableOversized=false;
 let amount=initialSetup.amount,playing=false,mode=initialSetup.mode,pointer=null,frame=0,generation=0,rebuilding=false;
 let fontReady=false,lastGoodStyles=null;
-let lastWidth=0,lastFrameWidth=null;
+let lastWidth=0,lastFrameWidth=null,widthFitPending=false,availableWidth=Math.max(1,specimen.clientWidth);
 let stageRect=null,preparationTimer=0,benchmarkController=null,disposed=false,animationStart=0,animationPhase=0,lastPaint=0,touchScroll=null;
 const distribution=initialSetup.distribution;
 const profiles=new Map(Object.entries(initialSetup.profiles));
@@ -36,6 +38,11 @@ $('benchmark').disabled=true;
 $('performance').hidden=!new URLSearchParams(location.search).has('test');
 const propertyEditor=new PropertyEditor($('styles'),$('add-property'),$('property-menu'),stylesChanged,{baseButton:$('base-settings'),basePanel:$('base-panel')});
 restoreCascade(propertyEditor.state,initialSetup.styles);
+const widthControl=new WidthControl($('text-width'),$('text-width-value'),$('width-auto'),width=>{
+  if(width===propertyEditor.state.frameWidth)return;
+  stopPlayback();pointer=null;propertyEditor.state.frameWidth=width;applyFrameWidth();queueSave();
+  widthFitPending=true;requestPaint();
+});
 let dark=initialSetup.dark;
 function applyTheme(value){
   dark=value;document.documentElement.dataset.theme=dark?'dark':'light';
@@ -85,7 +92,7 @@ function restoreDefaults(){
 const restoredAmount=amount;setMode(mode);amount=restoredAmount;updateAmount();syncSample();$('live-reflow').checked=liveReflow;applyFrameWidth();canSave=true;
 
 function applyFrameWidth(){
-  const width=propertyEditor.state.frameWidth;
+  const width=propertyEditor.state.frameWidth;widthControl.sync(width,availableWidth);
   if(width===lastFrameWidth)return false;
   stage.style.width=width>0?`${width}px`:'100%';lastFrameWidth=width;return true;
 }
@@ -97,6 +104,7 @@ function requestPaint(){if(!frame&&!disposed)frame=requestAnimationFrame(paint);
 function paint(now){
   frame=0;
   if(benchmarkController||!model||rebuilding||document.hidden)return;
+  if(widthFitPending){widthFitPending=false;mount();distributionEditor.scopeCount(renderer.structure?.scopeCount??1);return;}
   const settings=profiles.get(mode),deltaMs=Math.min(64,lastPaint?now-lastPaint:16);lastPaint=now;
   if(playing){amount=timelineAmount(now-animationStart,settings,animationPhase);updateAmount();}
   renderer.render(amount,{mode,pointer,a,b,settings,distribution,liveReflow,deltaMs,alignment:propertyEditor.state.alignment});
@@ -126,8 +134,10 @@ function setMode(value){
   queueSave();$('hint').textContent=hints[mode];interactionEditor.render(mode,profiles.get(mode));syncControls();updateAmount();requestPaint();
 }
 function mount(nextModel=model){
-  const nextLayout=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);lastWidth=nextLayout.width;
-  stableOversized=nextLayout.lines.some(line=>line.some(entry=>entry.envelopeWidth>(nextLayout.contentWidth??nextLayout.width)));
+  widthFitPending=false;
+  const reference=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);
+  const nextLayout=fitReferenceLayout(nextModel,reference,amount,{a,b,mode,pointer,settings:profiles.get(mode),distribution,alignment:propertyEditor.state.alignment});lastWidth=nextLayout.width;
+  stableOversized=nextLayout.oversized;
   $('benchmark').disabled=false;model=nextModel;layout=nextLayout;lastGoodStyles={a:{...a},b:{...b}};renderer.mount(model,layout);cacheRect();
   renderer.render(amount,{mode,pointer,a,b,settings:{...profiles.get(mode),response:0},distribution,liveReflow,alignment:propertyEditor.state.alignment});
   layout=renderer.layout;
@@ -235,8 +245,13 @@ window.addEventListener('keyup',event=>{if(mode==='press'&&event.code==='Space')
 stage.addEventListener('blur',()=>{if(mode==='press'){amount=0;requestPaint();}});
 window.addEventListener('blur',()=>{stopPlayback();release({});pointer=null;requestPaint();});
 window.addEventListener('scroll',cacheRect,{passive:true});
-const resizeObserver=new ResizeObserver(()=>{const width=stageWidth();if(Math.abs(width-lastWidth)<.5)return;lastWidth=width;cacheRect();if(benchmarkController){benchmarkController.abort();return;}if(model&&!rebuilding){mount();requestPaint();}});
-resizeObserver.observe(stage);
+const resizeObserver=new ResizeObserver(()=>{
+  availableWidth=Math.max(1,specimen.clientWidth);widthControl.sync(propertyEditor.state.frameWidth,availableWidth);
+  const width=stageWidth();if(Math.abs(width-lastWidth)<.5)return;cacheRect();
+  if(benchmarkController){benchmarkController.abort();return;}
+  if(model&&!rebuilding){widthFitPending=true;requestPaint();}
+});
+resizeObserver.observe(stage);resizeObserver.observe(specimen);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPlayback();release({});pointer=null;distributionEditor.flushNumbers();saveNow();benchmarkController?.abort();}else requestPaint();});
 reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches)stopPlayback();});
 
@@ -264,7 +279,7 @@ $('benchmark').addEventListener('click',async()=>{
   }catch(error){$('benchmark-status').textContent=error.name==='AbortError'?'Test stopped. Keep the tab visible and avoid resizing during a run.':error.message;}
   finally{benchmarkController=null;document.body.classList.remove('benchmarking');lockControls(false);$('benchmark').textContent='Run comparison';mount();requestPaint();$('performance').scrollIntoView({block:'center',behavior:'instant'});}
 });
-window.addEventListener('pageshow',event=>{if(event.persisted){disposed=false;resizeObserver.observe(stage);requestPaint();}});
+window.addEventListener('pageshow',event=>{if(event.persisted){disposed=false;resizeObserver.observe(stage);resizeObserver.observe(specimen);requestPaint();}});
 window.addEventListener('pagehide',()=>{disposed=true;distributionEditor.flushNumbers();saveNow();clearTimeout(preparationTimer);cancelAnimationFrame(frame);frame=0;resizeObserver.disconnect();benchmarkController?.abort();});
 try{
   await document.fonts.load('400 30px "Manrope Morph"');await document.fonts.ready;

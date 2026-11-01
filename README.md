@@ -34,7 +34,7 @@ Open **http://127.0.0.1:5173/**. Run `npm test` for the web checks and
 [web README](web-prototype/README.md) and
 [validation results](web-prototype/docs/RESULTS.md) for details.
 
-![Between web editor](web-prototype/docs/alignment-preview.png)
+![Between web editor](web-prototype/docs/width-ruler.png)
 
 ## Visual guide
 

@@ -4,7 +4,7 @@ import { fontStack, leadingAt } from '../engine/typography.js';
 import { NEUTRAL_STYLE } from '../engine/properties.js';
 import { fieldAmount, approach, defaultInteraction } from '../engine/interactions.js';
 import { appearanceAt } from '../engine/appearance.js';
-import { LiveReflow } from '../engine/reflow.js';
+import { LiveReflow,fittingKey } from '../engine/reflow.js';
 import { buildStructureDistribution } from '../engine/distribution.js';
 import { measureWordFresh } from '../engine/measurements.js';
 
@@ -59,7 +59,8 @@ export class TextRenderer {
       if(distribution){const key=JSON.stringify(distribution);if(this.structureKey!==key){this.structure=buildStructureDistribution(this.layout,distribution);this.structureKey=key;}}
       else{this.structure=null;this.structureKey=null;}
     }
-    const layout=this.layout;
+    const layout=this.layout,snapshot=this.referenceLayout.fitSnapshot;
+    const fittedTargets=!this.live&&snapshot?.amount===amount&&snapshot.key===fittingKey(amount,{mode,pointer,settings:controls,distribution,alignment})?snapshot.amounts:null;
     if(this.layoutKind!==this.live){this.stage.setAttribute('data-layout',this.live?'live':'stable');this.layoutKind=this.live;}
     if(this.lineCount!==layout.lines.length){this.stage.setAttribute('data-line-count',String(layout.lines.length));this.lineCount=layout.lines.length;}
     const leadingA=leadingAt(a,b,0,layout.autoLineHeight??layout.lineHeight),leadingB=leadingAt(a,b,1,layout.autoLineHeight??layout.lineHeight);
@@ -74,6 +75,7 @@ export class TextRenderer {
         else{
           const unit=this.structure?.entries[entry.index];let target=0;
           if(!this.structure||unit){if(mode==='curve'){target=amount*(unit?.value??0);if(controls.invert)target=1-target;}else target=fieldAmount(amount,{entry,lineIndex,lineCount:layout.lines.length,wordCount:layout.wordCount,lineHeight:layout.lineHeight,mode,pointer,settings:controls,coordinate:unit});}
+          if(fittedTargets)target=fittedTargets[entry.index]??0;
           t=approach(item.amount,target,deltaMs,controls.response);if(t!==target)this.needsAnimation=true;
           advance=Math.max(advance,leadingA+(leadingB-leadingA)*t);
         }
