@@ -1,5 +1,18 @@
 # Changelog
 
+## 7.0.0
+
+- Add Character-style blend with Style A/B selectors and a 0-100% blend range. Apply multiple supported attributes together using existing curves, steps, units and restart groups.
+- Automatically resolve shared numeric values, inherited character-style values, compatible process colors and complete variable-font axes. Optional Blend attributes checkboxes select a subset and show skipped values.
+- Support 22 attribute types: size, tracking, absolute leading, baseline, scales, rotation/skew, fill/stroke tints and colors, underline/strikethrough dimensions/tints/colors, and variable-font axes.
+- Preserve source styles, character-style assignment, font families and discrete on/off settings. Intermediate results are local overrides; a fresh reapply reads the current style definitions.
+- Use short-path rotation and a bounded 65-level color cache with exact endpoint/midpoint samples. Preserve existing color-property sampling outside style blends.
+- Match variable fonts by file and axis definitions so named instances can blend. Reject incompatible target fonts atomically; axes can be excluded to use other numeric attributes.
+- Preserve outgoing tracking gaps in Letters mode while other attributes cover complete letters. Excluded tracking boundaries are not claimed in replacement history.
+- Restore automatic leading, automatic Text Color tokens, all previous attributes outside narrower targets, and frozen kept blends with one Cancel/Undo transaction.
+- Resolve grouped style names across IDML ID changes. Keep numeric input delay, slider release updates and the default-off added-break policy.
+- Extend the minimal visual guide to four A2 pages, 20 examples and 28 named editable frames, with editable endpoint styles and three style-blend specimens.
+
 ## 6.0.0
 
 Consolidates the additions originally shipped after the initial v5 release.

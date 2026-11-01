@@ -1,6 +1,6 @@
 # Tracking Ramp
 
-**Text Distribution Studio for Adobe InDesign — v6.0.0**
+**Text Distribution Studio for Adobe InDesign — v7.0.0**
 
 Apply tracking and other text properties along a curve, then repeat that curve
 inside words, sentences, paragraphs, composed lines, or linked frames.
@@ -9,10 +9,11 @@ runtime dependencies are needed in InDesign.
 
 ## Visual guide
 
-A minimal, three-page A2 visual guide with short and long fading-themed text,
-17 labeled examples, and 25 named editable specimen frames. The second page
+A minimal, four-page A2 visual guide with short and long fading-themed text,
+20 labeled examples, and 28 named editable specimen frames. The second page
 covers underline weight, underline offset, and paragraph indents. The third
-page adds long and short Line length specimens.
+page adds long and short Line length specimens; the fourth demonstrates
+character-style blends with editable endpoint styles.
 
 [View the PDF](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Download INDD](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -61,7 +62,7 @@ Examples:
 
 ## Features
 
-- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, left/right/first-line paragraph indents, and centered per-line length.
+- **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, left/right/first-line paragraph indents, centered per-line length, and Character-style blend.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
 - **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Sliders update the graph during dragging and the document on release. Custom-curve document previews remain throttled.
@@ -73,10 +74,26 @@ Examples:
 - **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
 
+## Blend two character styles
+
+Choose **Character-style blend**, then **Style A** and **Style B**. Min/Max
+become blend percentages (0 = A, 100 = B). The existing curve, value units and
+restart controls drive every included attribute together. **Blend attributes…**
+lets you exclude attributes and explains unsupported or missing values.
+
+Shared supported values are automatic, including inherited values. Numeric
+settings, compatible RGB/CMYK/Lab process colors and complete axes on the same
+variable-font file can blend. Unspecified/automatic endpoints, spot colors,
+gradients, font-family changes and discrete switches are preserved/skipped.
+Source styles and character-style assignments remain untouched; results are
+local formatting. Reapply rereads the styles; kept blends retain frozen values.
+
+[![Character-style blend examples](docs/visual-guide/preview-style-blend.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
+
 ## Preview performance
 
 Historical optimization measurements in native InDesign 2026 on the same
-500-word fixture (development v5 builds; the optimization is included in v6):
+500-word fixture (development v5 builds; the optimization is included in v7):
 
 | Preview | Before | Updated v5 |
 | --- | ---: | ---: |
@@ -122,14 +139,15 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **117 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **138 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-V6 passed **102 native assertions in InDesign 2026 on macOS**: 23 break-policy
-checks, 72 repeated line-length checks and seven actual UI checks. Earlier v5
-coverage is recorded separately in the [verification notes](docs/VERIFICATION.md).
-The three-page guide was rebuilt with the v6 engine and visually checked.
+V7 passed **150 native assertions in InDesign 2026 on macOS**: 35 style-blend
+checks, nine actual UI checks, 11 IDML roundtrip checks and 95 repeated
+line-length/break-policy checks. Earlier coverage is recorded separately in the
+[verification notes](docs/VERIFICATION.md). All four guide pages were rendered
+and visually checked.
 
 [Version notes](CHANGELOG.md)

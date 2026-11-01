@@ -1,11 +1,11 @@
-TRACKING RAMP 6.0.0 — TEXT DISTRIBUTION STUDIO
+TRACKING RAMP 7.0.0 — TEXT DISTRIBUTION STUDIO
 
 RUN
 
 In InDesign 2026, open Window > Utilities > Scripts > User > Tracking Ramp.jsx.
 Select one ordinary text frame, highlight text, or put the text cursor inside
-a frame, then double-click the script. V6 replaces the installed v5 entry.
-This repository contains the current v6 script.
+a frame, then double-click the script. V7 replaces the installed v6 entry.
+This repository contains the current v7 script.
 
 LIVE PREVIEW / CANCEL / APPLY
 
@@ -23,7 +23,7 @@ metadata, and removes any new preview metrics frames, layers and swatches.
 This uses document-scoped Undo, preserving style overrides and inherited
 formatting rather than merely rewriting numeric values.
 
-Apply keeps the current result as one Edit > Undo Tracking Ramp 6 action.
+Apply keeps the current result as one Edit > Undo Tracking Ramp 7 action.
 Turn Live document preview off to work with the graph alone; turning it off
 restores the document immediately. Apply still applies the configured effect.
 
@@ -39,7 +39,7 @@ the composition produced by the kept effects. Their actual numeric formatting
 stays frozen while the new property changes; they are not resampled against
 the later property's composition.
 
-Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 6
+Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 7
 transaction. Cancel, Escape, or closing restores the document from before the
 dialog opened, including kept effects, inserted breaks, contours and swatches.
 Keeping an effect does not create a separate permanent document commit.
@@ -53,6 +53,66 @@ already kept. The existing Property selector still chooses the active draft.
 Live document preview off restores the active draft while leaving kept effects
 visible. Metrics are refreshed for the final visible state. A contour kept with
 an earlier effect stays fixed; its width controls are disabled for later stages.
+
+CHARACTER-STYLE BLEND
+
+Choose Character-style blend in Property. Select Style A and Style B from this
+document; grouped styles show their full group path. Min/Max are percentages:
+0 is A, 100 is B, and intermediate positions interpolate all included values
+at once. Use the existing curve, steps, Values per, Change and Restart controls.
+
+Shared supported attributes are included automatically. Blend attributes opens
+checkboxes to select a subset and lists missing/unsupported settings. Values
+shared by both styles can also be constant: an explicit 24 pt in both styles
+sets 24 pt throughout the blend. Based-on style values are resolved. Undefined
+values are not taken from document defaults or guessed from the other endpoint.
+Changing either endpoint selector resets the attribute selection to automatic.
+
+Supported attribute types (22):
+- Font size, tracking, absolute numeric leading, baseline shift.
+- Horizontal/vertical scale, character rotation and skew.
+- Fill tint, stroke weight and stroke tint.
+- Underline weight, offset and tint; strikethrough weight, offset and tint.
+- Fill, stroke, underline and strikethrough process colors in a shared RGB,
+  CMYK or Lab color space.
+- Complete variable-font design-axis vectors on the same physical font file
+  with matching axis definitions; compatible named instances can differ.
+
+Numeric limits follow the supported property ranges. Automatic leading,
+automatic underline dimensions, inherited tint sentinels and one-sided/missing
+endpoints are skipped. Spot colors, gradients, mixed inks and automatic Text
+Color endpoints are not interpolated. Color blending uses up to 65 cached
+levels, including exact endpoints and midpoint. Character rotation takes the
+short angular route; other supported numbers interpolate linearly.
+
+Font families, static font/style switches, capitalization, underline/strike
+on/off, ligatures and other discrete switches remain as they are in the text.
+Underline/strikethrough dimensions therefore need existing underlining/strike
+formatting to be visible. Variable axes can change a variable font's displayed
+instance name, but do not switch its font file. Target text must use that same
+variable-font file when axes are included; otherwise the preview rolls back.
+Exclude Variable-font axes to use the other shared numeric attributes instead.
+
+The original character styles are never edited or assigned to the text by the
+blend. Intermediate output is local formatting; existing character-style
+assignment remains. A fresh UI reapply reads current endpoint definitions.
+Keeping a blend freezes its resolved values like other kept effects. Cancel
+restores the whole session and Apply/Apply all keeps one named v7 Undo action.
+
+Replacement restores every previously controlled attribute before calculating
+again, including attributes now excluded and targets outside a smaller scope.
+Automatic leading and native Text Color tokens are preserved. Letters mode
+preserves the outgoing tracking word gap while size/color/etc. still apply to
+every eligible letter. Metrics continue to show actual integer tracking values.
+
+Composition-sensitive blends apply all included attributes in each pass. The
+existing Auto-stabilize/Fixed sampling rules still apply; blend mode does not
+insert its own tracking-style break fallback. Allow added line breaks stays
+off by default. Kept contours/paragraph structure from other effects remain.
+
+Examples 18-20 in the visual guide demonstrate a long four-attribute ramp,
+per-word character bells with exclusions, and variable weight plus size.
+Endpoint styles are in Character Styles > Guide blends.
 
 ALLOW ADDED LINE BREAKS
 
@@ -434,7 +494,7 @@ tracking through other spacing settings: numeric tracking and visible gaps diffe
 
 REAPPLYING / RESETTING OLDER EFFECTS
 
-Replace previous effect is on by default. V6 retains compatible v3/v4/v5 history
+Replace previous effect is on by default. V7 retains compatible v3/v4/v5/v6 history
 and saves the original affected
 property values in the story's metadata. Reapplying restores the previous
 baseline before calculating the new result, including old targets that are
@@ -473,7 +533,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-117 automated checks passed. Coverage includes 108 unit/group/target
+138 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -517,7 +577,7 @@ replacement baselines, Cancel restoration and the single Undo action remain.
 
 The original Line length addition passed 77 focused native assertions, including the
 actual UI, row widths, spacing, justification, overset, replacement and stacks.
-The visual guide now has three A2 pages, seventeen examples and 25 editable
+The visual guide now has four A2 pages, twenty examples and 28 editable
 specimen frames. Its exported PDF was rendered and visually reviewed.
 
 V6 passed 102 native assertions: 23 break-policy fixtures, 72 repeated legacy
@@ -525,7 +585,18 @@ line-length assertions and seven actual UI checks. No-break text/paragraph
 formatting, both switch directions, exact geometry baselines, metrics, stacks,
 Cancel and the v6 Undo action were verified.
 
+V7 passed 150 native assertions: 35 style-blend/API checks, nine actual UI
+checks, eleven guide IDML roundtrip checks and 95 repeated break/line-length
+checks. Native checks include 21 simultaneous numeric/color attributes,
+variable axes, metrics, inherited values, automatic baseline restoration,
+narrow replacement, frozen stacks and frame overset. Every guide page was
+rendered and visually inspected.
+
 ADOBE REFERENCES
+
+Character-style definitions and inherited values:
+https://developer.adobe.com/indesign/uxp/dom/api/c/character-style/
+
 
 Text properties and axes:
 https://developer.adobe.com/indesign/uxp/dom/api/t/text/

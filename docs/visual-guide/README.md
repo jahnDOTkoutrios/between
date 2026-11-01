@@ -1,7 +1,7 @@
 # Fading, by degrees.
 
-Three A2 pages, seventeen examples. The effects were applied in InDesign 2026 by the
-actual Tracking Ramp v6 engine. Labels stay neutral so the text does the work.
+Four A2 pages, twenty examples. The effects were applied in InDesign 2026 by the
+actual Tracking Ramp v7 engine. Labels stay neutral so the text does the work.
 
 [PDF](Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Editable INDD](Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -13,10 +13,12 @@ actual Tracking Ramp v6 engine. Labels stay neutral so the text does the work.
 
 ![Centered line-length specimens](preview-line-length.png)
 
+![Character-style blend specimens](preview-style-blend.png)
+
 ## Try it
 
 Open the INDD or IDML. Expand **02 - Editable numbered specimens** in Layers.
-Select a frame named **01…17 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
+Select a frame named **01…20 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
 Use the printed caption to recreate its settings. Keep **Replace previous effect**
 on to replace the saved effect without accumulating values. To layer different
 properties in one session, use **+ Add property**, then **Apply all**. Example 08A
@@ -43,6 +45,9 @@ on separate locked layers; metrics are on their own printable layer.
 | 15 | Paragraph indents | Left/right 0–72 pt; first line −18–36 pt; four paragraphs |
 | 16 | Longer line-length bell | Line length; Gaussian; centered 45–100%; added breaks ON |
 | 17 | Shorter line-length ramp | Line length; Linear contour; centered 40–100%; added breaks OFF |
+| 18 | Long character-style blend | Word; Linear; 0–100%; size 14–30 pt, tracking 0–160, shift 0–6 pt, Ink–Mist |
+| 19 | Blend inside each word | Character; restart Word; Gaussian; 32–72 pt, tracking 0–160, Ink–Mist; baseline excluded |
+| 20 | Variable-font style endpoints | Word; Linear inverted; 40–24 pt and Weight 800–100; compatible variable font |
 
 All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
 one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
@@ -55,8 +60,8 @@ Metrics remain tracking values even when another property is selected.
 
 ## Files and fonts
 
-The INDD and IDML contain 25 uniquely named specimen frames with saved effect
-history. The PDF has three 420 × 594 mm pages with live, selectable text. Arial,
+The INDD and IDML contain 28 uniquely named specimen frames with saved effect
+history. The PDF has four 420 × 594 mm pages with live, selectable text. Arial,
 Minion Pro, and Acumin Variable Concept were used; font files are not bundled.
 Activate or substitute missing fonts before editing; substitution can reflow text.
 
@@ -64,10 +69,10 @@ Activate or substitute missing fonts before editing; substitution can reflow tex
 current repository engine. Keep it in this folder and run it from InDesign's
 Scripts panel. It creates a new document, overwrites the guide INDD/IDML/PDF
 beside the builder, and records `build-report.txt`. Render the PDF again to
-refresh `preview.png` (page 1), `preview-underlines.png` (page 2), and `preview-line-length.png` (page 3). The builder needs the fonts listed above (or its listed
+refresh `preview.png` (page 1), `preview-underlines.png` (page 2), `preview-line-length.png` (page 3), and `preview-style-blend.png` (page 4). The builder needs the fonts listed above (or its listed
 fallbacks), including a variable font with a Weight axis.
 
-The export was visually reviewed. All seventeen example headings and twenty-five editable
+The export was visually reviewed. All twenty example headings and twenty-eight editable
 specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.
@@ -83,3 +88,12 @@ Example 17 keeps its original paragraph and uses a centered frame contour;
 the faint outline shows the shape. Its curve follows frame height, so short
 text can use only part of the curve. Cancel and Undo restore text and geometry
 in both modes. Both require one ordinary unthreaded rectangular frame.
+
+Examples 18-20 use Character-style blend. Their editable endpoints are in
+Character Styles > Guide blends. Example 18 resolves four inherited/shared
+attributes; 19 selects only size, tracking and color; 20 blends size and complete
+variable-font axes together. Font families, on/off switches and source styles
+are preserved. Intermediate results are local overrides, and grouped endpoint
+names survive an IDML roundtrip. Blend attributes reports skipped values and
+lets you exclude supported attributes. Keep Replace on to restore the previous
+baseline before rereading changed endpoint styles.

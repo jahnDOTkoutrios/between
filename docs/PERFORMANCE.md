@@ -1,6 +1,6 @@
 # Preview performance
 
-This optimization pass, included in v6, reduces native InDesign calls and avoids calculating each digit
+This optimization pass, included in v7, reduces native InDesign calls and avoids calculating each digit
 while entering a numeric value. The composition solver and final sampling
 rules are unchanged.
 
@@ -48,11 +48,18 @@ still cost time. Numeric input that pauses longer than 350 ms can preview an
 intermediate value. The update does not reduce final curve accuracy, label
 count or composition iteration limits to obtain these gains.
 
-The regression suite passes 117 automated checks and 231 native assertions.
-A focused native slider rerun also passed eight assertions.
+The current regression suite passes 138 automated checks. The historical v5
+performance verification passed 231 native assertions, and a focused slider
+rerun passed eight. V7 adds 150 native assertions, documented separately.
 See [verification](VERIFICATION.md) for scope, platform limits and native
 UI timing-test details.
 
 Line length is a separate, opt-in composition path. It fits rows sequentially
 and can recompose up to eight passes. The earlier timing table does not
 benchmark this new property. Existing numeric/slider input delays also apply.
+
+Style blending compiles endpoint values once per requested configuration and
+batches numeric/color writes per unit. Intermediate color swatches are cached
+with 65 levels; variable-font compatibility checks are cached per font instance
+within an application pass. Kept blends retain their resolved endpoint values.
+The historical timing table does not benchmark the new multi-attribute property.

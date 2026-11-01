@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 117 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 138 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -101,7 +101,7 @@ The long specimen was checked for one row per paragraph and equal indents;
 all three PDF pages were rendered and visually reviewed. Only the existing
 frame-scope comparison stories intentionally contain overset text.
 
-## V6 break-policy verification
+## Historical v6 break-policy verification
 
 117 automated checks pass. New coverage exercises the default-off toggle,
 separation from Auto-stabilize, explicit no-break policy overriding the old
@@ -122,6 +122,36 @@ breaks; example 17 preserves its single paragraph with a centered contour.
 The contour follows frame height, so no-break width samples can cover only
 part of the curve when the text is short. All exported PDF pages are rendered
 and visually reviewed before publishing.
+
+## V7 style-blend verification
+
+138 automated checks pass. Coverage adds joint numeric interpolation, inherited
+values, attribute exclusions, missing/automatic settings, narrower replacement,
+tracking-gap preservation and precise history ownership, kept blends and one
+Undo, fresh definition updates versus frozen kept values, Gaussian word restarts,
+short-route rotation, inheritance cycles, grouped-name/ID remapping, compatible
+and incompatible colors, variable-font file identity across named instances,
+percentage validation, automatic Text Color tokens and real ScriptUI selection
+semantics in documents with no character styles.
+
+150 native assertions passed in the current v7 source:
+
+- 35 API checks: 21 simultaneous numeric/color attributes, endpoints/midpoints,
+  retained fonts/style assignments/on-off flags, source style integrity, inherited
+  values, exclusions, gap behavior, automatic leading/Text Color restoration,
+  narrower reapply, swatch cleanup, metrics, frozen stacks, variable axes and
+  incompatible-font rollback, and coupled frame-scope overset restoration.
+- Nine actual UI checks: normal operation without character styles, Style A/B
+  selectors, the Blend attributes dialog, excluding tracking while blending
+  other values, Apply and a single named v7 Undo.
+- 11 exported-IDML checks: four pages, 28 named specimens, grouped endpoint
+  style resolution, reapplication and exact Cancel restoration for 18-20.
+- 95 repeated break-policy and Line length checks from the v6 implementation.
+
+The rebuilt guide includes 20 examples across four A2 pages. Its endpoint styles
+are editable in the Guide blends character-style group. All four PDF pages were
+rendered and visually reviewed; only the preexisting scope comparisons have
+intentional overset text.
 
 ## Manual smoke test
 
@@ -182,6 +212,15 @@ Use a disposable document for the checks below.
     Try existing paragraph spacing, a short passage and overset. Outgoing
     overset should keep its baseline. Keep Line length, add Tracking, and Undo
     the committed stack once. Manual text edits must prevent unsafe replacement.
+
+15. Create two character styles with different explicit size/tracking/color
+    values. Choose Character-style blend and select both. Check endpoints,
+    midpoint, Gaussian/restart-per-word and attribute exclusions. Font families,
+    on/off flags and source style definitions should stay unchanged. Try missing
+    settings, automatic leading in the target, narrower reapply, metrics and a
+    kept blend plus another property. Test compatible variable-font instances
+    and exclude axes to use a different target font. Export/reopen IDML and
+    reapply using the saved grouped endpoint names.
 
 Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,
