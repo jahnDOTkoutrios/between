@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 138 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 162 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -123,7 +123,7 @@ The contour follows frame height, so no-break width samples can cover only
 part of the curve when the text is short. All exported PDF pages are rendered
 and visually reviewed before publishing.
 
-## V7 style-blend verification
+## Historical v7 style-blend verification
 
 138 automated checks pass. Coverage adds joint numeric interpolation, inherited
 values, attribute exclusions, missing/automatic settings, narrower replacement,
@@ -134,7 +134,7 @@ and incompatible colors, variable-font file identity across named instances,
 percentage validation, automatic Text Color tokens and real ScriptUI selection
 semantics in documents with no character styles.
 
-150 native assertions passed in the current v7 source:
+150 native assertions passed in the v7 source:
 
 - 35 API checks: 21 simultaneous numeric/color attributes, endpoints/midpoints,
   retained fonts/style assignments/on-off flags, source style integrity, inherited
@@ -152,6 +152,44 @@ The rebuilt guide includes 20 examples across four A2 pages. Its endpoint styles
 are editable in the Guide blends character-style group. All four PDF pages were
 rendered and visually reviewed; only the preexisting scope comparisons have
 intentional overset text.
+
+## V8 saved-setup and original-endpoint verification
+
+162 automated checks pass. New coverage exercises saved stack order and plain
+recipes, unchanged reopening/Cancel, source-definition refresh, replacement
+baseline ownership, forgetting and independent Undo, saved highlighted scope
+controls, foreign linked frames, changed text, inferred mixed values/scales,
+inherited priority, one-sided variable axes, automatic color/leading tokens,
+bulk snapshot fallbacks and native paragraph-enumerator conversion. A lexical
+smoke check catches known ExtendScript reserved declarations; native loading
+remains the actual host syntax check.
+
+294 native assertions passed:
+
+- 62 blend/setup API: existing joint attributes and rollback plus original
+  numeric/color/axis endpoints, None-stroke paint, mixed values, automatic
+  leading, ordered reapply, source edits, Forget, ownership and stale text.
+- 30 actual UI: unchanged reopening, Preview/Reapply, missing-style repair,
+  Forget and independent Undo, restored highlighted scope, loaded Kept stages,
+  inferred attribute controls and the Original text/Skip policy. Nine assertions
+  exercise actual v7 metadata, untouched recovery, scope review, edited source
+  definitions, creating a v8 recipe and Undo back to v7.
+- 95 repeated break-policy and Line length assertions.
+- 14 recalled layout assertions: contour and managed-paragraph stacks, exact
+  Cancel/Undo, original break policy, tracking soft breaks and saved selections.
+- 93 exported-IDML assertions: five pages, 31 named specimens, all 29 owning
+  recipes, grouped endpoint resolution, refresh/Cancel, metrics ownership and
+  named baseline swatches when color is excluded.
+
+Seven native performance differential cases compare v7/v8 text, plan units,
+sampled values and all 2,672 characters' captured formatting. All matched.
+The timed v8 build predates final UI/portability polish; this is a development
+comparison, not a timing guarantee. See [performance notes](PERFORMANCE.md).
+
+The guide has five A2 pages, 23 numbered examples and 31 editable specimen
+frames. Each owning specimen carries a real saved v8 setup. All five final PDF
+pages were rendered and visually checked, including a high-resolution heading
+check. Intentional frame-scope comparison overset remains; no other text spills.
 
 ## Manual smoke test
 
@@ -221,6 +259,17 @@ Use a disposable document for the checks below.
     kept blend plus another property. Test compatible variable-font instances
     and exclude axes to use a different target font. Export/reopen IDML and
     reapply using the saved grouped endpoint names.
+
+16. Reopen a treated frame. Confirm Saved setup loaded, exact restored controls,
+    visible kept stages and preview off. Cancel must leave formatting, labels
+    and Undo untouched. Edit source styles between openings; Reapply all must
+    refresh the sequence from its original baseline with one Undo.
+17. Try a saved highlighted range, another linked frame, edited text and a
+    deleted endpoint. The owning frame/range should be clear and unsafe
+    replacement blocked. Choose a replacement style or explicitly Forget.
+18. Forget while a saved setup is loaded. Keep text, shape, breaks and metrics;
+    Undo should restore metadata. New preview remains off. Try a one-sided
+    skew/stroke, mixed original font sizes, inferred axes and Auto leading.
 
 Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,

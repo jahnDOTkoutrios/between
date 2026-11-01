@@ -1,6 +1,6 @@
 # Tracking Ramp
 
-**Text Distribution Studio for Adobe InDesign — v7.0.0**
+**Text Distribution Studio for Adobe InDesign — v8.0.0**
 
 Apply tracking and other text properties along a curve, then repeat that curve
 inside words, sentences, paragraphs, composed lines, or linked frames.
@@ -9,11 +9,12 @@ runtime dependencies are needed in InDesign.
 
 ## Visual guide
 
-A minimal, four-page A2 visual guide with short and long fading-themed text,
-20 labeled examples, and 28 named editable specimen frames. The second page
+A minimal, five-page A2 visual guide with short and long fading-themed text,
+23 labeled examples, and 31 named editable specimen frames. The second page
 covers underline weight, underline offset, and paragraph indents. The third
 page adds long and short Line length specimens; the fourth demonstrates
-character-style blends with editable endpoint styles.
+character-style blends with editable endpoint styles. The fifth adds original-text
+endpoints and saved property stacks.
 
 [View the PDF](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Download INDD](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -66,6 +67,7 @@ Examples:
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
 - **Steps:** automatic per-group sampling or a shared fixed step limit capped to each group's length.
 - **Responsive input:** numeric previews wait for a 350 ms typing pause; Apply uses the latest value immediately. Sliders update the graph during dragging and the document on release. Custom-curve document previews remain throttled.
+- **Saved setups:** reopen the owning frame to recover its full ordered setup. Preview starts off; Preview/Reapply updates explicitly. Forget saved setup keeps its current appearance with an independent Undo.
 - **Live preview and stacking:** adjust one property, click **+ Add property**, choose the next property, and continue. A read-only Kept strip and Undo addition appear for stacks. Apply all commits one named Undo transaction; Cancel restores the whole session.
 - **Allow added line breaks:** separate from Auto-stabilize and off by default for every property. Enable it to permit managed tracking soft breaks or per-line paragraph breaks for Line length.
 - **Auto-stabilize composition:** starts with exact resulting composition, then uses **Fixed sampling** when needed. Managed tracking breaks are tried only with explicit permission. Min/Max are not rescaled.
@@ -81,30 +83,63 @@ become blend percentages (0 = A, 100 = B). The existing curve, value units and
 restart controls drive every included attribute together. **Blend attributes…**
 lets you exclude attributes and explains unsupported or missing values.
 
-Shared supported values are automatic, including inherited values. Numeric
-settings, compatible RGB/CMYK/Lab process colors and complete axes on the same
-variable-font file can blend. Unspecified/automatic endpoints, spot colors,
-gradients, font-family changes and discrete switches are preserved/skipped.
-Source styles and character-style assignments remain untouched; results are
-local formatting. Reapply rereads the styles; kept blends retain frozen values.
+Shared supported values are automatic, including inherited values. New UI
+blends use **Missing values → Original text**: if only one style defines a value,
+the other endpoint comes from the original text. **Skip** retains the v7 rule.
+Both missing leaves the attribute untouched. Inferred attributes are labeled.
+
+Numbers, compatible process colors and complete axes on a compatible variable
+font can blend. A zero-width stroke can acquire paint as it grows. Automatic
+style endpoints, incompatible paints and discrete switches are skipped;
+unsupported automatic original dimensions need explicit endpoints or Skip.
+Source styles and assignments remain untouched. Intermediate results are local
+formatting. Reapply rereads styles; kept values stay frozen within one session.
 
 [![Character-style blend examples](docs/visual-guide/preview-style-blend.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
 
+## Reopen a saved setup
+
+Select its owning frame and run the script. **Saved setup loaded** restores the
+properties, endpoint styles, included attributes, curve, steps, scope and restart
+rules. A saved highlighted range becomes **Saved highlighted text** in Scope.
+The document stays as it was until **Preview**, enabling Live preview, or
+**Reapply / Reapply all**. Earlier kept stages are visible in the Kept strip;
+**Undo addition** returns the last one to editing.
+
+Reapply restores the previous stack baseline before running the current style
+definitions in order. **Forget saved setup** keeps the appearance, adopts current
+formatting/breaks/shape as the new baseline and stops recall. It is a separate
+Undo action; Cancel after forgetting does not undo that explicit Forget action.
+
+There is **one saved setup per linked story**, with one owning frame. Other
+linked frames explain where it belongs; select that owner to reload it. Changed
+text/history or a different highlighted selection is explained before replacing.
+Deleted/renamed styles can be selected again in the controls. V8 recipes persist
+in INDD and IDML. Earlier single-property controls can be recovered with preview
+off and an **Earlier setup loaded — review scope** note. Earlier stack order
+is unavailable; complete ordered recall starts with a setup applied in v8.
+Recovered blends retain **Skip** until you choose **Original text**.
+
+[![Original endpoints and saved setups](docs/visual-guide/preview-saved-setups.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
+
 ## Preview performance
 
-Historical optimization measurements in native InDesign 2026 on the same
-500-word fixture (development v5 builds; the optimization is included in v7):
+Native InDesign 2026 measurements on the same 500-word / 2,672-character
+fixture, comparing v7 with a development v8 build:
 
-| Preview | Before | Updated v5 |
+| Preview | v7 | v8 |
 | --- | ---: | ---: |
-| One property | 0.828 s | 0.556 s |
-| Two-property stack | 2.507 s | 1.296 s |
-| With tracking metrics | 12.368 s | 1.440 s |
+| Three numeric blend attributes, Word | 0.821 s | 0.580 s |
+| Numeric + color blend, Word | 1.313 s | 0.735 s |
+| 21 blend attributes, Word | 3.999 s | 1.077 s |
+| Size + variable axes, Word | 33.962 s | 5.167 s |
+| Size + variable axes, Character | 37.540 s | 27.180 s |
 
-Single/stack figures are medians of three previews; metrics is one run per
-version. Formatting matched the baseline, including all 462 labels and their
-positions. These are local measurements, not timing guarantees. See
-[performance notes](docs/PERFORMANCE.md) for the method and safeguards.
+The first two rows are medians of three changed previews; the remaining rows
+are single runs. All seven measured scenarios matched v7 text, units, sampled
+values and per-character formatting. Character-level variable-font changes
+remain expensive. These are local measurements, not timing guarantees. See
+[performance notes](docs/PERFORMANCE.md) for all scenarios and safeguards.
 
 <details>
 <summary>Line length examples</summary>
@@ -120,7 +155,7 @@ positions. These are local measurements, not timing guarantees. See
 - Sentence detection uses punctuation and common abbreviation/decimal handling. It is a heuristic; review ambiguous text.
 - For character properties, Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
 - **Auto-stabilize composition** is on by default; **Allow added line breaks** is off. With added breaks enabled, Tracking can insert real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces managed breaks; Cancel restores the text. If fixed sampling is needed, final lines/frames may differ from the sampled groups. Outgoing frame text returns to its baseline; newly fitting text may retain its baseline. Disable Auto-stabilize for strict convergence.
-- Each property can appear once per stack. Kept values are frozen; Undo addition returns the last kept effect to editing and discards the current draft. A kept contour remains fixed while adding further properties. After manual text edits, disable Replace to adopt existing managed breaks as ordinary text.
+- Each property can appear once per stack. Kept values are frozen within the current session; reopening recomputes the saved sequence from its baseline. Undo addition returns the last kept effect to editing and discards the current draft. A kept contour remains fixed while adding further properties. After manual edits to a saved setup, Forget adopts the current text and managed breaks as the new baseline.
 - Underline properties enable underlining on eligible targets and preserve original automatic values for replacement/Cancel.
 - Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph, Change is Both, and Restart is Never; previous structure choices return when selecting another property.
 - Line length uses Current frame / Line / Both / Never. It requires one unthreaded rectangular frame with one ordinary column, equal insets, auto-sizing off and no frame transform. Automatic lists/drop caps are excluded. With added breaks on, it changes paragraph structure and paragraph-aware styles may repeat. With them off, the width curve follows frame height, so short text may use only part of it. Existing paragraph indents remain in the no-break mode.
@@ -139,15 +174,15 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **138 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **162 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
 
-V7 passed **150 native assertions in InDesign 2026 on macOS**: 35 style-blend
-checks, nine actual UI checks, 11 IDML roundtrip checks and 95 repeated
-line-length/break-policy checks. Earlier coverage is recorded separately in the
-[verification notes](docs/VERIFICATION.md). All four guide pages were rendered
+V8 passed **294 native assertions in InDesign 2026 on macOS**: 62 blend/setup
+checks, 30 actual UI checks, 93 exported-IDML checks, 14 recalled-layout checks
+and 95 repeated line-length/break-policy checks. Earlier coverage is recorded separately in the
+[verification notes](docs/VERIFICATION.md). All five guide pages were rendered
 and visually checked.
 
 [Version notes](CHANGELOG.md)

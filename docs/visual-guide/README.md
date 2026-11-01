@@ -1,7 +1,7 @@
 # Fading, by degrees.
 
-Four A2 pages, twenty examples. The effects were applied in InDesign 2026 by the
-actual Tracking Ramp v7 engine. Labels stay neutral so the text does the work.
+Five A2 pages, twenty-three examples. The effects were applied in InDesign 2026 by the
+actual Tracking Ramp v8 engine. Labels stay neutral so the text does the work.
 
 [PDF](Tracking%20Ramp%20-%20Visual%20Guide.pdf) ·
 [Editable INDD](Tracking%20Ramp%20-%20Visual%20Guide.indd) ·
@@ -15,14 +15,18 @@ actual Tracking Ramp v7 engine. Labels stay neutral so the text does the work.
 
 ![Character-style blend specimens](preview-style-blend.png)
 
+![Original endpoints and saved setups](preview-saved-setups.png)
+
 ## Try it
 
 Open the INDD or IDML. Expand **02 - Editable numbered specimens** in Layers.
-Select a frame named **01…20 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
-Use the printed caption to recreate its settings. Keep **Replace previous effect**
-on to replace the saved effect without accumulating values. To layer different
-properties in one session, use **+ Add property**, then **Apply all**. Example 08A
-is an actual kept Skew + Tracking stack. **Undo addition** returns the last kept
+Select a frame named **01…23 - … - EDIT ME**, then run `Tracking Ramp.jsx`.
+Saved setup loaded recalls its controls with preview off. Use Preview/Reapply
+when ready, or use the printed caption to recreate its settings. Keep **Replace previous effect**
+on for fresh drafts. A recalled setup restores its whole stack baseline.
+Forget saved setup keeps its appearance and stops recall with a separate Undo. To layer different
+properties in one session, use **+ Add property**, then **Apply all**. Examples 08A and 23
+are actual saved two-property stacks. **Undo addition** returns the last kept
 effect to editing; **Cancel** restores the whole session. Labels and rules are
 on separate locked layers; metrics are on their own printable layer.
 
@@ -48,6 +52,9 @@ on separate locked layers; metrics are on their own printable layer.
 | 18 | Long character-style blend | Word; Linear; 0–100%; size 14–30 pt, tracking 0–160, shift 0–6 pt, Ink–Mist |
 | 19 | Blend inside each word | Character; restart Word; Gaussian; 32–72 pt, tracking 0–160, Ink–Mist; baseline excluded |
 | 20 | Variable-font style endpoints | Word; Linear inverted; 40–24 pt and Weight 800–100; compatible variable font |
+| 21 | One-sided skew and stroke | Word; Linear; Original text; skew 0–24° and stroke 0–2 pt from None paint |
+| 22 | Mixed original sizes | Word; Linear; original 24/18 pt to 30 pt, skew to 18°; both-missing attributes unchanged |
+| 23 | Remember a full stack | Word; character-style blend A–B, then Tracking 0–80; complete setup saved |
 
 All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
 one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
@@ -60,8 +67,8 @@ Metrics remain tracking values even when another property is selected.
 
 ## Files and fonts
 
-The INDD and IDML contain 28 uniquely named specimen frames with saved effect
-history. The PDF has four 420 × 594 mm pages with live, selectable text. Arial,
+The INDD and IDML contain 31 uniquely named specimen frames with saved effect
+history. The PDF has five 420 × 594 mm pages with live, selectable text. Arial,
 Minion Pro, and Acumin Variable Concept were used; font files are not bundled.
 Activate or substitute missing fonts before editing; substitution can reflow text.
 
@@ -69,10 +76,10 @@ Activate or substitute missing fonts before editing; substitution can reflow tex
 current repository engine. Keep it in this folder and run it from InDesign's
 Scripts panel. It creates a new document, overwrites the guide INDD/IDML/PDF
 beside the builder, and records `build-report.txt`. Render the PDF again to
-refresh `preview.png` (page 1), `preview-underlines.png` (page 2), `preview-line-length.png` (page 3), and `preview-style-blend.png` (page 4). The builder needs the fonts listed above (or its listed
+refresh `preview.png` (page 1), `preview-underlines.png` (page 2), `preview-line-length.png` (page 3), `preview-style-blend.png` (page 4), and `preview-saved-setups.png` (page 5). The builder needs the fonts listed above (or its listed
 fallbacks), including a variable font with a Weight axis.
 
-The export was visually reviewed. All twenty example headings and twenty-eight editable
+The export was visually reviewed. All twenty-three example headings and thirty-one editable
 specimen names were verified; no unintended text is overset. The two frame-scope
 comparison stories intentionally extend beyond their frames. This specimen is a
 visual guide, not an exhaustive compatibility test.
@@ -97,3 +104,15 @@ are preserved. Intermediate results are local overrides, and grouped endpoint
 names survive an IDML roundtrip. Blend attributes reports skipped values and
 lets you exclude supported attributes. Keep Replace on to restore the previous
 baseline before rereading changed endpoint styles.
+
+Every treated specimen stores a v8 setup in its story, owned by its frame.
+The linked story in 12 is owned by 12A; selecting 12B explains which frame to
+use. The untreated 11A control has no setup. There are 29 owning setups across
+31 frames. All 29 reopen/reapply from the exported IDML, with exact Cancel
+restoration; metrics and original named colors survive the roundtrip.
+
+Examples 21-22 use the Guide blends styles Original A/Original B. Their inferred
+endpoints come from pre-effect text and are labeled in Blend attributes. The
+group contains ten editable endpoint/base styles. Example 23 recalls both
+properties; Undo addition returns its kept blend to editing. Edit its A/B styles
+between openings, then Reapply all to refresh the entire sequence.

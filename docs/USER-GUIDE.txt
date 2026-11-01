@@ -1,15 +1,16 @@
-TRACKING RAMP 7.0.0 — TEXT DISTRIBUTION STUDIO
+TRACKING RAMP 8.0.0 — TEXT DISTRIBUTION STUDIO
 
 RUN
 
 In InDesign 2026, open Window > Utilities > Scripts > User > Tracking Ramp.jsx.
 Select one ordinary text frame, highlight text, or put the text cursor inside
-a frame, then double-click the script. V7 replaces the installed v6 entry.
-This repository contains the current v7 script.
+a frame, then double-click the script. V8 replaces the installed v7 entry.
+This repository contains the current v8 script.
 
 LIVE PREVIEW / CANCEL / APPLY
 
-Live document preview is on by default. The actual selected text changes as
+Live document preview is on by default for a fresh setup. Saved setups open
+with it off; use Preview, enable Live preview, or Reapply explicitly. The actual selected text changes as
 you adjust controls. Each update starts from the document state before the
 current preview, so changes do not accumulate while experimenting.
 
@@ -23,12 +24,53 @@ metadata, and removes any new preview metrics frames, layers and swatches.
 This uses document-scoped Undo, preserving style overrides and inherited
 formatting rather than merely rewriting numeric values.
 
-Apply keeps the current result as one Edit > Undo Tracking Ramp 7 action.
+Apply keeps the current result as one Edit > Undo Tracking Ramp 8 action.
 Turn Live document preview off to work with the graph alone; turning it off
 restores the document immediately. Apply still applies the configured effect.
 
 The dialog initially appears toward the right of the main screen so the
 page can remain visible. You can move the dialog by its title bar.
+
+SAVED SETUPS / REOPENING / REAPPLYING
+
+V8 saves the complete ordered setup in the document when an effect is applied:
+properties, source styles, attribute selection, curves, steps, scope/restart,
+contour and break policies. Select its owning frame and run the script again.
+Saved setup loaded identifies the controls as belonging to that treated text.
+The last stage is editable; preceding stages appear in Kept. Undo addition
+returns the last kept stage to editing. Saved selected ranges appear as Saved
+highlighted text in Scope when the owning frame is selected.
+
+Opening or cancelling recalled controls does not change document formatting,
+recipe labels or Undo history. Preview/Reapply first restores the complete old
+stack baseline in reverse order, then calculates the saved sequence in order.
+Character-style endpoints are read again; edited source styles therefore take
+effect. Kept stages freeze after their first refreshed preview in this session.
+Reapply all commits one named Undo; Cancel returns the old committed appearance.
+Replacement is locked on while a complete saved setup is loaded.
+
+Forget saved setup keeps current formatting, breaks, metrics and frame shape.
+It adopts them as the baseline and removes automatic recall/replacement history.
+It has its own Undo step. Cancel after an explicit Forget does not reverse it;
+use Edit > Undo to restore that metadata. New controls remain preview-off.
+
+Ownership: one saved setup per linked story and one owning frame. Another
+linked frame explains which owner to select. A different highlighted selection,
+changed text/history or duplicated owner labels blocks automatic replacement.
+Forget can adopt the current appearance when the previous recipe no longer
+matches. Missing or renamed character styles are left blank and explained;
+choose their replacements before preview/reapply. Missing saved colors can
+require replacement or Forget. Manual text edits are not automatically remapped.
+
+Recipes survive saving INDD and exporting IDML. Native IDs may change; saved
+style paths/color names and persistent ownership labels are resolved again.
+Older v3-v7 replacement histories remain usable. A complete single-property
+configuration in one unthreaded frame loads with preview off and Earlier setup
+loaded - review scope. Review Scope before Preview/Apply: earlier metadata did
+not explicitly name that scope. Recovered blends retain Skip until changed.
+Earlier stack order is not reconstructed, and earlier linked-story effects
+without an owner require Forget to adopt their appearance. Applying creates
+a fully owned v8 recipe. Cancel leaves old appearance/history/Undo untouched.
 
 KEEPING EFFECTS / ADDING ANOTHER PROPERTY
 
@@ -39,7 +81,7 @@ the composition produced by the kept effects. Their actual numeric formatting
 stays frozen while the new property changes; they are not resampled against
 the later property's composition.
 
-Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 7
+Apply becomes Apply all. It commits the whole stack as one Undo Tracking Ramp 8
 transaction. Cancel, Escape, or closing restores the document from before the
 dialog opened, including kept effects, inserted breaks, contours and swatches.
 Keeping an effect does not create a separate permanent document commit.
@@ -64,8 +106,13 @@ at once. Use the existing curve, steps, Values per, Change and Restart controls.
 Shared supported attributes are included automatically. Blend attributes opens
 checkboxes to select a subset and lists missing/unsupported settings. Values
 shared by both styles can also be constant: an explicit 24 pt in both styles
-sets 24 pt throughout the blend. Based-on style values are resolved. Undefined
-values are not taken from document defaults or guessed from the other endpoint.
+sets 24 pt throughout the blend. Based-on style values are resolved. Both-missing attributes stay untouched.
+New UI blends use Missing values:
+Original text. If one endpoint is unspecified, its value comes from the original
+pre-effect text, including mixed original runs. Explicit inherited values take
+priority. Skip preserves the older rule requiring both endpoints. Inferred
+attributes are labeled with A/B: original text. Earlier configurations without
+a policy continue using Skip.
 Changing either endpoint selector resets the attribute selection to automatic.
 
 Supported attribute types (22):
@@ -78,12 +125,12 @@ Supported attribute types (22):
 - Complete variable-font design-axis vectors on the same physical font file
   with matching axis definitions; compatible named instances can differ.
 
-Numeric limits follow the supported property ranges. Automatic leading,
-automatic underline dimensions, inherited tint sentinels and one-sided/missing
-endpoints are skipped. Spot colors, gradients, mixed inks and automatic Text
-Color endpoints are not interpolated. Color blending uses up to 65 cached
-levels, including exact endpoints and midpoint. Character rotation takes the
-short angular route; other supported numbers interpolate linearly.
+Numeric limits follow the supported property ranges. Explicit automatic style
+endpoints, automatic underline dimensions and inherited tint sentinels are
+skipped. Spot colors, gradients, mixed inks and automatic Text Color style
+endpoints are not interpolated. Color blending uses up to 65 cached levels,
+including exact endpoints and midpoint. Character rotation takes the short
+angular route; other supported numbers interpolate linearly.
 
 Font families, static font/style switches, capitalization, underline/strike
 on/off, ligatures and other discrete switches remain as they are in the text.
@@ -93,11 +140,19 @@ instance name, but do not switch its font file. Target text must use that same
 variable-font file when axes are included; otherwise the preview rolls back.
 Exclude Variable-font axes to use the other shared numeric attributes instead.
 
+Original automatic leading is resolved from the original point size and the
+original auto-leading percentage, and restored as Auto on Cancel. One-sided
+variable axes can use the original compatible font vector. Original automatic
+underline/strike dimensions without a supported numeric value require explicit
+endpoints or Skip. Paint must remain compatible. A missing stroke color can use
+the defined endpoint's paint when starting at None/zero width; width-only styles
+can use original stroke paint or the original fill so a visible stroke can grow.
+
 The original character styles are never edited or assigned to the text by the
 blend. Intermediate output is local formatting; existing character-style
 assignment remains. A fresh UI reapply reads current endpoint definitions.
 Keeping a blend freezes its resolved values like other kept effects. Cancel
-restores the whole session and Apply/Apply all keeps one named v7 Undo action.
+restores the whole session and Apply/Apply all keeps one named v8 Undo action.
 
 Replacement restores every previously controlled attribute before calculating
 again, including attributes now excluded and targets outside a smaller scope.
@@ -112,7 +167,8 @@ off by default. Kept contours/paragraph structure from other effects remain.
 
 Examples 18-20 in the visual guide demonstrate a long four-attribute ramp,
 per-word character bells with exclusions, and variable weight plus size.
-Endpoint styles are in Character Styles > Guide blends.
+Endpoint styles are in Character Styles > Guide blends. Examples 21-23 add
+original endpoints, mixed baselines and a saved complete property stack.
 
 ALLOW ADDED LINE BREAKS
 
@@ -494,17 +550,16 @@ tracking through other spacing settings: numeric tracking and visible gaps diffe
 
 REAPPLYING / RESETTING OLDER EFFECTS
 
-Replace previous effect is on by default. V7 retains compatible v3/v4/v5/v6 history
-and saves the original affected
-property values in the story's metadata. Reapplying restores the previous
+Replace previous effect is on by default. V8 retains compatible v3-v7 history
+and saves original affected property values in the story's metadata. Reapplying restores the previous
 baseline before calculating the new result, including old targets that are
 no longer included by the new mode. Narrowing a range or switching from Both
 to Letters therefore does not leave the previous tracking on old gaps.
 
-There is one replaceable effect per property per story. This is story-wide,
-as stated in the checkbox; applying to another linked frame can replace that
-property's previous effect. Disable Replace for an independent additional
-effect or to start from the current formatting.
+Replacement history contains one effect per property per story. V8 saved
+setups enforce their owning frame/range and restore the full sequence. Use
+Forget saved setup to adopt the current appearance. For older histories without
+a v8 recipe, disabling Replace starts from the current formatting.
 
 The original values from v1/v2 were not saved and cannot be reconstructed.
 For those cases, enable Clear tracking to 0 first. It clears tracking across
@@ -517,8 +572,9 @@ not return when the option is left off on a later run. Manual Undo still
 restores the pre-clear formatting.
 
 If the text content changes after a v3 commit, saved indices may be invalid.
-The script detects this and asks you to disable Replace to establish a new
-baseline. It does not apply old index-based history to changed text.
+A saved v8 setup explains the mismatch and requires Forget to adopt a new
+baseline. Older histories without a v8 recipe can use Replace off. Old
+index-based history is not applied to changed text.
 
 LIMITS / VERIFICATION
 
@@ -533,7 +589,7 @@ The script changes local formatting; applying paragraph/character styles
 later can replace those overrides. Locked source text/layers may reject writes;
 failed preview transactions are restored.
 
-138 automated checks passed. Coverage includes 108 unit/group/target
+162 automated checks passed. Coverage includes 108 unit/group/target
 combinations, curve sampling, snapshots, replacement, Undo, preview reuse,
 frame contraction/expansion, effective tracking convergence, cleared-frame
 baselines, glyph-gap placement, and formatting-index remapping for soft breaks.
@@ -577,7 +633,7 @@ replacement baselines, Cancel restoration and the single Undo action remain.
 
 The original Line length addition passed 77 focused native assertions, including the
 actual UI, row widths, spacing, justification, overset, replacement and stacks.
-The visual guide now has four A2 pages, twenty examples and 28 editable
+The visual guide now has five A2 pages, twenty-three examples and 31 editable
 specimen frames. Its exported PDF was rendered and visually reviewed.
 
 V6 passed 102 native assertions: 23 break-policy fixtures, 72 repeated legacy
@@ -591,6 +647,17 @@ checks. Native checks include 21 simultaneous numeric/color attributes,
 variable axes, metrics, inherited values, automatic baseline restoration,
 narrow replacement, frozen stacks and frame overset. Every guide page was
 rendered and visually inspected.
+
+V8 passed 294 native assertions: 62 blend/setup API, 30 actual UI, 93 exported
+IDML, 14 recalled layouts, and 95 repeated break-policy/line-length assertions.
+The automated suite passes 162 checks. Native tests include entire-stack reset,
+source edits, stale text, owner conflicts, saved selections, Forget/Undo,
+original endpoints, None stroke, mixed values, automatic leading and axes.
+All 29 owning guide setups reopen/reapply in IDML and restore exactly on Cancel.
+All five exported PDF pages were rendered and visually inspected. Native v7/v8
+benchmark comparisons match text, units, values and character formatting in
+seven scenarios. Character-level variable axes remain expensive; see the
+repository performance notes for fixture details and measured timings.
 
 ADOBE REFERENCES
 

@@ -1,5 +1,5 @@
 #target "indesign"
-/* Build the editable, four-page Tracking Ramp specimen using the actual v7 engine.
+/* Build the editable, five-page Tracking Ramp specimen using the actual v8 engine.
  * Run from this folder beside the shipped Tracking Ramp source checkout.
  * Outputs are recreated beside this script. No existing document is edited.
  */
@@ -79,7 +79,7 @@
             specimens.push(tf);return tf;
         }
         function settings(extra) {
-            var s={scope:0,mode:"word",restart:"never",target:"letters",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:false,allowLineBreaks:false,autoStabilize:true,textEnabled:true};
+            var s={scope:0,mode:"word",restart:"never",target:"letters",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:false,allowLineBreaks:false,autoStabilize:true,textEnabled:true,missingStyle:"original"};
             for(var k in extra)s[k]=extra[k];return s;
         }
         function apply(tf,extra) {
@@ -103,7 +103,7 @@
             tf.insertLabel("TrackingRamp.guide.settings",api.encode({stack:saved}));
             log(tf.name+" | "+saved.length+" stacked properties | one Undo group | overset="+tf.overflows);
         }
-        text("Guide - eyebrow","TRACKING RAMP 7  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Guide - eyebrow","TRACKING RAMP 8  /  VISUAL GUIDE",[44,48,66,760],st.eye);
         text("Guide - format","01  /  A2 SPECIMEN SHEET",[44,W-310,66,W-48],st.eye);
         text("Guide - title","Fading, by degrees.",[79,45,159,W-48],st.title);
         text("Guide - introduction","Twelve specimens, from a few letters to a flowing story. Each numbered frame is editable.\rThe settings below were applied by Tracking Ramp itself; the changing text is the demonstration.",[169,48,218,W-48],st.intro);
@@ -166,11 +166,11 @@
         text("Footer - reapply instructions","Set an effect, click + Add property, then choose the next property. Apply all keeps the stack; Cancel restores the starting state.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Footer - compare","READ THE RESULTS",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Footer - compare instructions","Allow added line breaks is off by default. Auto-stabilize can use Fixed sampling without changing paragraph structure.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Footer - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v7.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
+        text("Footer - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Editable specimens, actual applied values",[1650,48,1670,W-48],st.note);
         // Page 2 keeps the same quiet typography and adds the additional targets.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 2 - white paper",[0,0,H,W],paper,ground);
-        text("Page 2 - eyebrow","TRACKING RAMP 7  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 2 - eyebrow","TRACKING RAMP 8  /  VISUAL GUIDE",[44,48,66,760],st.eye);
         text("Page 2 - format","02  /  UNDERLINES & INDENTS",[44,W-345,66,W-48],st.eye);
         text("Page 2 - title","A line can change.",[79,45,159,W-48],st.title);
         text("Page 2 - introduction","Weight and offset follow characters or words. Indents move complete paragraphs.\rEach example keeps its saved baseline, so you can replace the curve and explore.",[169,48,218,W-48],st.intro);
@@ -209,11 +209,11 @@
         text("Page 2 - footer replace","Cancel restores the starting formatting. Reapplying restores old targets before assigning new values. Underline automatic values are preserved.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 2 - footer paragraph label","ONE CURVE PER SCOPE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 2 - footer paragraph","Indent properties use Paragraph, Both and Never restart. Curves run across the selected paragraphs without splitting their formatting.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 2 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v7.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
+        text("Page 2 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Underline and paragraph properties",[1650,48,1670,W-48],st.note);
         // Page 3 demonstrates managed, independently indented rows.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 3 - white paper",[0,0,H,W],paper,ground);
-        text("Page 3 - eyebrow","TRACKING RAMP 7  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 3 - eyebrow","TRACKING RAMP 8  /  VISUAL GUIDE",[44,48,66,760],st.eye);
         text("Page 3 - format","03  /  LINE LENGTH",[44,W-310,66,W-48],st.eye);
         text("Page 3 - title","A changing measure.",[79,45,159,W-48],st.title);
         text("Page 3 - introduction","Allow added line breaks chooses the compromise: per-line indents, or a frame contour.\rTurn it off to preserve paragraphs. Turn it on for managed, independently fitted rows.",[169,48,218,W-48],st.intro);
@@ -235,11 +235,11 @@
         text("Page 3 - footer restore","Replace restores owned gaps or the original frame before applying the new mode. Cancel restores everything. Apply keeps one Undo action.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 3 - footer frame label","ONE RECTANGULAR FRAME",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 3 - footer frame","Both modes need one unthreaded rectangular frame. With added breaks, paragraph-aware styles may repeat on the new rows.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 3 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v7.0.0   /   Centered per-line measures",[1650,48,1670,W-48],st.note);
+        text("Page 3 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Centered per-line measures",[1650,48,1670,W-48],st.note);
         // Page 4 blends the actual values of editable character styles.
         page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
         box("Page 4 - white paper",[0,0,H,W],paper,ground);
-        text("Page 4 - eyebrow","TRACKING RAMP 7  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 4 - eyebrow","TRACKING RAMP 8  /  VISUAL GUIDE",[44,48,66,760],st.eye);
         text("Page 4 - format","04  /  CHARACTER-STYLE BLEND",[44,W-390,66,W-48],st.eye);
         text("Page 4 - title","Between two styles.",[79,45,159,W-48],st.title);
         text("Page 4 - introduction","Choose Style A and Style B. One curve blends their shared numeric settings and compatible colors.\rFont families and on/off settings stay unchanged; the source character styles remain editable.",[169,48,218,W-48],st.intro);
@@ -272,14 +272,44 @@
         text("Page 4 - footer attributes","Shared supported attributes are automatic. Blend attributes lets you exclude them and lists missing or unsupported values.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 4 - footer keep label","KEEP & RESTORE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
         text("Page 4 - footer keep","Add another property to keep the blend. Cancel restores the starting state. Apply all commits the stack as one Undo action.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
-        text("Page 4 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v7.0.0   /   Shared attributes, one blend curve",[1650,48,1670,W-48],st.note);
+        text("Page 4 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Shared attributes, one blend curve",[1650,48,1670,W-48],st.note);
+        // Page 5 demonstrates original-text endpoints and saved complete setups.
+        page=doc.pages.add();page.marginPreferences.properties={top:48,left:48,bottom:48,right:48};
+        box("Page 5 - white paper",[0,0,H,W],paper,ground);
+        text("Page 5 - eyebrow","TRACKING RAMP 8  /  VISUAL GUIDE",[44,48,66,760],st.eye);
+        text("Page 5 - format","05  /  SAVED SETUPS",[44,W-310,66,W-48],st.eye);
+        text("Page 5 - title","Keep the instructions.",[79,45,159,W-48],st.title);
+        text("Page 5 - introduction","A missing endpoint can come from the original text. A saved setup remembers the full sequence.\rReopen an editable specimen: its controls load without changing the document. Preview when ready.",[169,48,218,W-48],st.intro);
+        var originalA=blendGroup.characterStyles.add({name:"Original A - unspecified"});
+        var strokeB=blendGroup.characterStyles.add({name:"Original B - skew and stroke",skew:24,strokeWeight:2,strokeColor:ink});
+        section("21","An outline from nothing","Word / Linear / 0 to 100% / Missing values: Original text\rA leaves skew and stroke unspecified. B defines skew 24 degrees, stroke 2 pt and Ink.",246);
+        f=specimen("21 - One-sided style blend - skew and visible stroke","A trace remains.",[354,62,574,W-62],58,86);
+        f.parentStory.texts[0].skew=0;f.parentStory.texts[0].strokeColor=none;
+        apply(f,{property:"styleBlend",mode:"word",target:"both",styleA:originalA.id,styleB:strokeB.id,min:0,max:100,missingStyle:"original"});
+        section("22","The original text is the starting point","Word / Linear / 0 to 100% / Original text endpoints\rOriginal sizes: 24 pt, then 18 pt. B defines 30 pt and skew 18 degrees. Both-missing settings stay unchanged.",612);
+        var originalB=blendGroup.characterStyles.add({name:"Original B - size and skew",pointSize:30,skew:18});
+        var originalPassage="The first words have already changed before the curve begins. They are a little larger, holding their shape against the light. The rest of the passage starts quietly. As each word approaches the second style, its size and angle move toward the same destination. A missing setting is taken from the text that was there at the beginning. The page remembers that starting point, so another preview does not keep adding the previous change.";
+        f=specimen("22 - One-sided style blend - mixed original sizes",originalPassage,[722,62,1090,W-62],18,44);
+        f.parentStory.characters.itemByRange(0,100).pointSize=24;
+        apply(f,{property:"styleBlend",mode:"word",target:"letters",styleA:originalA.id,styleB:originalB.id,min:0,max:100,missingStyle:"original"});
+        section("23","Reopen the whole sequence","Kept Character-style blend, then Tracking / Word / Linear\rBlend: A to B, 0 to 100%. Tracking: 0 to 80. Both stages are saved with this frame.",1132);
+        f=specimen("23 - Saved setup - character-style blend then tracking","A remembered curve can return to the page. Close the dialog, change a source character style, and open this frame again. Its saved setup loads with preview off. Reapply reads the new endpoint values and calculates the whole sequence from its original baseline. The words can change without losing the instructions that brought them here.",[1240,62,1480,W-62],24,44);
+        applyStack(f,[{property:"styleBlend",mode:"word",target:"letters",styleA:blendA.id,styleB:blendB.id,min:0,max:100,missingStyle:"original"},{property:"tracking",mode:"word",target:"letters",min:0,max:80}]);
+        box("Page 5 - footer rule",[1538,48,1538.5,W-48],rule,ground);
+        text("Page 5 - footer reopen label","OPEN AGAIN",[1553,48,1572,48+cw],st.eye);
+        text("Page 5 - footer reopen","Select the same frame and run the script. Saved setup loaded identifies its settings. Preview and Reapply update the document explicitly.",[1578,48,1630,48+cw],st.foot);
+        text("Page 5 - footer baseline label","REAPPLY FROM THE START",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
+        text("Page 5 - footer baseline","The full stack restores its previous baseline first. Source styles are reread; previews do not accumulate earlier values. Cancel restores the committed appearance.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
+        text("Page 5 - footer forget label","FORGET, KEEP THE APPEARANCE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
+        text("Page 5 - footer forget","Forget saved setup adopts the current formatting, breaks and shape. It stops recall, leaves the appearance in place, and has its own Undo step.",[1578,48+2*(cw+gap),1630,W-48],st.foot);
+        text("Page 5 - repository","github.com/jahnDOTkoutrios/indesign-tracking-ramp   /   v8.0.0   /   Original endpoints and saved property stacks",[1650,48,1670,W-48],st.note);
         doc.recompose();
         for(var i=0;i<allText.length;i++){
             var tf=allText[i];
             if(tf.overflows&&!tf.extractLabel("TrackingRamp.guide.expectedOverset"))log("OVERSET "+tf.name);
         }
         doc.metadataPreferences.documentTitle="Fading, by degrees. - Tracking Ramp visual guide";
-        doc.metadataPreferences.description="Four editable A2 specimen sheets demonstrating Tracking Ramp 7 text curves, metrics, scopes, frame contours, and character-style blends. Generated with the actual script engine.";
+        doc.metadataPreferences.description="Five editable A2 specimen sheets demonstrating Tracking Ramp 8 text curves, metrics, scopes, frame contours, character-style blends, original-text endpoints and saved setups. Generated with the actual script engine.";
         ground.locked=true;labels.locked=true;doc.activeLayer=examples;
         var indd=File(folder.fsName+"/Tracking Ramp - Visual Guide.indd");doc.save(indd);
         doc.exportFile(ExportFormat.INDESIGN_MARKUP,File(folder.fsName+"/Tracking Ramp - Visual Guide.idml"),false);

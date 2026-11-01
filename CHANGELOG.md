@@ -1,5 +1,19 @@
 # Changelog
 
+## 8.0.0
+
+- Save complete ordered setups with the treated story and a persistent owning frame: properties, endpoint references, attribute selection, curves, steps, scopes, restart rules, contour and break policies.
+- Reopen saved controls with document preview off and a Saved setup loaded indicator. Preview/Reapply explicitly updates the page; Reapply restores the whole stack baseline and reads current character-style definitions.
+- Add Forget saved setup. Keep current formatting, breaks, metrics and frame shape; adopt that appearance as the new baseline. Forgetting has an independent Undo step.
+- Recover complete earlier single-property controls in unthreaded frames with preview off and a scope-review note. Explain unavailable earlier stack order/linked ownership; Apply saves a v8 recipe and Undo restores the earlier state.
+- Explain stale text/history, conflicting linked-frame ownership and missing source styles before replacement. Restore saved highlighted scopes in the selector and retain a read-only Kept strip for recalled stacks.
+- Add Missing values: Original text / Skip. One-sided numeric/color/compatible-axis endpoints can use original formatting, including mixed runs; both-missing settings remain untouched. Explicit inherited values take priority. Earlier configurations without a policy keep Skip.
+- Grow a visible stroke from zero width/None paint, annotate inferred attributes, and resolve original automatic leading from its original size and auto-leading percentage. Unsupported automatic dimensions require explicit endpoints or Skip.
+- Read uniform formatting runs before using validated bulk/scalar snapshot fallbacks; preserve automatic tokens and native paragraph enumerators. Scope fixed selection snapshots, cache swatch/font metadata and endpoint compilation, batch equal adjacent output and compatible variable-axis ranges, and replay numeric-only kept blends as exact patches.
+- Retain composition limits, curve sampling, outgoing tracking-gap rules and default-off added breaks. Native differential checks match v7 character formatting in all seven benchmark cases.
+- Resolve saved swatches by name when import reassigns their IDs; preserve metrics ownership across IDML through persistent labels.
+- Extend the minimal guide to five A2 pages, 23 examples and 31 named editable frames. Add one-sided skew/stroke, mixed original sizes and a recalled blend-plus-tracking stack.
+
 ## 7.0.0
 
 - Add Character-style blend with Style A/B selectors and a 0-100% blend range. Apply multiple supported attributes together using existing curves, steps, units and restart groups.
