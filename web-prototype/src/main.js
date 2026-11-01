@@ -254,7 +254,7 @@ $('benchmark').addEventListener('click',async()=>{
   try{
     const report=await runComparison(renderer,stageWidth(),message=>{$('benchmark-status').textContent=message;},benchmarkController.signal);
     showReport(report);$('benchmark-status').textContent='Comparison complete.';
-    try{const response=await fetch('/__test-results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(report)});if(!response.ok)throw new Error();}catch{/* Production has no local report writer. */}
+    if(import.meta.env.DEV)try{const response=await fetch('/__test-results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(report)});if(!response.ok)throw new Error();}catch{/* Production has no local report writer. */}
   }catch(error){$('benchmark-status').textContent=error.name==='AbortError'?'Test stopped. Keep the tab visible and avoid resizing during a run.':error.message;}
   finally{benchmarkController=null;document.body.classList.remove('benchmarking');lockControls(false);$('benchmark').textContent='Run comparison';mount();requestPaint();$('performance').scrollIntoView({block:'center',behavior:'instant'});}
 });

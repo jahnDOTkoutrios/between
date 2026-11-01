@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Publish Between on GitHub Pages with automatic tested deployments, a production base path, and public links in the project documentation. Keep benchmark report writes development-only.
+
 - Make UI chrome non-selectable and restore browser-native specimen highlights. Retain selectable spaces/paragraph breaks, scope Select All to the specimen outside active fields, and pause playback when selection starts.
 
 - Add shared Base alignment (Left, Center, Right, Justified) with stable/live word and character rendering, paragraph-final-line behavior and saved settings. Center the curve icon and theme select buttons and popup menus.

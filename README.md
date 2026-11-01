@@ -2,12 +2,16 @@
 
 **Text distribution for Adobe InDesign — v8.0.0**
 
+[**Open the web tool — Between**](https://jahndotkoutrios.github.io/indesign-tracking-ramp/)
+
 Apply tracking and other text properties along a curve, then repeat that curve
 inside words, sentences, paragraphs, composed lines, or linked frames.
 A standalone ExtendScript `.jsx` with a ScriptUI interface; no plugin build or
 runtime dependencies are needed in InDesign.
 
 ## Web prototype — Between
+
+**[Use Between in your browser](https://jahndotkoutrios.github.io/indesign-tracking-ramp/)** — no installation or account needed.
 
 [Between](web-prototype/) brings style morphing, curves and structural
 text distribution to a local web editor built with

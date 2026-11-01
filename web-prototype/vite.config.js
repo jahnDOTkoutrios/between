@@ -21,4 +21,8 @@ function localBenchmarkReports() {
     });
   } };
 }
-export default defineConfig({ plugins: [localBenchmarkReports()], server: { host: '127.0.0.1', port: 5173, strictPort: true } });
+export default defineConfig(({ command,isPreview })=>({
+  base:command==='build'||isPreview?'/indesign-tracking-ramp/':'/',
+  plugins:[localBenchmarkReports()],
+  server:{host:'127.0.0.1',port:5173,strictPort:true},
+}));
