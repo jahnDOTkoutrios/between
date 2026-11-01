@@ -7,7 +7,7 @@ import { envelope } from './geometry.js';
 import { PHRASE,PARAGRAPH } from '../samples.js';
 
 export const SETTINGS_KEY='between-setup-v1';
-export function cascadeSnapshot(state){return{alignment:state.alignment||'left',base:{...state.base},raw:{a:{...state.raw.a},b:{...state.raw.b}},active:[...state.active]};}
+export function cascadeSnapshot(state){return{alignment:state.alignment||'left',frameWidth:state.frameWidth??0,base:{...state.base},raw:{a:{...state.raw.a},b:{...state.raw.b}},active:[...state.active]};}
 export function defaultSetup(dark=false){
   const state=new StyleCascade();
   if(dark)for(const style of [state.base,state.raw.a,state.raw.b])for(const key of ['color','outlineColor']){if(style[key]==='#252525')style[key]='#e5e5e5';else if(style[key]==='#a2a29b')style[key]='#999992';}
@@ -27,6 +27,7 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
   const defaults=defaultSetup();source=object(source);if(source.version!==1)return defaults;
   const saved=object(source.styles),raw=object(saved.raw),state=new StyleCascade();
   state.alignment=choice(saved.alignment,ALIGNMENTS.map(([id])=>id),'left');
+  state.frameWidth=number(saved.frameWidth,0,0);
   state.base=styleValues(saved.base,state.base,fontIDs);
   for(const endpoint of ['a','b'])state.raw[endpoint]=styleValues(raw[endpoint],Object.hasOwn(raw,endpoint)?{}:state.raw[endpoint],fontIDs);
   if(Array.isArray(saved.active))state.active=new Set(saved.active.filter(id=>PROPERTIES.some(p=>p.id===id)));
@@ -55,4 +56,4 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
 }
 export function readSetup(storage){try{const raw=storage.getItem(SETTINGS_KEY);return raw?JSON.parse(raw):null;}catch{return null;}}
 export function writeSetup(storage,setup){try{storage.setItem(SETTINGS_KEY,JSON.stringify(setup));return true;}catch{return false;}}
-export function restoreCascade(state,saved){state.alignment=saved.alignment||'left';state.base={...saved.base};state.raw={a:{...saved.raw.a},b:{...saved.raw.b}};state.active=new Set(saved.active);}
+export function restoreCascade(state,saved){state.alignment=saved.alignment||'left';state.frameWidth=saved.frameWidth??0;state.base={...saved.base};state.raw={a:{...saved.raw.a},b:{...saved.raw.b}};state.active=new Set(saved.active);}

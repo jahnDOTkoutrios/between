@@ -32,7 +32,7 @@ npm run dev
   It becomes the shared font and appears in A/B font choices. Files are retained
   in this browser for refreshes; nothing is uploaded or installed. Different
   families switch at the midpoint; variable weight works when the font supports it.
-- **Base:** shared typography and defaults. Choose font, line height and alignment here;
+- **Base:** shared typography and defaults. Choose font, line height, alignment and text-block width here;
   active property defaults also live here.
 - **A / B:** override size, weight, tracking, color or other active fields.
   The small **↶** on a field restores inheritance from Base.
@@ -418,3 +418,18 @@ Production and `npm run preview` use `/indesign-tracking-ramp/` as the base path
 local development stays at `/`. Only `dist/` is deployed. Browser settings and
 custom font files remain in each visitor's browser, and the development-only
 benchmark report writer is excluded from the public build.
+
+
+## Text-block width
+
+Base → **Text width** sets the shared text block in pixels. Empty or 0 is Auto,
+which fills the available space. Positive finite widths, including fractions,
+are accepted. The block fits smaller screens while retaining the entered width
+for when more space becomes available. The toolbar keeps its usual width.
+
+Both stable composition and Live reflow fit the chosen block, and alignment is
+calculated within it. Width changes use cached font measurements and wait for
+the normal 220 ms typing pause. The width survives refresh; Restore defaults
+returns it to Auto.
+
+![Base text-block width control](docs/text-width.png)

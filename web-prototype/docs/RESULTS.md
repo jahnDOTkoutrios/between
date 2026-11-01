@@ -370,3 +370,17 @@ UI label dragging cannot select labels or buttons. App Select All is scoped to
 specimen text and does not highlight numeric controls. The textarea's native
 Select All still selects its full editable value. Selection colors use system
 Highlight/HighlightText, with no fixed palette or synthetic highlight overlay.
+
+
+## Text-block width
+
+91 web tests and the production build pass. Saved setup checks cover Auto,
+fractional widths, ordinary/large widths, reset, older setup compatibility and
+invalid values while retaining other typography.
+
+Browser verification changed a 624 px Auto block to exactly 320 px; stable line
+count changed from 2 to 5. The 320 px width and Live reflow setting survived an
+actual refresh. An entered 2000 px preference fitted the 624 px available space
+while keeping 2000 in the control. Restore defaults returned the control to Auto
+and the block to the available 624 px. Width changes reuse the prepared model;
+recording its composed width also avoids a duplicate ResizeObserver mount.

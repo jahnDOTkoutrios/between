@@ -77,6 +77,8 @@ textarea:focus-visible, summary:focus-visible, .stage:focus-visible {
 
 .stage {
   position: relative;
+  width:100%;
+  max-width:100%;
   margin-top: 64px;
   min-height: 260px;
   isolation: isolate;

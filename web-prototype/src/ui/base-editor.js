@@ -3,13 +3,14 @@ import { ALIGNMENTS } from '../engine/alignment.js';
 import { PROPERTIES } from '../engine/properties.js';
 import { anchorPopover } from './popover.js';
 import { styleInput, fieldValue } from './style-fields.js';
+const FRAME_WIDTH={key:'frameWidth',label:'Text width',type:'number',min:0,step:'any',unit:'px',auto:true,autoTitle:'Empty or 0 = fill the available width. Larger widths fit the available screen.'};
 export class BaseEditor {
-  constructor(button,panel,state,onChange){this.panel=panel;this.state=state;this.onChange=onChange;anchorPopover(button,panel,300);this.render();}
-  fields(){return PROPERTIES.filter(property=>property.inherit||this.state.active.has(property.id)).flatMap(property=>property.fields);}
+  constructor(button,panel,state,onChange){this.panel=panel;this.state=state;this.onChange=onChange;anchorPopover(button,panel,260);this.render();}
+  fields(){return [...PROPERTIES.filter(property=>property.inherit||this.state.active.has(property.id)).flatMap(property=>property.fields),FRAME_WIDTH];}
   valid(){return this.fields().every(field=>fieldValue(this.panel.querySelector(`#base-${field.key}`),field)!==null);}
   render(){
     this.panel.replaceChildren();
-    const properties=[...PROPERTIES.filter(p=>p.inherit),{id:'alignment',fields:[]},...PROPERTIES.filter(p=>!p.inherit&&this.state.active.has(p.id))];
+    const properties=[...PROPERTIES.filter(p=>p.inherit),{id:'alignment',fields:[]},{id:'frameWidth',layout:true,fields:[FRAME_WIDTH]},...PROPERTIES.filter(p=>!p.inherit&&this.state.active.has(p.id))];
     for(const property of properties){
       if(property.id==='alignment'){
         const label=document.createElement('label');label.className='setting-row';label.textContent='Alignment';
@@ -19,8 +20,8 @@ export class BaseEditor {
       }
       for(const field of property.fields){
       const label=document.createElement('label');label.className='setting-row';label.htmlFor=`base-${field.key}`;label.append(document.createTextNode(field.label==='Leading'?'Line height':field.label));
-      const value=document.createElement('span'),input=styleInput(field,`base-${field.key}`,`Base ${field.label==='Leading'?'line height':field.label.toLowerCase()}`,this.state.base[field.key]);value.append(input);if(field.unit)value.append(document.createTextNode(field.unit));label.append(value);this.panel.append(label);
-      input.addEventListener('input',()=>{const next=fieldValue(input,field);if(next!==null)this.state.setBase(field.key,next);this.onChange(next!==null,{deferPreview:field.type==='number'});});
+      const value=document.createElement('span'),input=styleInput(field,`base-${field.key}`,`Base ${field.label==='Leading'?'line height':field.label.toLowerCase()}`,property.layout?this.state[field.key]:this.state.base[field.key]);value.append(input);if(field.unit)value.append(document.createTextNode(field.unit));label.append(value);this.panel.append(label);
+      input.addEventListener('input',()=>{const next=fieldValue(input,field);if(next!==null){if(property.layout)this.state[field.key]=next;else this.state.setBase(field.key,next);}this.onChange(next!==null,{deferPreview:field.type==='number'});});
     }
     }
     const actions=document.createElement('div');actions.className='font-actions';

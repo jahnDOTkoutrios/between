@@ -3,7 +3,7 @@ import { validStyleNumber } from '../engine/properties.js';
 export function styleInput(field,id,label,value){
   const input=document.createElement(field.type==='select'?'select':'input');input.id=id;input.name=id;input.dataset.field=field.key;input.setAttribute('aria-label',label);
   if(field.type==='select'){for(const[value,text]of (field.key==='fontFamily'?FONT_CHOICES.map(font=>[font.id,font.label]):field.choices)){const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);}input.title='Different endpoint fonts switch at the midpoint.';}
-  else{input.type=field.type;if(field.type==='number'){if(field.min!==undefined)input.min=field.min;if(field.max!==undefined)input.max=field.max;input.step=field.step;if(field.auto){input.placeholder='Auto';input.title='Empty or 0 = automatic line height.';}}}
+  else{input.type=field.type;if(field.type==='number'){if(field.min!==undefined)input.min=field.min;if(field.max!==undefined)input.max=field.max;input.step=field.step;if(field.auto){input.placeholder='Auto';input.title=field.autoTitle||'Empty or 0 = automatic line height.';}}}
   setInputValue(input,field,value);return input;
 }
 export function setInputValue(input,field,value){input.value=field.auto&&value===0?'':value;}

@@ -32,3 +32,16 @@ test('restore defaults returns fresh complete state and migrates legacy dark col
   const changed=defaultSetup();changed.styles.active.length=0;changed.distribution.points[1].y=0;changed.profiles.wave.speed=100;
   const defaults=defaultSetup();assert.equal(defaults.styles.active.length,4);assert.equal(defaults.distribution.points[1].y,1);assert.equal(defaults.profiles.wave.speed,4.8);assert.equal(defaults.text.length>0,true);assert.equal(defaults.dark,false);assert.equal(defaultSetup(true).styles.raw.a.color,'#e5e5e5');assert.equal(defaultSetup(true).dark,true);
 });
+
+test('text-block width persists as a shared layout setting and resets to Auto',()=>{
+  for(const width of [0,.5,320,640.25,10000]){
+    const source=defaultSetup();source.styles.frameWidth=width;const saved=normalizeSetup(JSON.parse(JSON.stringify(source))),state=new StyleCascade();restoreCascade(state,saved.styles);
+    assert.equal(state.frameWidth,width);assert.equal(state.styles().a.frameWidth,undefined);assert.equal(state.styles().b.frameWidth,undefined);state.reset();assert.equal(state.frameWidth,0);
+  }
+});
+test('old setups and invalid text widths use Auto without losing typography',()=>{
+  for(const width of [undefined,-1,NaN,Infinity,'400']){
+    const source=defaultSetup();source.styles.base.fontFamily='serif';source.styles.raw.a.size=23;if(width===undefined)delete source.styles.frameWidth;else source.styles.frameWidth=width;
+    const saved=normalizeSetup(source);assert.equal(saved.styles.frameWidth,0);assert.equal(saved.styles.base.fontFamily,'serif');assert.equal(saved.styles.raw.a.size,23);
+  }
+});

@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Add Base → Text width in pixels, with Auto, responsive fitting, stable/live composition and saved setup support. Restore defaults returns the block to Auto; width edits reuse cached font measurements.
+
 - Publish Between on GitHub Pages with automatic tested deployments, a production base path, and public links in the project documentation. Keep benchmark report writes development-only.
 
 - Make UI chrome non-selectable and restore browser-native specimen highlights. Retain selectable spaces/paragraph breaks, scope Select All to the specimen outside active fields, and pause playback when selection starts.

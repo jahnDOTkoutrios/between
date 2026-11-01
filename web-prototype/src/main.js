@@ -27,6 +27,7 @@ const OVERSIZE_MESSAGE='A word is wider than the frame. Reduce the size or widen
 let liveReflow=initialSetup.liveReflow,currentStatus=null,stableOversized=false;
 let amount=initialSetup.amount,playing=false,mode=initialSetup.mode,pointer=null,frame=0,generation=0,rebuilding=false;
 let fontReady=false,lastGoodStyles=null;
+let lastWidth=0,lastFrameWidth=null;
 let stageRect=null,preparationTimer=0,benchmarkController=null,disposed=false,animationStart=0,animationPhase=0,lastPaint=0,touchScroll=null;
 const distribution=initialSetup.distribution;
 const profiles=new Map(Object.entries(initialSetup.profiles));
@@ -74,15 +75,20 @@ function syncSample(){for(const key of ['phrase','paragraph']){const selected=te
 function restoreDefaults(){
   canSave=false;clearTimeout(saveTimer);clearTimeout(preparationTimer);generation++;stopPlayback();
   const defaults=defaultSetup();text=defaults.text;profiles.clear();for(const[key,value]of Object.entries(defaults.profiles))profiles.set(key,value);
-  distributionEditor.restore(defaults.distribution);restoreCascade(propertyEditor.state,defaults.styles);applyTheme(false);
+  distributionEditor.restore(defaults.distribution);restoreCascade(propertyEditor.state,defaults.styles);applyTheme(false);applyFrameWidth();
   liveReflow=false;$('live-reflow').checked=false;pointer=null;touchScroll=null;stage.scrollLeft=0;
   $('editor').hidden=true;$('edit').setAttribute('aria-expanded','false');syncSample();
   for(const panel of document.querySelectorAll(':popover-open'))panel.hidePopover();
   setMode('scrub');amount=0;updateAmount();status('');canSave=true;saveNow();rebuild();
 }
 // Restore controls without starting playback or resetting the saved slider.
-const restoredAmount=amount;setMode(mode);amount=restoredAmount;updateAmount();syncSample();$('live-reflow').checked=liveReflow;canSave=true;
+const restoredAmount=amount;setMode(mode);amount=restoredAmount;updateAmount();syncSample();$('live-reflow').checked=liveReflow;applyFrameWidth();canSave=true;
 
+function applyFrameWidth(){
+  const width=propertyEditor.state.frameWidth;
+  if(width===lastFrameWidth)return false;
+  stage.style.width=width>0?`${width}px`:'100%';lastFrameWidth=width;return true;
+}
 function stageWidth(){return Math.max(1,stage.clientWidth);}
 function cacheRect(){stageRect=stage.getBoundingClientRect();}
 function status(message){if(message===currentStatus)return;currentStatus=message;$('status').textContent=message;$('status').hidden=!message;}
@@ -120,7 +126,7 @@ function setMode(value){
   queueSave();$('hint').textContent=hints[mode];interactionEditor.render(mode,profiles.get(mode));syncControls();updateAmount();requestPaint();
 }
 function mount(nextModel=model){
-  const nextLayout=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);
+  const nextLayout=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);lastWidth=nextLayout.width;
   stableOversized=nextLayout.lines.some(line=>line.some(entry=>entry.envelopeWidth>(nextLayout.contentWidth??nextLayout.width)));
   $('benchmark').disabled=false;model=nextModel;layout=nextLayout;lastGoodStyles={a:{...a},b:{...b}};renderer.mount(model,layout);cacheRect();
   renderer.render(amount,{mode,pointer,a,b,settings:{...profiles.get(mode),response:0},distribution,liveReflow,alignment:propertyEditor.state.alignment});
@@ -147,7 +153,8 @@ function stylesChanged(next,options={}){
   clearTimeout(preparationTimer);preparationTimer=0;
   try{envelope(1,Math.max(next.a.size,next.b.size),next.a,next.b);}catch(error){rebuilding=false;stage.classList.remove('is-preparing');if(lastGoodStyles){a=lastGoodStyles.a;b=lastGoodStyles.b;}status(error.message);requestPaint();return;}
   const previousA=a,previousB=b;
-  const geometryChanged=layoutKey(a,b)!==layoutKey(next.a,next.b)||renderer.referenceLayout?.alignment!==propertyEditor.state.alignment;a=next.a;b=next.b;
+  const widthChanged=applyFrameWidth();
+  const geometryChanged=widthChanged||layoutKey(a,b)!==layoutKey(next.a,next.b)||renderer.referenceLayout?.alignment!==propertyEditor.state.alignment;a=next.a;b=next.b;
   if(!model||model.characters!==characterUnits(distribution)||metricKey(model.a,model.b)!==metricKey(a,b)||rebuilding){
     generation++;clearTimeout(preparationTimer);if(options.commit)rebuild();else preparationTimer=setTimeout(rebuild,220);
   }else{try{if(geometryChanged)mount();else{lastGoodStyles={a:{...a},b:{...b}};status('');}requestPaint();}catch(error){a=previousA;b=previousB;status(error.message);}}
@@ -228,7 +235,6 @@ window.addEventListener('keyup',event=>{if(mode==='press'&&event.code==='Space')
 stage.addEventListener('blur',()=>{if(mode==='press'){amount=0;requestPaint();}});
 window.addEventListener('blur',()=>{stopPlayback();release({});pointer=null;requestPaint();});
 window.addEventListener('scroll',cacheRect,{passive:true});
-let lastWidth=0;
 const resizeObserver=new ResizeObserver(()=>{const width=stageWidth();if(Math.abs(width-lastWidth)<.5)return;lastWidth=width;cacheRect();if(benchmarkController){benchmarkController.abort();return;}if(model&&!rebuilding){mount();requestPaint();}});
 resizeObserver.observe(stage);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopPlayback();release({});pointer=null;distributionEditor.flushNumbers();saveNow();benchmarkController?.abort();}else requestPaint();});
