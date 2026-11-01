@@ -30,7 +30,7 @@ npm run dev
   It becomes the shared font and appears in A/B font choices. Files are retained
   in this browser for refreshes; nothing is uploaded or installed. Different
   families switch at the midpoint; variable weight works when the font supports it.
-- **Base:** shared typography and defaults. Choose the font and line height here;
+- **Base:** shared typography and defaults. Choose font, line height and alignment here;
   active property defaults also live here.
 - **A / B:** override size, weight, tracking, color or other active fields.
   The small **↶** on a field restores inheritance from Base.
@@ -113,6 +113,7 @@ src/
     settings.js            Versioned settings, validation and Base/override restoration
     interactions.js        Wipe/wave/proximity fields, easing and response
     geometry.js            Transformed bounds and conservative reservations
+    alignment.js           Line offsets, word-space justification and aligned anchors
     appearance.js          Shared sampled geometry for fitting and painting
     reflow.js              Stable identities, cached-width fitting and bounded settling
     distribution.js        Grapheme structures, scopes, restarts and curve sampling
@@ -151,7 +152,7 @@ text. Named reports in that folder preserve the development test runs.
 ## Deliberate limits
 
 - Stable, conservative line breaks by default; optional live word wrapping.
-  No justification or automatic hyphenation.
+  No automatic hyphenation.
 - A bundled Latin variable font, three system font stacks and locally retained font files. Word mode keeps
   shaped words; Letter/Character mode measures and renders individual graphemes.
   This changes kerning/ligatures and does not promise complex-script shaping.
@@ -366,3 +367,23 @@ persistence; the editor reports a storage failure and remains usable.
 **Restore defaults**, below A/B, resets the whole setup to the original light
 example and saves that default state immediately. Previously opened fonts remain
 in the local font library, but Manrope becomes the selected font again.
+
+
+## Alignment and dropdowns
+
+Base → **Alignment** controls the specimen as a whole: Left (default), Center,
+Right or Justified. Each line aligns using its current measured widths. Justified
+expands only interword spaces on wrapped lines; each paragraph's last line stays
+left aligned. Single-word or overlong lines retain their natural width. Letter
+and Character rendering preserve spacing inside words. Live reflow fits lines
+first, then aligns them; pointer anchors follow the same aligned geometry.
+Alignment survives refresh and Restore defaults returns it to Left. Changing it
+reuses cached font measurements.
+
+The curve button uses a centered SVG. Select buttons use the same borders,
+chevrons, spacing and light/dark colors as the app. Popup menus use
+[customizable native selects](https://developer.chrome.com/docs/modern-web-guidance/guides/forms/branded-select-styling)
+where supported, preserving native keyboard and accessibility behavior. Other
+browsers keep the styled button and their native picker as a fallback.
+
+![Base alignment and themed dropdown menu](docs/alignment-menu.png)

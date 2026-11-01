@@ -1,3 +1,4 @@
+import { alignLayout } from './alignment.js';
 import { appearanceAt } from './appearance.js';
 import { buildStructureDistribution,defaultDistribution,textStructure } from './distribution.js';
 import { approach,defaultInteraction,fieldAmount } from './interactions.js';
@@ -20,7 +21,7 @@ export function reflowCatalog(model,reference){
   }));
   return{entries,words,paragraphs:structure.paragraphs,reference:{...reference,lines,entries:lines.flat()}};
 }
-export function fitLiveLayout(model,catalog,appearances,amounts,width,a,b){
+export function fitLiveLayout(model,catalog,appearances,amounts,width,a,b,alignment='left'){
   const edgePadding=catalog.reference.edgePadding||0,contentWidth=Math.max(1,width-2*edgePadding);
   const lines=[],fallbackSize=Math.max(0,...appearances.map(app=>app.style.size));let y=0,oversized=false;
   function finish(packed){
@@ -55,7 +56,7 @@ export function fitLiveLayout(model,catalog,appearances,amounts,width,a,b){
   }
   const height=Math.max(0,...lines.map(line=>line.y+Math.max(line.advance,line.autoLineHeight))),lineHeight=Math.max(0,...lines.map(line=>line.advance)),autoLineHeight=Math.max(0,...lines.map(line=>line.autoLineHeight));
   if(!Number.isFinite(height))throw new RangeError('These values produce a non-finite live text height. Reduce one of the values.');
-  return{lines,entries:lines.flat(),height,lineHeight,autoLineHeight,width,contentWidth,edgePadding,wordCount:catalog.words.length,oversized,live:true};
+  return alignLayout({lines,entries:lines.flat(),height,lineHeight,autoLineHeight,width,contentWidth,edgePadding,wordCount:catalog.words.length,oversized,live:true},alignment);
 }
 function targetsFor(layout,amount,mode,pointer,settings,distribution){
   const structure=buildStructureDistribution(layout,distribution),targets=[];
@@ -68,15 +69,15 @@ function targetsFor(layout,amount,mode,pointer,settings,distribution){
 }
 export class LiveReflow {
   constructor(model,reference){this.model=model;this.catalog=reflowCatalog(model,reference);this.result=null;this.key=null;this.pointerKey=null;}
-  compose(amount,{a=this.model.a,b=this.model.b,mode='scrub',pointer=null,settings=defaultInteraction(mode),distribution=defaultDistribution(),deltaMs=16,previous=[]}={}){
-    const key=JSON.stringify([amount,a,b,mode,pointer,settings,distribution]);
+  compose(amount,{a=this.model.a,b=this.model.b,mode='scrub',pointer=null,settings=defaultInteraction(mode),distribution=defaultDistribution(),deltaMs=16,previous=[],alignment=this.catalog.reference.alignment||'left'}={}){
+    const key=JSON.stringify([amount,a,b,mode,pointer,settings,distribution,alignment]);
     if(key===this.key&&this.result&&!this.result.needsAnimation)return this.result;
     if(key!==this.key)this.latched=null;
     let seed=this.catalog.reference;
     // A stationary pointer samples one layout, then holds those anchors while
     // response settles. Moving the pointer resamples the current fitted layout.
     if(mode==='pointer'){
-      const pointerKey=JSON.stringify([pointer,a,b,settings,distribution]);
+      const pointerKey=JSON.stringify([pointer,a,b,settings,distribution,alignment]);
       if(pointerKey!==this.pointerKey){this.pointerAnchor=this.result?.layout||seed;this.pointerKey=pointerKey;}
       seed=this.pointerAnchor;
     }
@@ -87,7 +88,7 @@ export class LiveReflow {
       const sampled=this.latched||targetsFor(seed,amount,mode,pointer,settings,distribution),amounts=[],appearances=[];let needsAnimation=false;
       for(const entry of this.catalog.entries){if(sampled.targets[entry.index]===undefined)continue;const target=sampled.targets[entry.index],t=approach(previous[entry.index]??null,target,deltaMs,settings.response);amounts[entry.index]=t;needsAnimation||=t!==target;appearances[entry.index]=appearanceAt(this.model,entry,t,a,b);}
       for(const word of this.catalog.words)if(word.gap&&amounts[word.gap.index]===undefined){const t=amounts[word.units.at(-1).index]??0;amounts[word.gap.index]=t;appearances[word.gap.index]=appearanceAt(this.model,word.gap,t,a,b);}
-      const layout=fitLiveLayout(this.model,this.catalog,appearances,amounts,this.catalog.reference.width,a,b),next=signature(layout);
+      const layout=fitLiveLayout(this.model,this.catalog,appearances,amounts,this.catalog.reference.width,a,b,alignment),next=signature(layout);
       result={layout,amounts,appearances,needsAnimation,structure:sampled.structure,passes:pass,stabilized:!!this.latched};
       if(!iterate||next===signature(seed))break;
       if(seen.has(next)||pass===6){this.latched=sampled;result.stabilized=true;break;}

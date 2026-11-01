@@ -35,7 +35,7 @@ export function layoutKey(a,b) { return ['baseline','rotation','skew','scaleX','
 // Explicit endpoint fields override Base; absence means live inheritance.
 export class StyleCascade {
   constructor(){this.reset();}
-  reset(){this.base={...NEUTRAL_STYLE};this.active=new Set(INITIAL_PROPERTIES);this.raw={a:endpointDefaults('a'),b:endpointDefaults('b')};return this.styles();}
+  reset(){this.alignment='left';this.base={...NEUTRAL_STYLE};this.active=new Set(INITIAL_PROPERTIES);this.raw={a:endpointDefaults('a'),b:endpointDefaults('b')};return this.styles();}
   styles(){return{a:effectiveStyle(this.raw.a,this.active,this.base),b:effectiveStyle(this.raw.b,this.active,this.base)};}
   setBase(key,value){this.base[key]=value;}
   override(endpoint,key,value){this.raw[endpoint][key]=value;}

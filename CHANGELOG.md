@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Add shared Base alignment (Left, Center, Right, Justified) with stable/live word and character rendering, paragraph-final-line behavior and saved settings. Center the curve icon and theme select buttons and popup menus.
+
 - Add Between in `web-prototype/`: Pretext-based character-style morphing with shared Base settings and A/B overrides, optional properties, structural scopes/restarts, built-in and custom curves, interactive playback, live reflow, dark mode, local font loading, refresh persistence, and Restore defaults.
 - Include pinned dependencies, the bundled font and its license, source, tests, screenshots, benchmark reports and run instructions. The InDesign version remains 8.0.0.
 

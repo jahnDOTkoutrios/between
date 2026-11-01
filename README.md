@@ -12,7 +12,7 @@ runtime dependencies are needed in InDesign.
 [Between](web-prototype/) brings style morphing, curves and structural
 text distribution to a local web editor built with
 [Pretext](https://github.com/chenglou/pretext). It includes interactive playback,
-live reflow, shared Base typography, optional properties, custom fonts, dark mode,
+live reflow, shared Base typography and alignment, optional properties, custom fonts, dark mode,
 and settings that survive refresh.
 
 The InDesign script remains **v8.0.0**; the web prototype is a separate app.
@@ -30,7 +30,7 @@ Open **http://127.0.0.1:5173/**. Run `npm test` for the web checks and
 [web README](web-prototype/README.md) and
 [validation results](web-prototype/docs/RESULTS.md) for details.
 
-![Between web editor](web-prototype/docs/restore-defaults.png)
+![Between web editor](web-prototype/docs/alignment-preview.png)
 
 ## Visual guide
 

@@ -1,3 +1,4 @@
+import { isWordGap,lineAlignment,paragraphEndsAt } from '../engine/alignment.js';
 import { mixColor } from '../engine/morph.js';
 import { fontStack, leadingAt } from '../engine/typography.js';
 import { NEUTRAL_STYLE } from '../engine/properties.js';
@@ -31,7 +32,7 @@ export class TextRenderer {
     this.stage.append(fragment);
   }
   // No DOM reads here. Geometry comes from the cached model and Pretext lines.
-  render(amount, { pointer = null, mode = 'scrub', fresh = false, a = this.model.a, b = this.model.b, settings = null, distribution = null, liveReflow = false, deltaMs = 16 } = {}) {
+  render(amount, { pointer = null, mode = 'scrub', fresh = false, a = this.model.a, b = this.model.b, settings = null, distribution = null, liveReflow = false, deltaMs = 16, alignment=this.referenceLayout.alignment||'left' } = {}) {
     if(liveReflow!==this.live){
       if(liveReflow){const engine=new LiveReflow(this.model,this.referenceLayout);this.installNodes(this.model,{...engine.catalog.reference,entries:engine.catalog.entries});this.liveEngine=engine;}
       else this.installNodes(this.model,this.referenceLayout);
@@ -40,7 +41,7 @@ export class TextRenderer {
     const model=this.model,controls=settings||{...defaultInteraction(mode),response:0};let writes=0,liveFrame=null;
     this.needsAnimation=false;
     if(this.live){
-      liveFrame=this.liveEngine.compose(amount,{a,b,mode,pointer,settings:controls,distribution:distribution||undefined,deltaMs,previous:this.nodes.map(node=>node.amount)});
+      liveFrame=this.liveEngine.compose(amount,{a,b,mode,pointer,settings:controls,distribution:distribution||undefined,deltaMs,previous:this.nodes.map(node=>node.amount),alignment});
       this.layout=liveFrame.layout;this.structure=liveFrame.structure;this.needsAnimation=liveFrame.needsAnimation;
       if(this.stageHeight!==this.layout.height){this.stage.style.height=`${this.layout.height}px`;this.stageHeight=this.layout.height;writes++;}
       this.reflowState={passes:liveFrame.passes,stabilized:liveFrame.stabilized,oversized:this.layout.oversized};
@@ -58,7 +59,7 @@ export class TextRenderer {
     let y=0;
     for (let lineIndex = 0; lineIndex < layout.lines.length; lineIndex++) {
       let x = layout.edgePadding||0, advance=0;
-      const line = layout.lines[lineIndex];if(liveFrame)y=line.y;
+      const line = layout.lines[lineIndex],alignCurrentLine=!liveFrame&&alignment!=='left';let spaceCount=0;if(liveFrame)y=line.y;
       for (const entry of line) {
         const item=this.nodes[entry.index];
         let t;
@@ -93,10 +94,22 @@ export class TextRenderer {
           item.ink.style.webkitTextStrokeColor=outlineColor;
           item.effectsKey=effectsKey;writes+=4;
         }
-        const nodeX=x+outlinePad-flow.minX;
-        if (item.x !== nodeX || item.y !== y) { item.node.style.transform = `translate(${nodeX}px,${y}px)`; item.x = nodeX; item.y = y; writes++; }
-        this.positions[entry.index] = { x:x+outlinePad, y, width: wordWidth, inkWidth:bounds.width, amount: t, state: index };
+        const baseX=liveFrame?entry.envelopeX:x;
+        item.nextX=baseX+outlinePad-flow.minX;
+        if(!alignCurrentLine&&(item.x!==item.nextX||item.y!==y)){item.node.style.transform=`translate(${item.nextX}px,${y}px)`;item.x=item.nextX;item.y=y;writes++;}
+        if(alignCurrentLine&&isWordGap(entry))spaceCount++;
+        this.positions[entry.index] = { x:baseX+outlinePad, y, width: wordWidth, inkWidth:bounds.width, amount: t, state: index };
         x += wordWidth + 2*outlinePad + (entry.gapAfter === false ? 0 : model.space[index]);
+      }
+      if(alignCurrentLine){
+      const padding=layout.edgePadding||0;
+      const spacing=lineAlignment(layout.contentWidth??layout.width,x-padding,spaceCount,alignment,paragraphEndsAt(layout.lines,lineIndex));
+      let shift=spacing.offset;
+      for(const entry of line){
+        const item=this.nodes[entry.index],nodeX=item.nextX+shift;this.positions[entry.index].x+=shift;
+        if(item.x!==nodeX||item.y!==y){item.node.style.transform=`translate(${nodeX}px,${y}px)`;item.x=nodeX;item.y=y;writes++;}
+        if(isWordGap(entry))shift+=spacing.space;
+      }
       }
       if(!liveFrame)y+=advance||(leadingA+(leadingB-leadingA)*amount);
     }

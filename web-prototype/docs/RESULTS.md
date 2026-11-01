@@ -331,3 +331,23 @@ focus. 72 automated tests and the production build pass.
   properties, sizes 30/46, Manrope/Auto leading, linear word distribution,
   restart Never, zero steps, Scrub at 0%, live reflow off and light mode. Loaded
   Georgia remained available in the font library. Playback reopened paused.
+
+
+## Alignment and shared dropdown styling
+
+85 automated tests and the production build pass. Added alignment coverage for
+stable/live word and character rendering, paragraph/blank-line endings,
+justification without letter stretching, oversized lines, aligned pointer
+anchors, cache invalidation, saved setup compatibility and defaults.
+
+Browser checks measured centered and right-aligned edges within 0.008 px.
+Justified word and character modes filled wrapped lines in both stable and live
+layouts (character live widths within 0.006 px); paragraph final lines remained
+left aligned. Alignment and live reflow survived refresh. The centered SVG's
+horizontal and vertical offsets from its button center were exactly 0 px.
+
+Checked app-themed select buttons and popup menus in light and dark modes.
+Actual keyboard navigation (Home, Down, Return) chose Center successfully.
+Base-select preserves browser-managed option selection, focus and semantics;
+fallback browsers retain native pickers. Left alignment keeps the original
+single-pass paint path, and alignment edits reuse the prepared font cache.

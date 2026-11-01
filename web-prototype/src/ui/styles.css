@@ -197,3 +197,43 @@ textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid v
 .curve-editor > path:first-child { stroke:var(--rule); }
 .curve-editor > path:nth-child(2),.curve-editor circle { stroke:var(--ink); }
 .curve-editor circle { fill:var(--paper); }
+
+/* Shared select styling, including the popup where supported. */
+:root { --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23777' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+:root[data-theme=dark] { --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23aaa' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+select,.mode-control select,.setting-row select,.property-value select {
+  appearance:none;
+  background:var(--paper) var(--select-arrow) no-repeat right 8px center;
+  border:1px solid var(--rule);
+  border-radius:2px;
+  padding:5px 28px 5px 8px;
+  min-height:30px;
+  font:inherit;
+  cursor:pointer;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+select:hover { border-color:var(--border);background-color:var(--hover); }
+.setting-row select { width:140px; }
+.property-value select { width:96px; }
+.mode-control select { min-width:112px; }
+.icon-button { display:inline-flex;align-items:center;justify-content:center; }
+.icon-button svg { display:block;flex-shrink:0; }
+@supports (appearance:base-select) {
+  select,.mode-control select,.setting-row select,.property-value select,select::picker(select) { appearance:base-select; }
+  select::picker-icon { display:none; }
+  select::picker(select) {
+    font:inherit;
+    color:var(--ink);
+    background:var(--paper);
+    border:1px solid var(--border);
+    border-radius:2px;
+    padding:4px;
+    margin-block:4px;
+    box-shadow:0 4px 16px #00000014;
+    max-height:320px;
+  }
+  select option { display:flex;align-items:center;gap:12px;padding:6px 8px;min-height:30px;color:var(--ink);border-radius:1px;cursor:pointer; }
+  select option:hover,select option:focus-visible,select option:checked { background:var(--hover); }
+  select option::checkmark { color:var(--muted);order:1;margin-left:auto; }
+}

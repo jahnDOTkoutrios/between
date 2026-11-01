@@ -93,7 +93,7 @@ function paint(now){
   if(benchmarkController||!model||rebuilding||document.hidden)return;
   const settings=profiles.get(mode),deltaMs=Math.min(64,lastPaint?now-lastPaint:16);lastPaint=now;
   if(playing){amount=timelineAmount(now-animationStart,settings,animationPhase);updateAmount();}
-  renderer.render(amount,{mode,pointer,a,b,settings,distribution,liveReflow,deltaMs});
+  renderer.render(amount,{mode,pointer,a,b,settings,distribution,liveReflow,deltaMs,alignment:propertyEditor.state.alignment});
   layout=renderer.layout;
   if(!currentStatus||currentStatus===OVERSIZE_MESSAGE)status((liveReflow?layout.oversized:stableOversized)?OVERSIZE_MESSAGE:'');
   distributionEditor.scopeCount(renderer.structure?.scopeCount??1);
@@ -120,10 +120,10 @@ function setMode(value){
   queueSave();$('hint').textContent=hints[mode];interactionEditor.render(mode,profiles.get(mode));syncControls();updateAmount();requestPaint();
 }
 function mount(nextModel=model){
-  const nextLayout=layoutModel(nextModel,stageWidth(),a,b);
+  const nextLayout=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);
   stableOversized=nextLayout.lines.some(line=>line.some(entry=>entry.envelopeWidth>(nextLayout.contentWidth??nextLayout.width)));
   $('benchmark').disabled=false;model=nextModel;layout=nextLayout;lastGoodStyles={a:{...a},b:{...b}};renderer.mount(model,layout);cacheRect();
-  renderer.render(amount,{mode,pointer,a,b,settings:{...profiles.get(mode),response:0},distribution,liveReflow});
+  renderer.render(amount,{mode,pointer,a,b,settings:{...profiles.get(mode),response:0},distribution,liveReflow,alignment:propertyEditor.state.alignment});
   layout=renderer.layout;
   const oversized=liveReflow?renderer.reflowState.oversized:stableOversized;
   status(oversized?OVERSIZE_MESSAGE:'');
@@ -147,7 +147,7 @@ function stylesChanged(next,options={}){
   clearTimeout(preparationTimer);preparationTimer=0;
   try{envelope(1,Math.max(next.a.size,next.b.size),next.a,next.b);}catch(error){rebuilding=false;stage.classList.remove('is-preparing');if(lastGoodStyles){a=lastGoodStyles.a;b=lastGoodStyles.b;}status(error.message);requestPaint();return;}
   const previousA=a,previousB=b;
-  const geometryChanged=layoutKey(a,b)!==layoutKey(next.a,next.b);a=next.a;b=next.b;
+  const geometryChanged=layoutKey(a,b)!==layoutKey(next.a,next.b)||renderer.referenceLayout?.alignment!==propertyEditor.state.alignment;a=next.a;b=next.b;
   if(!model||model.characters!==characterUnits(distribution)||metricKey(model.a,model.b)!==metricKey(a,b)||rebuilding){
     generation++;clearTimeout(preparationTimer);if(options.commit)rebuild();else preparationTimer=setTimeout(rebuild,220);
   }else{try{if(geometryChanged)mount();else{lastGoodStyles={a:{...a},b:{...b}};status('');}requestPaint();}catch(error){a=previousA;b=previousB;status(error.message);}}

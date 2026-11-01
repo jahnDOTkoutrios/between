@@ -1,6 +1,7 @@
 import { prepareWithSegments, measureNaturalWidth } from '@chenglou/pretext';
 import { prepareRichInline, walkRichInlineLineRanges, materializeRichInlineLineRange } from '@chenglou/pretext/rich-inline';
 import { leadingAt } from './typography.js';
+import { alignLayout } from './alignment.js';
 import { flowEnvelope } from './geometry.js';
 import { textStructure } from './distribution.js';
 import { STATE_COUNT, typeState, fontString } from './morph.js';
@@ -29,7 +30,7 @@ export async function prepareModel(text, a, b, onProgress = () => {}, { characte
     preparation: { workMs, wallMs: performance.now() - started, uniqueWords: unique.length, measuredStates: STATE_COUNT, entries: unique.length * STATE_COUNT } };
 }
 
-export function layoutModel(model, availableWidth, a=model.a, b=model.b) {
+export function layoutModel(model, availableWidth, a=model.a, b=model.b, alignment='left') {
   const lines = [], maxSpace = Math.max(...model.space), envelopes=new Map();
   let lineHeight=Math.ceil(model.maxSize*1.55),edgePadding=0;
   for(const [word,widths] of model.widths){const bounds=flowEnvelope(Math.max(...widths),model.maxSize,a,b);envelopes.set(word,bounds);edgePadding=Math.max(edgePadding,bounds.edgePadding);lineHeight=Math.max(lineHeight,Math.ceil(bounds.height+model.maxSize*.4));}
@@ -51,13 +52,13 @@ export function layoutModel(model, availableWidth, a=model.a, b=model.b) {
         if(model.characters){
           const pieces=[...word.graphemes,...(gap?[' ']:[])];
           for(const piece of pieces){const width=envelopes.get(piece).width;line.push({...word,index:renderIndex++,word:piece,isSpace:piece===' ',gapAfter:false,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;}
-        }else{const width=items[i].width;line.push({...word,index:renderIndex++,gapAfter:gap,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;}
+        }else{const width=items[i].width-(!gap&&i<metadata.length-1?maxSpace:0);line.push({...word,index:renderIndex++,gapAfter:gap,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;}
       });lines.push(line);
     });
   }
   const height=Math.max(lineHeight,lines.length*lineHeight,(lines.length-1)*lineHeight+autoLineHeight);
   if(!Number.isFinite(height))throw new RangeError('These values produce a non-finite text height. Reduce one of the values.');
-  return { lines, lineHeight, autoLineHeight, width: availableWidth, contentWidth, edgePadding, height, wordCount: wordIndex, entries:lines.flat() };
+  return alignLayout({ lines, lineHeight, autoLineHeight, width: availableWidth, contentWidth, edgePadding, height, wordCount: wordIndex, entries:lines.flat() },alignment);
 }
 
 export function measureWordFresh(model, word, index) {

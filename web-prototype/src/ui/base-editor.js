@@ -1,4 +1,5 @@
 import { loadLocalFont } from './local-fonts.js';
+import { ALIGNMENTS } from '../engine/alignment.js';
 import { PROPERTIES } from '../engine/properties.js';
 import { anchorPopover } from './popover.js';
 import { styleInput, fieldValue } from './style-fields.js';
@@ -8,11 +9,19 @@ export class BaseEditor {
   valid(){return this.fields().every(field=>fieldValue(this.panel.querySelector(`#base-${field.key}`),field)!==null);}
   render(){
     this.panel.replaceChildren();
-    const properties=[...PROPERTIES.filter(p=>p.inherit),...PROPERTIES.filter(p=>!p.inherit&&this.state.active.has(p.id))];
-    for(const property of properties)for(const field of property.fields){
+    const properties=[...PROPERTIES.filter(p=>p.inherit),{id:'alignment',fields:[]},...PROPERTIES.filter(p=>!p.inherit&&this.state.active.has(p.id))];
+    for(const property of properties){
+      if(property.id==='alignment'){
+        const label=document.createElement('label');label.className='setting-row';label.textContent='Alignment';
+        const input=document.createElement('select');input.id='base-alignment';label.htmlFor=input.id;input.setAttribute('aria-label','Base alignment');
+        for(const[value,text]of ALIGNMENTS){const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);}
+        input.value=this.state.alignment||'left';input.addEventListener('change',()=>{this.state.alignment=input.value;this.onChange(true);});label.append(input);this.panel.append(label);
+      }
+      for(const field of property.fields){
       const label=document.createElement('label');label.className='setting-row';label.htmlFor=`base-${field.key}`;label.append(document.createTextNode(field.label==='Leading'?'Line height':field.label));
       const value=document.createElement('span'),input=styleInput(field,`base-${field.key}`,`Base ${field.label==='Leading'?'line height':field.label.toLowerCase()}`,this.state.base[field.key]);value.append(input);if(field.unit)value.append(document.createTextNode(field.unit));label.append(value);this.panel.append(label);
       input.addEventListener('input',()=>{const next=fieldValue(input,field);if(next!==null)this.state.setBase(field.key,next);this.onChange(next!==null,{deferPreview:field.type==='number'});});
+    }
     }
     const actions=document.createElement('div');actions.className='font-actions';
     const open=document.createElement('button');open.type='button';open.className='text-button';open.textContent='Open font…';open.title='Load a local WOFF, WOFF2, TTF or OTF file';

@@ -2,11 +2,12 @@ import { StyleCascade,ALL_FIELDS,PROPERTIES,validStyleNumber } from './propertie
 import { FONT_CHOICES } from './typography.js';
 import { defaultDistribution,CURVES } from './distribution.js';
 import { MODES,defaultInteraction } from './interactions.js';
+import { ALIGNMENTS } from './alignment.js';
 import { envelope } from './geometry.js';
 import { PHRASE,PARAGRAPH } from '../samples.js';
 
 export const SETTINGS_KEY='between-setup-v1';
-export function cascadeSnapshot(state){return{base:{...state.base},raw:{a:{...state.raw.a},b:{...state.raw.b}},active:[...state.active]};}
+export function cascadeSnapshot(state){return{alignment:state.alignment||'left',base:{...state.base},raw:{a:{...state.raw.a},b:{...state.raw.b}},active:[...state.active]};}
 export function defaultSetup(dark=false){
   const state=new StyleCascade();
   if(dark)for(const style of [state.base,state.raw.a,state.raw.b])for(const key of ['color','outlineColor']){if(style[key]==='#252525')style[key]='#e5e5e5';else if(style[key]==='#a2a29b')style[key]='#999992';}
@@ -25,6 +26,7 @@ function styleValues(source,fallback,fontIDs){
 export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
   const defaults=defaultSetup();source=object(source);if(source.version!==1)return defaults;
   const saved=object(source.styles),raw=object(saved.raw),state=new StyleCascade();
+  state.alignment=choice(saved.alignment,ALIGNMENTS.map(([id])=>id),'left');
   state.base=styleValues(saved.base,state.base,fontIDs);
   for(const endpoint of ['a','b'])state.raw[endpoint]=styleValues(raw[endpoint],Object.hasOwn(raw,endpoint)?{}:state.raw[endpoint],fontIDs);
   if(Array.isArray(saved.active))state.active=new Set(saved.active.filter(id=>PROPERTIES.some(p=>p.id===id)));
@@ -53,4 +55,4 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
 }
 export function readSetup(storage){try{const raw=storage.getItem(SETTINGS_KEY);return raw?JSON.parse(raw):null;}catch{return null;}}
 export function writeSetup(storage,setup){try{storage.setItem(SETTINGS_KEY,JSON.stringify(setup));return true;}catch{return false;}}
-export function restoreCascade(state,saved){state.base={...saved.base};state.raw={a:{...saved.raw.a},b:{...saved.raw.b}};state.active=new Set(saved.active);}
+export function restoreCascade(state,saved){state.alignment=saved.alignment||'left';state.base={...saved.base};state.raw={a:{...saved.raw.a},b:{...saved.raw.b}};state.active=new Set(saved.active);}
