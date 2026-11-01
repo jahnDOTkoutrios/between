@@ -10,6 +10,8 @@
     // Preserve compatible v3/v4/v5/v6/v7 effect baselines when applying v8.
     var HISTORY_KEY = "TrackingRamp.v3.history";
     var TOKEN_KEY = "TrackingRamp.v3.preview";
+    var COLOR_KEY = "TrackingRamp.v8.generatedColor";
+    var COLOR_GROUP_KEY = "TrackingRamp.v8.colorGroup";
     var LOW = -1000;
     var HIGH = 10000;
 
@@ -623,6 +625,15 @@
         }
         return null;
     }
+    function styleInheritance(style, doc) {
+        var names=[],visited={},noneID=null;try{noneID=doc.characterStyles.item(0).id;}catch(_){}
+        for(var depth=0;style&&depth<100;depth++){
+            var parent;try{parent=style.basedOn;}catch(_){break;}
+            if(!parent||missingStyleValue(parent)){break;}if(typeof parent==="string"){try{parent=findBlendStyle(doc,null,parent);}catch(_){break;}}
+            if(parent.isValid===false||parent.id===noneID||visited[parent.id]){break;}visited[parent.id]=true;names.push(stylePath(parent));style=parent;
+        }
+        return names;
+    }
     function numericStyleValue(value, info) {
         return typeof value === "number" && isFinite(value) && value >= info.low && value <= info.high;
     }
@@ -632,7 +643,8 @@
             var channels = value.colorValue, result = [];
             if (!channels || (channels.length !== 3 && channels.length !== 4)) { return null; }
             for (var i = 0; i < channels.length; i++) { if (typeof channels[i] !== "number" || !isFinite(channels[i])) { return null; } result.push(channels[i]); }
-            return {id:value.id,name:String(value.name),space:Number(value.space),channels:result};
+            var base=null,tint=100;try{base=value.baseColor;if(base&&base.isValid){tint=Number(value.tintValue);}}catch(_){}
+            return {id:value.id,name:String(value.name),space:Number(value.space),channels:result,baseID:base?base.id:value.id,tint:tint};
         } catch (_) { return null; }
     }
     function blendFontIdentity(font) {
@@ -689,7 +701,7 @@
             } }
         }
         if (!attrs.length) { fail(available.length ? "Select at least one blend attribute." : "These styles have no shared supported blend attributes. Define numeric values or compatible colors in both styles."); }
-        return {version:1,styleA:stylePath(a),styleB:stylePath(b),attributes:attrs,available:available,ignored:ignored,excluded:excluded};
+        return {version:1,styleA:stylePath(a),styleB:stylePath(b),inheritanceA:styleInheritance(a,doc),inheritanceB:styleInheritance(b,doc),attributes:attrs,available:available,ignored:ignored,excluded:excluded};
     }
     function blendDefinitionProperties(definition) {
         if (!definition || definition.version !== 1 || !definition.attributes || !definition.attributes.length) { fail("Choose character styles for the blend."); }
@@ -702,6 +714,11 @@
             if (attr.kind === "axes" && (!attr.axes || !attr.axes.length || (!attr.originalA && (!attr.a || attr.a.length !== attr.axes.length)) || (!attr.originalB && (!attr.b || attr.b.length !== attr.axes.length)))) { fail("Invalid variable-font blend endpoints."); }
             result.push(attr.id);
         }
+        // Paint and width/tint are coupled in InDesign. Own their baselines even
+        // when a source style defines paint alone, so replacement is reversible.
+        if(seen.strokeColor && !seen.strokeWeight){result.push("strokeWeight");}
+        var tintProps={fillColor:"fillTint",strokeColor:"strokeTint",underlineColor:"underlineTint",strikeThroughColor:"strikeThroughTint"};
+        for(var paintID in tintProps){if(seen[paintID]&&!seen[tintProps[paintID]]){result.push(tintProps[paintID]);}}
         return result;
     }
     function prepareStyleBlend(settings, doc) {
@@ -755,8 +772,8 @@
         fail("Original "+attr.label+" is automatic or unsupported. Define a numeric value in both styles or use Missing values: Skip.");
     }
     function applyStyleBlend(story, plan, doc) {
-        var attrs=plan.settings.blendDefinition.attributes,cache={},fontKeys={},hasOriginal=false,pending=null;
-        for(var ai=0;ai<attrs.length;ai++){if(attrs[ai].originalA||attrs[ai].originalB){hasOriginal=true;}}
+        var attrs=plan.settings.blendDefinition.attributes,cache={},fontKeys={},hasOriginal=false,pending=null,hasStrokePaint=false,hasStrokeWeight=false,paletteCache={};
+        for(var ai=0;ai<attrs.length;ai++){if(attrs[ai].originalA||attrs[ai].originalB||attrs[ai].kind==="color"){hasOriginal=true;}if(attrs[ai].id==="strokeColor"){hasStrokePaint=true;}if(attrs[ai].id==="strokeWeight"){hasStrokeWeight=true;}}
         function fontKey(font){var name="font:"+String(font.name);if(!fontKeys.hasOwnProperty(name)){fontKeys[name]=blendFontIdentity(font);}return fontKeys[name];}
         function axesOn(range,attr,amount){
             var uniform=null;try{uniform=range.appliedFont;if(uniform instanceof Array){uniform=uniform.length===1?uniform[0]:null;}if(!uniform || !uniform.name){uniform=null;}}catch(_){}
@@ -772,7 +789,7 @@
         }
         function flush(){
             if(!pending){return;}var range=story.characters.itemByRange(pending.start,pending.end),hasValues=false;
-            for(var p in pending.values){hasValues=true;break;}if(hasValues){range.properties=pending.values;}
+            for(var p in pending.values){hasValues=true;break;}if(hasValues){range.properties=pending.values;if(pending.values.strokeWeight!==undefined){range.strokeWeight=pending.values.strokeWeight;}}
             if(pending.tracking!==null){var spans=styleTrackingSpans(plan,pending);for(var t=0;t<spans.length;t++){story.characters.itemByRange(spans[t].start,spans[t].end).tracking=pending.tracking;}}
             if(pending.axis){axesOn(range,pending.axis,pending.amount);}pending=null;
         }
@@ -783,7 +800,7 @@
                 while(cursor<=span.end){
                     var base=hasOriginal?blendBaselineRow(plan.blendBaseline||[],cursor):null,end=base?Math.min(span.end,base.end):span.end;
                     for(var q=0;q<attrs.length;q++){if(base && attrs[q].id==="leading" && (attrs[q].originalA||attrs[q].originalB) && base.values.leading && base.values.leading.automaticLeading){end=cursor;}}
-                    var values={},valueKey={},tracking=null,axisAttr=null;
+                    var values={},valueKey={},tracking=null,axisAttr=null,tintOverrides={};
                     for(var a=0;a<attrs.length;a++){
                         var attr=attrs[a],av=attr.a,bv=attr.b;
                         if(attr.originalA){av=originalBlendEndpoint(attr,base,story,cursor,doc,bv);}
@@ -794,8 +811,18 @@
                         }else if(attr.kind==="color"){
                             if(av.space!==bv.space || av.channels.length!==bv.channels.length){fail("Original and endpoint colors must share a process color space. Define both endpoints or use Missing values: Skip.");}
                             var key=av.id+":"+bv.id+":"+Math.round(amount*64/100);
-                            if(!cache[key]){cache[key]=av.id===bv.id?doc.swatches.itemByID(av.id):blendSwatch(doc,{colorA:av.id,colorB:bv.id},amount,64);}values[attr.id]=cache[key];valueKey[attr.id]="color:"+String(cache[key].id);
+                            if(!cache[key]){cache[key]=blendPaint(doc,{colorA:av.id,colorB:bv.id,paletteCache:paletteCache},amount,64);}var paint=cache[key];values[attr.id]=paint.swatch;valueKey[attr.id]="color:"+String(paint.swatch.id);
+                            if(paint.tint!==null){
+                                var tintID={fillColor:"fillTint",strokeColor:"strokeTint",underlineColor:"underlineTint",strikeThroughColor:"strikeThroughTint"}[attr.id],ta=base.values[tintID],tb=ta;
+                                for(var ti=0;ti<attrs.length;ti++){if(attrs[ti].id===tintID){ta=attrs[ti].originalA?base.values[tintID]:attrs[ti].a;tb=attrs[ti].originalB?base.values[tintID]:attrs[ti].b;break;}}
+                                tintOverrides[tintID]=styleBlendNumber({a:(av.tint===undefined?100:av.tint)*ta/100,b:(bv.tint===undefined?100:bv.tint)*tb/100},amount);
+                            }
                         }else{axisAttr={a:av,b:bv,axes:attr.axes,font:attr.font,fontKey:attr.fontKey};var axisKey=[];for(var ak=0;ak<attr.axes.length;ak++){axisKey.push(av[ak]+(bv[ak]-av[ak])*amount/100);}valueKey.designAxes=axisKey;}
+                    }
+                    for(var tintID in tintOverrides){values[tintID]=valueKey[tintID]=tintOverrides[tintID];}
+                    if(hasStrokePaint && !hasStrokeWeight){
+                        var originalPaint=base.values.strokeColor,hidden=originalPaint && /^(\[?None\]?)$/.test(originalPaint.name||"");
+                        values.strokeWeight=valueKey.strokeWeight=hidden?0:base.values.strokeWeight;
                     }
                     var formatKey=encode(valueKey);
                     if(pending && pending.end+1===cursor && pending.key===formatKey){pending.end=end;}
@@ -854,6 +881,7 @@
         if (settings.property === "lineLength") { return ["leftIndent", "rightIndent", "firstLineIndent", "lastLineIndent", "spaceBefore", "spaceAfter", "hyphenation", "keepWithNext", "keepAllLinesTogether", "keepLinesTogether", "startParagraph", "justification"]; }
         if (/^underline/.test(settings.property)) { return ["underline", settings.property]; }
         if (/^stroke/.test(settings.property)) { return ["strokeWeight", "strokeColor", "strokeTint"]; }
+        if(settings.property==="fillColor"){return ["fillColor","fillTint"];}
         return [settings.property];
     }
     function readProperty(character, property) {
@@ -1126,27 +1154,80 @@
         fail("The effect leaves no stable visible target range. Reduce the range or choose Entire story.");
     }
 
+    function generatedColorKey(space, channels) { return String(space)+" "+channels.join("-"); }
+    function ownedColorGroup(doc) {
+        var stem="Tracking Ramp",name=stem,index=0,group;
+        while(true){group=doc.colorGroups.itemByName(name);if(!group.isValid){group=doc.colorGroups.add(name);group.insertLabel(COLOR_GROUP_KEY,"1");return group;}if(group.extractLabel(COLOR_GROUP_KEY)==="1"){return group;}index++;name=stem+" — generated"+(index>1?" ("+index+")":"");}
+    }
+    function groupGeneratedColor(doc, color) {
+        if(!doc.colorGroups){return;}var group=ownedColorGroup(doc);
+        if(!color.parentColorGroup || color.parentColorGroup.id!==group.id){group.colorGroupSwatches.add(color);}
+    }
     function blendSwatch(doc, settings, value, buckets) {
-        var a = doc.colors.itemByID(settings.colorA), b = doc.colors.itemByID(settings.colorB);
-        if (!a.isValid || !b.isValid) { fail("Choose two available colors."); }
-        if (a.space != b.space) { fail("For color blending, choose two colors in the same color space (RGB, CMYK, or Lab)."); }
-        var resolution = buckets || 63;
-        var t = Math.round(Math.max(0, Math.min(1, value / 100)) * resolution) / resolution;
-        if (t === 0) { return a; } if (t === 1) { return b; }
-        var av = a.colorValue, bv = b.colorValue, values = [];
-        for (var i = 0; i < av.length; i++) { values.push(Math.round((av[i] + (bv[i] - av[i]) * t) * 1000) / 1000); }
-        var name = "TR3 " + String(a.space) + " " + values.join("-");
-        var swatch = doc.colors.itemByName(name);
-        if (!swatch.isValid) { swatch = doc.colors.add({ name: name, model: ColorModel.PROCESS, space: a.space, colorValue: values }); }
-        return swatch;
+        var a=doc.swatches.itemByID(settings.colorA),b=doc.swatches.itemByID(settings.colorB);
+        if(!a.isValid||!b.isValid){fail("Choose two available colors.");}
+        if(a.space!=b.space){fail("For color blending, choose two colors in the same color space (RGB, CMYK, or Lab).");}
+        var resolution=buckets||63,t=Math.round(Math.max(0,Math.min(1,value/100))*resolution)/resolution;
+        if(t===0 || a.id===b.id){return a;}if(t===1){return b;}
+        var av=a.colorValue,bv=b.colorValue,values=[];
+        for(var i=0;i<av.length;i++){values.push(Math.round((av[i]+(bv[i]-av[i])*t)*1000)/1000);}
+        var key=generatedColorKey(a.space,values),oldName="TR3 "+key,palette=settings.paletteCache||{},swatch=palette[key]||doc.colors.itemByName(oldName);
+        if(swatch.isValid && (swatch.model!=ColorModel.PROCESS || generatedColorKey(swatch.space,swatch.colorValue)!==key)){swatch={isValid:false};}
+        if(!palette.ready){
+            var colors=doc.colors.everyItem().getElements();
+            for(i=0;i<colors.length;i++){var savedKey=colors[i].extractLabel?colors[i].extractLabel(COLOR_KEY):"";if(savedKey&&colors[i].model==ColorModel.PROCESS&&generatedColorKey(colors[i].space,colors[i].colorValue)===savedKey){palette[savedKey]=colors[i];}}
+            palette.ready=true;
+        }
+        if(!swatch.isValid && palette[key] && palette[key].isValid){swatch=palette[key];}
+        if(!swatch.isValid){
+            var stem="TR · "+a.name+" → "+b.name+" · "+Math.round(t*100)+"%",name=stem,n=2;
+            while(doc.colors.itemByName(name).isValid){name=stem+" ("+(n++)+")";}
+            swatch=doc.colors.add({name:name,model:ColorModel.PROCESS,space:a.space,colorValue:values});
+        }
+        // Never rename an older swatch: saved baselines resolve it by name.
+        if(swatch.insertLabel){swatch.insertLabel(COLOR_KEY,key);groupGeneratedColor(doc,swatch);}
+        palette[key]=swatch;return swatch;
+    }
+    function blendPaint(doc, settings, value, buckets) {
+        var a=processStyleColor(doc.swatches.itemByID(settings.colorA)),b=processStyleColor(doc.swatches.itemByID(settings.colorB));
+        if(!a||!b){return {swatch:blendSwatch(doc,settings,value,buckets),tint:null};}
+        if(a.baseID===b.baseID && (a.tint!==100||b.tint!==100)){
+            return {swatch:doc.swatches.itemByID(a.baseID),tint:styleBlendNumber({a:a.tint,b:b.tint},value)};
+        }
+        if(a.tint!==100||b.tint!==100){fail("Tint endpoints must share the same base color. Use two process colors for other blends.");}
+        return {swatch:blendSwatch(doc,settings,value,buckets),tint:null};
+    }
+    function protectedColorNames(doc) {
+        var keep={};function scan(value,key){
+            if(value===null||value===undefined){return;}
+            if(typeof value==="string"){keep["name:"+value]=true;}
+            else if(typeof value==="number" && /^(swatch|colorA|colorB)$/.test(key||"")){keep["id:"+value]=true;}
+            else if(typeof value==="object"){for(var k in value){scan(value[k],k);}}
+        }
+        var stories=doc.stories.everyItem().getElements();
+        for(var i=0;i<stories.length;i++){var raw=stories[i].extractLabel(HISTORY_KEY);if(raw){scan(decode(raw));}raw=stories[i].extractLabel(SETUP_KEY);if(raw){scan(decode(raw));}}
+        return keep;
+    }
+    function manageGeneratedColors(doc, removeUnused) {
+        var result={grouped:0,removed:0},keep=protectedColorNames(doc),unused={},list=doc.unusedSwatches,colors=doc.colors.everyItem().getElements();
+        for(var u=0;u<list.length;u++){unused["id:"+list[u].id]=true;}
+        // An endpoint can itself be an earlier generated color. Keep its position.
+        var styles=doc.allCharacterStyles||[],paintIDs=["fillColor","strokeColor","underlineColor","strikeThroughColor"];
+        for(var st=0;st<styles.length;st++){for(var p=0;p<paintIDs.length;p++){try{var paint=styleValue(styles[st],paintIDs[p],doc);if(paint&&paint.id){keep["id:"+paint.id]=true;}}catch(_){}}}
+        for(var i=colors.length-1;i>=0;i--){var color=colors[i],key=generatedColorKey(color.space,color.colorValue),owned=color.extractLabel(COLOR_KEY)===key,legacy=color.model==ColorModel.PROCESS&&color.name==="TR3 "+key;
+            if(!owned&&!legacy){continue;}
+            if(removeUnused && unused["id:"+color.id]&&!keep["id:"+color.id]&&!keep["name:"+color.name]){color.remove();result.removed++;}
+            else if(!keep["id:"+color.id]){color.insertLabel(COLOR_KEY,key);groupGeneratedColor(doc,color);result.grouped++;}
+        }
+        return result;
     }
     function applyValues(story, plan, doc, baseline) {
         if (baseline) { plan.blendBaseline = baseline; }
         if (plan.settings.property === "styleBlend") { applyStyleBlend(story, plan, doc); return; }
-        var settings = plan.settings;
+        var settings = plan.settings,paintSettings={colorA:plan.settings.colorA,colorB:plan.settings.colorB,paletteCache:{}};
         for (var i = 0; i < plan.units.length; i++) {
             var value = plan.distribution.values[i], swatch = null;
-            if (/^(strokeColor|fillColor)$/.test(settings.property)) { swatch = blendSwatch(doc, settings, value); }
+            if (/^(strokeColor|fillColor)$/.test(settings.property)) { swatch = blendPaint(doc, paintSettings, value); }
             for (var j = 0; j < plan.units[i].spans.length; j++) {
                 var span = plan.units[i].spans[j];
                 var range = story.characters.itemByRange(span.start, span.end);
@@ -1165,13 +1246,13 @@
                     var chars = range.characters.everyItem().getElements();
                     for (k = 0; k < chars.length; k++) {
                         if (settings.property !== "strokeWeight" && Number(chars[k].strokeWeight) === 0) { chars[k].strokeWeight = settings.strokeWidth; }
-                        if (settings.property !== "strokeColor" && chars[k].strokeColor.name === "None") { chars[k].strokeColor = doc.colors.itemByID(settings.colorA); }
+                        if (settings.property !== "strokeColor" && chars[k].strokeColor.name === "None") { chars[k].strokeColor = doc.swatches.itemByID(settings.colorA); }
                         // Built-in swatch names may include brackets in the DOM.
-                        if (settings.property !== "strokeColor" && /^(\[?None\]?)$/.test(chars[k].strokeColor.name)) { chars[k].strokeColor = doc.colors.itemByID(settings.colorA); }
+                        if (settings.property !== "strokeColor" && /^(\[?None\]?)$/.test(chars[k].strokeColor.name)) { chars[k].strokeColor = doc.swatches.itemByID(settings.colorA); }
                     }
-                    if (/^(strokeColor|fillColor)$/.test(settings.property)) { range.strokeColor = swatch; }
+                    if (/^(strokeColor|fillColor)$/.test(settings.property)) { range.strokeColor = swatch.swatch;if(swatch.tint!==null){range.strokeTint=swatch.tint;} }
                     else { range[settings.property] = value; }
-                } else if (settings.property === "fillColor") { range.fillColor = swatch; }
+                } else if (settings.property === "fillColor") { range.fillColor = swatch.swatch;if(swatch.tint!==null){range.fillTint=swatch.tint;} }
                 else { range[settings.property] = value; }
             }
         }
@@ -1853,7 +1934,7 @@
     }
     function recipeSettings(settings, doc) {
         var copy=decode(encode(settings));delete copy.blendDefinition;delete copy.blendBaseline;
-        if(doc && /^(fillColor|strokeColor)$/.test(copy.property)){try{copy.colorAName=String(doc.colors.itemByID(copy.colorA).name);copy.colorBName=String(doc.colors.itemByID(copy.colorB).name);}catch(_){}}
+        if(doc && /^(fillColor|strokeColor)$/.test(copy.property)){try{copy.colorAName=String(doc.swatches.itemByID(copy.colorA).name);copy.colorBName=String(doc.swatches.itemByID(copy.colorB).name);}catch(_){}}
         if(copy.property==="styleBlend" && !copy.missingStyle){copy.missingStyle="skip";}return copy;
     }
     function setupFrameToken(frame) {try{return frame?frame.extractLabel(OWNER_KEY):"";}catch(_){return "";}}
@@ -1899,7 +1980,7 @@
             for(var j=0;j<target.scopes.length;j++){if(target.scopes[j].kind===scope.kind && (scope.kind!=="selection" || encode(target.scopes[j].bounds)===encode(scope.bounds))){index=j;break;}}
             if(index<0 && scope.kind==="selection"){index=target.scopes.length;target.scopes.push({kind:"selection",bounds:decode(encode(scope.bounds)),label:"Saved highlighted text"});}
             if(index<0){fail("The saved scope is unavailable in this frame.");}cfg.scope=index;
-            if(/^(fillColor|strokeColor)$/.test(cfg.property)){for(var c=0;c<2;c++){var field=c?"colorB":"colorA",name=cfg[field+"Name"];if(name){var color=target.document.colors.itemByName(name);if(!color.isValid){fail("A saved endpoint color was renamed or deleted. Choose its replacement before reapplying.");}cfg[field]=color.id;}}}
+            if(/^(fillColor|strokeColor)$/.test(cfg.property)){for(var c=0;c<2;c++){var field=c?"colorB":"colorA",name=cfg[field+"Name"];if(name){var color=target.document.swatches.itemByName(name);if(!color.isValid){fail("A saved endpoint color was renamed or deleted. Choose its replacement before reapplying.");}cfg[field]=color.id;}}}
             stages.push(cfg);
         }
         return stages;
@@ -2146,6 +2227,14 @@
         return at;
     }
 
+    function averageDistribution(result, overrideSettings) {
+        var groups=result.groups||[],count=1,rows=[];
+        for(var g=0;g<groups.length;g++){var d=groups[g].distribution;if(overrideSettings){d=buildDistribution(d.values.length,overrideSettings);}rows.push(d.values);count=Math.max(count,d.values.length);}
+        if(!rows.length){return result.distribution;}
+        count=Math.min(201,count);var values=[];
+        for(var i=0;i<count;i++){var sum=0;for(g=0;g<rows.length;g++){var at=count===1?0:i*(rows[g].length-1)/(count-1),lo=Math.floor(at),hi=Math.ceil(at);sum+=rows[g][lo]+(rows[g][hi]-rows[g][lo])*(at-lo);}values.push(Math.round(sum/rows.length*1000)/1000);}
+        return {values:values,steps:count,average:true};
+    }
     function showDialog(target) {
         target=sessionTarget(target); var savedState=readSavedSetup(target),blendLoadError="",definitionCacheKey="",definitionCache=null;
         if(savedState.status==="loaded"){try{mapSetupStages(target,savedState.recipe);}catch(e){savedState={status:"blocked",message:e.message,recipe:null};}}
@@ -2153,7 +2242,7 @@
         dialog.orientation = "column"; dialog.alignChildren = ["fill", "top"];
         dialog.margins = 12; dialog.spacing = 8;
         var heading = dialog.add("group"); heading.orientation = "row";
-        var title = heading.add("statictext", undefined, "Text distribution studio");
+        var title = heading.add("statictext", undefined, "Text distribution");
         var widthButton = heading.add("button", undefined, "Line width…");
         var textEnabled = heading.add("checkbox", undefined, "Apply text property"); textEnabled.value = true;
         try { title.graphics.font = ScriptUI.newFont(title.graphics.font.name, "BOLD", 16); } catch (_) {}
@@ -2174,23 +2263,13 @@
         var forgetButton=savedRow.add("button",undefined,"Forget saved setup");forgetButton.enabled=savedState.status!=="none";
         forgetButton.helpTip="Keep current appearance and adopt it as a new baseline. Forgetting has its own Undo step.";
         savedRow.visible=savedState.status!=="none";savedRow.maximumSize=[10000,savedState.status!=="none"?46:0];
-        var targetPanel = panel("Target and property");
-        var labels = [];
-        for (var i = 0; i < target.scopes.length; i++) { labels.push(target.scopes[i].label); }
-        var scope = dropdown(row(targetPanel), "Scope", labels, 480);
-        var modeRow = row(targetPanel);
-        var modeIDs = ["word", "line", "character", "sentence", "paragraph", "frame"];
-        var mode = dropdown(modeRow, "Values per", ["Word", "Line — resulting composition", "Character", "Sentence", "Paragraph", "Frame"], 200);
-        var change = dropdown(modeRow, "Change", ["Letters", "Spaces", "Both"], 185);
-        var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame"];
-        var restart = dropdown(row(targetPanel), "Restart curve per", ["Never — entire scope", "Word", "Sentence", "Paragraph", "Line — resulting composition", "Frame — resulting composition"], 320);
-        restart.helpTip = "Each group receives the complete curve. Units crossing group boundaries are split. Min/Max and steps are shared by every group.";
+        var targetPanel = panel("Property");
         var propRow = row(targetPanel);
         var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint", "underlineWeight", "underlineOffset", "leftIndent", "rightIndent", "firstLineIndent", "lineLength", "styleBlend"];
         var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Paragraph left indent", "Paragraph right indent", "Paragraph first-line indent", "Line length — centered", "Character-style blend"];
         var property = dropdown(propRow, "Property", propertyLabels, 220);
         var previousStructure = null;
-        var axis = dropdown(propRow, "Axis", ["Select a variable font"], 215);
+        var axisRow=propRow.add("group"),axis = dropdown(axisRow, "Axis", ["Select a variable font"], 215);
         var styleObjects = characterStyleList(target.document), styleLabels = [], styleAttributes = null;
         for (i = 0; i < styleObjects.length; i++) { styleLabels.push(stylePath(styleObjects[i])); }
         if (!styleLabels.length) { styleLabels.push("Create character styles first"); }
@@ -2215,7 +2294,8 @@
         var refreshStyles=policyRow.add("button",undefined,"Refresh styles");policyRow.visible=false;policyRow.maximumSize=[0,0];
         missingStyle.helpTip="Use the original text when exactly one style omits an attribute. Both missing leaves it unchanged. Skip preserves the v7 rule.";
         try { var blendHistory = target.story.extractLabel(HISTORY_KEY); if (blendHistory) { var lastBlend = decode(blendHistory).effects.styleBlend; if (lastBlend) { selectBlendStyles(lastBlend.settings); } } } catch (_) {}
-        var colors = target.document.colors.everyItem().getElements(), colorLabels = [], colorObjects = [];
+        var colors = target.document.colors.everyItem().getElements();try{colors=colors.concat(target.document.tints.everyItem().getElements());}catch(_){}
+        var colorLabels = [], colorObjects = [];
         for (i = 0; i < colors.length; i++) {
             try { if (colors[i].model != ColorModel.REGISTRATION) { colorLabels.push(colors[i].name); colorObjects.push(colors[i]); } } catch (_) {}
         }
@@ -2229,12 +2309,24 @@
         var valueRow = row(targetPanel);
         var minInput = field(valueRow, "Min", 0, 8), maxInput = field(valueRow, "Max", 200, 8);
         var unitLabel = valueRow.add("statictext", undefined, "1/1000 em"); unitLabel.preferredSize.width = 130;
-        var replace = targetPanel.add("checkbox", undefined, "Replace previous effect for this property in this story"); replace.value = true;
-        var clearTracking = targetPanel.add("checkbox", undefined, "Clear tracking to 0 first (for older effects / a clean start)");
+        var distributionPanel=panel("Distribution");
+        var labels = [];
+        for (var i = 0; i < target.scopes.length; i++) { labels.push(target.scopes[i].label); }
+        var scope = dropdown(row(distributionPanel), "Scope", labels, 480);
+        var modeRow = row(distributionPanel);
+        var modeIDs = ["word", "line", "character", "sentence", "paragraph", "frame"];
+        var mode = dropdown(modeRow, "Values per", ["Word", "Line — resulting composition", "Character", "Sentence", "Paragraph", "Frame"], 200);
+        var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame"];
+        var restart = dropdown(row(distributionPanel), "Restart curve per", ["Never — entire scope", "Word", "Sentence", "Paragraph", "Line — resulting composition", "Frame — resulting composition"], 320);
+        restart.helpTip = "Each group receives the complete curve. Units crossing group boundaries are split. Min/Max and steps are shared by every group.";
+        var optionsPanel=panel("Composition and replacement");
+        var replace = optionsPanel.add("checkbox", undefined, "Replace previous effect for this property"); replace.value = true;
+        var clearTracking = optionsPanel.add("checkbox", undefined, "Clear tracking to 0 first (for older effects / a clean start)");
 
-        var lockLines = targetPanel.add("checkbox", undefined, "Auto-stabilize composition"); lockLines.value = true;
+        var compositionRow=row(optionsPanel);
+        var lockLines = compositionRow.add("checkbox", undefined, "Auto-stabilize composition"); lockLines.value = true;
         lockLines.helpTip = "Try exact live composition, then freeze sampled assignments if needed. Added breaks require their own toggle. Min/Max are not reduced.";
-        var allowBreaks = targetPanel.add("checkbox", undefined, "Allow added line breaks"); allowBreaks.value = false;
+        var allowBreaks = compositionRow.add("checkbox", undefined, "Allow added line breaks"); allowBreaks.value = false;
         allowBreaks.helpTip = "Allow managed tracking soft breaks when composition cycles. For Line length, allow real paragraph breaks for independent per-line indents. Off preserves paragraph structure and uses a frame contour for Line length. Cancel restores everything.";
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
@@ -2250,14 +2342,15 @@
         var stepsRow = row(curvePanel);
         var auto = stepsRow.add("checkbox", undefined, "Auto steps"); auto.value = true;
         var stepsInput = field(stepsRow, "Steps", 5, 6);
-        var live = stepsRow.add("checkbox", undefined, "Live document preview"); live.value = true;
+
         var metrics = stepsRow.add("checkbox", undefined, "Metrics 5 pt");
         metrics.helpTip = "Printable 5 pt tracking labels below each source line, centered in the actual interline gap. Tight gaps are flagged; source leading stays unchanged.";
 
         var graph = dialog.add("panel"); graph.preferredSize = [600, 165];
         var editorRow = row(dialog);
         var curveTrack = dropdown(editorRow, "Edit", ["Text curve", "Width curve"], 135);
-        var previewGroup = field(editorRow, "Preview group", 1, 4);
+        var graphMode=dropdown(editorRow,"Graph",["Average","Group"],100);
+        var previewGroup = field(editorRow, "Group", 1, 4);
         var groupTotal = editorRow.add("statictext", undefined, "/ 1"); groupTotal.preferredSize.width = 45;
         graph.helpTip = "Drag control points; click to add; Alt-click an interior point to delete. The editor changes the shared curve for every group.";
         var removePoint = editorRow.add("button", undefined, "Delete point");
@@ -2266,11 +2359,13 @@
         var samples = dialog.add("statictext", undefined, " "); samples.characters = 84;
         var note = dialog.add("statictext", undefined, " ", { multiline: true }); note.preferredSize = [600, 62];
         var error = dialog.add("statictext", undefined, " ", { multiline: true }); error.preferredSize = [600, 32];
-        var footer = row(dialog); footer.alignment = "right";
+        var footer = row(dialog); footer.alignment = "fill";
+        var live = footer.add("checkbox", undefined, "Preview"); live.value = true;
+        var colorTools=footer.add("button",undefined,"Colors…");
+        var footerSpace=footer.add("group");footerSpace.alignment=["fill","center"];
         var cancel = footer.add("button", undefined, "Cancel", { name: "cancel" });
         var addProperty = footer.add("button", undefined, "+ Add property");
         addProperty.helpTip = "Keep the current effect and choose another property. Cancel still restores the entire session.";
-        var previewButton=footer.add("button",undefined,"Preview");
         var apply = footer.add("button", undefined, "Apply", { name: "ok" });
 
         var session = new PreviewSession(target), settings = null, plan = null;
@@ -2326,6 +2421,7 @@
             if (w.show() === 1) { if (editorTrack) { loadEditor(widthOptions.linked ? textCurve : widthOptions.curve); } else { refresh(true); } }
         };
         function selectedDistribution(result) {
+            if(graphMode.selection.index===0){return averageDistribution(result);}
             if (result.groups && result.groups.length) { return result.groups[Math.min(previewIndex, result.groups.length - 1)].distribution; }
             return result.distribution;
         }
@@ -2333,8 +2429,9 @@
             var count = result.groups ? result.groups.length : 0;
             previewIndex = Math.max(0, Math.min(previewIndex, count - 1));
             previewGroup.text = String(previewIndex + 1); groupTotal.text = "/ " + count;
-            previewGroup.enabled = !editorTrack && count > 1;
+            graphMode.enabled=!editorTrack && count>1;previewGroup.enabled = !editorTrack && count > 1 && graphMode.selection.index===1;
         }
+        graphMode.onChange=function(){if(plan&&settings){showResult(plan);redraw();}};
         previewGroup.onChanging = previewGroup.onChange = function () {
             if (!plan || !settings || !plan.groups.length) { return; }
             var index = parseNumber(previewGroup.text, 1, plan.groups.length, true); if (index === null) { return; }
@@ -2367,7 +2464,7 @@
             if (gs && editorTrack) { distribution = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, gs); }
             else if (plan) {
                 distribution = selectedDistribution(plan);
-                if (sliderAdjusting && gs) { distribution = buildDistribution(distribution.values.length, gs); }
+                if (sliderAdjusting && gs) { distribution = graphMode.selection.index===0 ? averageDistribution(plan,gs) : buildDistribution(distribution.values.length, gs); }
             }
             drawGraph(graph, distribution, gs, displayPoints(), selected);
         };
@@ -2408,7 +2505,7 @@
             if (/^(strokeColor|fillColor)$/.test(id) && colorObjects[colorA.selection.index].space != colorObjects[colorB.selection.index].space) { fail("Choose two colors in the same color space."); }
             var copy = [];
             for (var k = 0; k < points.length; k++) { copy.push({ x: points[k].x, y: points[k].y }); }
-            var result = { scope: scope.selection.index, mode: modeIDs[mode.selection.index], restart: restartIDs[restart.selection.index], target: ["letters", "spaces", "both"][change.selection.index],
+            var result = { scope: scope.selection.index, mode: modeIDs[mode.selection.index], restart: restartIDs[restart.selection.index], target: "both",
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
@@ -2455,7 +2552,7 @@
             }
             var values = [], count = Math.min(9, displayed.values.length);
             for (var k = 0; k < count; k++) { var at = count > 1 ? Math.round(k * (displayed.values.length - 1) / (count - 1)) : 0; values.push(displayed.values[at]); }
-            samples.text = (editorTrack ? "Width samples: " : "Group " + (previewIndex + 1) + " values: ") + values.join("  >  ");
+            samples.text = (editorTrack ? "Width samples: " : (displayed.average ? "Average across groups: " : "Group " + (previewIndex + 1) + " values: ")) + values.join("  >  ");
             var text = "Cancel restores the document. Metrics print and show actual tracking below each line.";
             if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use fixed breaks when Allow added line breaks is on."; }
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
@@ -2477,9 +2574,10 @@
             else if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
                 if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
-                text = "Shared curve restarts in each " + settings.restart + ". Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". " + text;
+                text = "Shared curve restarts in each " + settings.restart + ". " + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
                 if (isBell(settings.curve) && result.distribution.shortGroups) { text += " " + result.distribution.shortGroups + " group(s) have fewer than 3 steps and cannot represent the bell interior."; }
             }
+            if(!editorTrack && settings.mode===settings.restart && result.distribution.steps===1){text="One unit per restart group: each group uses the curve’s starting value. Choose a smaller Values per unit for a curve inside each group. "+text;}
             if (settings.mode === "sentence" || settings.restart === "sentence") { text += " Sentence boundaries use punctuation with abbreviation/decimal handling."; }
             if ((settings.mode === "frame" || settings.restart === "frame") && target.scopes[settings.scope].kind !== "story") { text += " Choose Entire story to distribute across linked frames."; }
             if (result.fixedSampling) { text += " Fixed sampling keeps assigned values while text reflows; line/frame patterns follow the sampled layout. In frame scope, new text may retain its baseline. Min/Max were not rescaled."; }
@@ -2501,20 +2599,20 @@
                 if (styleVisibilityChanged) { try { dialog.layout.layout(true); } catch (_) {} }
                 var lengthProperty = propertyIDs[property.selection.index] === "lineLength";
                 var paragraphProperty = isParagraphProperty(propertyIDs[property.selection.index]);
-                if ((paragraphProperty || lengthProperty) && !previousStructure) { previousStructure = [mode.selection.index, change.selection.index, restart.selection.index]; }
+                if ((paragraphProperty || lengthProperty) && !previousStructure) { previousStructure = [mode.selection.index, restart.selection.index]; }
                 switching = true;
                 try {
-                    if (lengthProperty) { mode.selection = 1; change.selection = 2; restart.selection = 0;
+                    if (lengthProperty) { mode.selection = 1; restart.selection = 0;
                         if (previousLengthScope === null) { previousLengthScope = scope.selection.index; }
                         var frameScope = -1; for (var fs = 0; fs < target.scopes.length; fs++) { if (target.scopes[fs].kind === "frame") { frameScope = fs; break; } }
                         if (frameScope < 0) { fail("Select a visible text frame for Line length."); } scope.selection = frameScope;
                     }
-                    else if (paragraphProperty) { mode.selection = 4; change.selection = 2; restart.selection = 0; }
-                    else if (previousStructure) { mode.selection = previousStructure[0]; change.selection = previousStructure[1]; restart.selection = previousStructure[2]; previousStructure = null; }
+                    else if (paragraphProperty) { mode.selection = 4; restart.selection = 0; }
+                    else if (previousStructure) { mode.selection = previousStructure[0]; restart.selection = previousStructure[1]; previousStructure = null; }
                 } finally { switching = false; }
                 if (!lengthProperty && previousLengthScope !== null) { scope.selection = previousLengthScope; previousLengthScope = null; }
                 scope.enabled = !lengthProperty;replace.enabled=!session.savedRecipe;replace.helpTip=session.savedRecipe?"Reapply restores the entire saved stack baseline. Forget saved setup to adopt the current appearance.":"Restore this property baseline before recalculating.";
-                mode.enabled = change.enabled = restart.enabled = textEnabled.value && !paragraphProperty && !lengthProperty;
+                mode.enabled = restart.enabled = textEnabled.value && !paragraphProperty && !lengthProperty;
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
@@ -2562,7 +2660,6 @@
             scope.selection = saved.scope;
             for (i = 0; i < modeIDs.length; i++) { if (modeIDs[i] === saved.mode) { mode.selection = i; break; } }
             for (i = 0; i < restartIDs.length; i++) { if (restartIDs[i] === saved.restart) { restart.selection = i; break; } }
-            change.selection = saved.target === "letters" ? 0 : saved.target === "spaces" ? 1 : 2;
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
@@ -2602,9 +2699,10 @@
             savedRanges[lastProperty] = [minInput.text, maxInput.text];
             var id = propertyIDs[property.selection.index], returnToTextCurve = (id === "lineLength" || id === "styleBlend") && editorTrack;
             if (returnToTextCurve) { editorTrack = 0; curveTrack.selection = 0; }
-            axis.enabled = id === "designAxes"; strokeRow.enabled = /^stroke/.test(id) || id === "fillColor";
+            axisRow.visible = axis.enabled = id === "designAxes";axisRow.maximumSize=axisRow.visible?[10000,30]:[0,0]; strokeRow.visible = /^stroke/.test(id) || id === "fillColor";strokeRow.maximumSize=strokeRow.visible?[10000,30]:[0,0]; strokeRow.enabled = /^stroke/.test(id) || id === "fillColor";
             colorB.enabled = /^(strokeColor|fillColor)$/.test(id); strokeWidth.enabled = /^stroke/.test(id) && id !== "strokeWeight";
-            clearTracking.enabled = id === "tracking";
+            clearTracking.visible = clearTracking.enabled = id === "tracking";clearTracking.maximumSize=clearTracking.visible?[10000,25]:[0,0];
+            try{dialog.layout.layout(true);}catch(_){}
             updateAxes(); var selectedAxis = axes[axis.selection.index];
             var info = propertyInfo(id, selectedAxis), saved = savedRanges[id];
             minInput.text = saved ? saved[0] : String(info.min); maxInput.text = saved ? saved[1] : String(info.max);
@@ -2712,6 +2810,8 @@
                 chooser.orientation = "column"; chooser.alignChildren = ["fill", "top"]; chooser.margins = 16;
                 chooser.add("statictext", undefined, "Supported numeric settings, compatible colors and variable axes.");
                 chooser.add("statictext", undefined, "Font families, capitalization, underline on/off and other switches stay unchanged.");
+                if(definition.inheritanceA.length){chooser.add("statictext",undefined,"A based on: "+definition.inheritanceA.join(" → "));}
+                if(definition.inheritanceB.length){chooser.add("statictext",undefined,"B based on: "+definition.inheritanceB.join(" → "));}
                 var columns = row(chooser), left = columns.add("group"), right = columns.add("group");
                 left.orientation = right.orientation = "column"; left.alignChildren = right.alignChildren = ["left", "top"];
                 var checks = [], half = Math.ceil(definition.available.length / 2);
@@ -2736,14 +2836,25 @@
             refresh(true);
         };
         scope.onChange = function () { try { session.rollback(); updateAxes(); } catch (_) {} refresh(true); };
-        mode.onChange = restart.onChange = change.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
+        mode.onChange = restart.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
         textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = allowBreaks.onClick = function () { refresh(true); };
         apply.onClick = function () {
             inputDelay.cancel();definitionCacheKey="";
             try { if(savedState.status==="blocked"){fail(savedState.message);}var s = readSettings(); session.commit(s); dialog.close(1); }
             catch (e) { try { session.rollback(); } catch (_) {} error.text = e.message; apply.enabled = false; }
         };
-        previewButton.onClick=function(){inputDelay.cancel();definitionCacheKey="";live.value=true;refresh(true);};
+        colorTools.onClick=function(){
+            inputDelay.cancel();try{
+                var chooser=new Window("dialog","Generated colors");chooser.orientation="column";chooser.alignChildren=["fill","top"];chooser.margins=16;
+                chooser.add("statictext",undefined,"Generated colors live in the Tracking Ramp swatch group.");
+                chooser.add("statictext",undefined,"Cleanup keeps source colors and colors needed by saved baselines.");
+                var buttons=row(chooser),group=buttons.add("button",undefined,"Group existing"),clean=buttons.add("button",undefined,"Remove unused"),done=buttons.add("button",undefined,"Cancel",{name:"cancel"}),action=null;
+                group.onClick=function(){action=false;chooser.close(1);};clean.onClick=function(){action=true;chooser.close(1);};
+                if(chooser.show()!==1){return;}session.rollback();var managed;
+                app.doScript(function(){managed=manageGeneratedColors(target.document,action);},ScriptLanguage.JAVASCRIPT,undefined,UndoModes.ENTIRE_SCRIPT,TITLE+" — colors");
+                refresh(true);error.text=managed.grouped+" generated colors grouped; "+managed.removed+" unused colors removed.";
+            }catch(e){error.text=e.message;}
+        };
         forgetButton.onClick=function(){
             inputDelay.cancel();try{session.rollback();forgetSavedSetup(target);savedState={status:"none",message:"",recipe:null};session=new PreviewSession(target);live.value=false;
                 savedIndicator.text="Saved setup forgotten. Current appearance kept.";forgetButton.enabled=false;missingStyle.selection=0;styleAttributes=null;blendLoadError="";definitionCacheKey="";defaultSettings.frameWidth={enabled:false,linked:true,min:40,max:100,unit:"%",anchor:"center",smooth:true,steps:12,curve:{curve:"linear",power:2,width:22,invert:false,points:[],smooth:true,steps:0}};loadSettings(defaultSettings);

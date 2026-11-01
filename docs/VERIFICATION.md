@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 162 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 168 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -202,7 +202,7 @@ Use a disposable document for the checks below.
    Run the script. Choose **Font size**, **Values per → Character**,
    **Restart curve per → Word**, and **Gaussian bell**; choose at least three
    characters per test word. Confirm each word receives the complete pattern.
-3. Change **Preview group**. Confirm only the graph/readout changes. Drag a point;
+3. Choose **Graph: Group**, then change its number. Confirm only the graph/readout changes. Drag a point;
    confirm the shared custom curve updates the document and the visible graph.
 4. Press **Cancel**. Confirm original formatting, swatches, and metrics state return.
 5. Run again with **Tracking → Word → restart per Sentence**, then Apply.
@@ -275,3 +275,31 @@ Other InDesign versions, Windows, complex-script shaping, and document-specific
 composer behavior need additional verification. Sentence boundaries are heuristic,
 and some layout-dependent parameter combinations cannot converge even with
 the optional tracking-only fixed-break fallback.
+
+## v8 UI, swatches and stroke follow-up
+
+Focused checks for this follow-up, rather than repeating the full previous
+294-assertion native matrix:
+
+- 168 automated checks pass. New coverage includes average graph sampling with
+  a two-character first word, single-group accuracy, one Preview checkbox, Both
+  default, word blend percentages and mixed/hidden stroke-width restoration.
+- 23 focused native assertions pass in disposable InDesign 2026 documents: hidden
+  1 pt stroke behind None paint, switching stroked endpoints away, inherited
+  widths, word percentages including spaces, generated names/grouping, unchanged
+  endpoint placement, equivalent-color reuse, effective tint interpolation,
+  zero tint-generated swatches, Cancel, cleanup protection and text-edit Undo.
+- The native dialog was visually inspected with Average and Group graphs,
+  character-style controls, one bottom Preview checkbox and Colors cleanup.
+- The five-page guide was rebuilt by the current engine. All pages were rendered
+  and visually reviewed. Only the intentional frame-scope comparison is overset.
+
+Reproduced cause: None-painted text can store a nonzero stroke width. Assigning
+style-blended paint exposed that hidden width. A paint-only blend now owns and
+preserves the visible stroke baseline, keeping previously None-painted text at
+zero width; explicit width attributes remain intentional. Removed attributes
+restore the full original paint/width baseline.
+
+Seven additional native IDML checks pass for tint endpoint name resolution,
+reapply without intermediate colors, exact Cancel, and persistent generated-color
+and group ownership labels.

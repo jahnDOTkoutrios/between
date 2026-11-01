@@ -2,6 +2,13 @@
 
 ## 8.0.0
 
+- Refine the dialog into Property, Distribution, Composition and Curve sections. Remove extra branding and the Letters/Spaces/Both selector; active drafts always target both. Retain earlier target modes in the engine for history compatibility.
+- Use one bottom Preview checkbox. Add Graph Average across actual normalized group samples, with Group inspection; display choices never alter document assignments.
+- Group generated process colors, name new colors for their endpoints, reuse equal channel values, and add explicit safe grouping/unused-generated-color cleanup with independent Undo. Protect source colors and saved baseline references.
+- Blend compatible same-base tint endpoints through character tint without intermediate swatches; combine style and swatch tints at endpoints. Preserve coupled tint baselines and resolve saved tint names across IDML imports.
+- Prevent paint-only blends from exposing a hidden stroke width behind None paint; preserve intentional visible or explicitly inherited strokes. Show endpoint inheritance chains and verify switching away from stroked endpoints, Cancel, word percentages and text-edit Undo recovery.
+- Update the minimal guide for Both targeting, stepped tracking, tint-based color fading and graph inspection.
+
 - Save complete ordered setups with the treated story and a persistent owning frame: properties, endpoint references, attribute selection, curves, steps, scopes, restart rules, contour and break policies.
 - Reopen saved controls with document preview off and a Saved setup loaded indicator. Preview/Reapply explicitly updates the page; Reapply restores the whole stack baseline and reads current character-style definitions.
 - Add Forget saved setup. Keep current formatting, breaks, metrics and frame shape; adopt that appearance as the new baseline. Forgetting has an independent Undo step.

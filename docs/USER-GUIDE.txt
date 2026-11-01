@@ -1,4 +1,4 @@
-TRACKING RAMP 8.0.0 — TEXT DISTRIBUTION STUDIO
+TRACKING RAMP 8.0.0 — TEXT DISTRIBUTION
 
 RUN
 
@@ -9,7 +9,7 @@ This repository contains the current v8 script.
 
 LIVE PREVIEW / CANCEL / APPLY
 
-Live document preview is on by default for a fresh setup. Saved setups open
+Preview is on by default for a fresh setup. Saved setups open
 with it off; use Preview, enable Live preview, or Reapply explicitly. The actual selected text changes as
 you adjust controls. Each update starts from the document state before the
 current preview, so changes do not accumulate while experimenting.
@@ -25,7 +25,7 @@ This uses document-scoped Undo, preserving style overrides and inherited
 formatting rather than merely rewriting numeric values.
 
 Apply keeps the current result as one Edit > Undo Tracking Ramp 8 action.
-Turn Live document preview off to work with the graph alone; turning it off
+Turn Preview off to work with the graph alone; turning it off
 restores the document immediately. Apply still applies the configured effect.
 
 The dialog initially appears toward the right of the main screen so the
@@ -92,7 +92,7 @@ way; reordering and arbitrary stage editing are not part of this version.
 Each property is available once per stack, so the chooser omits properties
 already kept. The existing Property selector still chooses the active draft.
 
-Live document preview off restores the active draft while leaving kept effects
+Preview off restores the active draft while leaving kept effects
 visible. Metrics are refreshed for the final visible state. A contour kept with
 an earlier effect stays fixed; its width controls are disabled for later stages.
 
@@ -101,7 +101,7 @@ CHARACTER-STYLE BLEND
 Choose Character-style blend in Property. Select Style A and Style B from this
 document; grouped styles show their full group path. Min/Max are percentages:
 0 is A, 100 is B, and intermediate positions interpolate all included values
-at once. Use the existing curve, steps, Values per, Change and Restart controls.
+at once. Use the existing curve, steps, Values per and Restart controls.
 
 Shared supported attributes are included automatically. Blend attributes opens
 checkboxes to select a subset and lists missing/unsupported settings. Values
@@ -156,9 +156,8 @@ restores the whole session and Apply/Apply all keeps one named v8 Undo action.
 
 Replacement restores every previously controlled attribute before calculating
 again, including attributes now excluded and targets outside a smaller scope.
-Automatic leading and native Text Color tokens are preserved. Letters mode
-preserves the outgoing tracking word gap while size/color/etc. still apply to
-every eligible letter. Metrics continue to show actual integer tracking values.
+Automatic leading and native Text Color tokens are preserved. New drafts include
+letters and internal spaces. Metrics show actual integer tracking values.
 
 Composition-sensitive blends apply all included attributes in each pass. The
 existing Auto-stabilize/Fixed sampling rules still apply; blend mode does not
@@ -230,7 +229,7 @@ Scope:
 
 Values per:
 - Character: one value per eligible InDesign character.
-- Word: one value per word, or one per interword gap in Spaces mode.
+- Word: one value per word and its following internal gap.
 - Sentence: one value across each punctuation-delimited sentence.
 - Paragraph: one value across each paragraph.
 - Line: one value per resulting composed line, recalculated until stable.
@@ -238,11 +237,10 @@ Values per:
   frame boundaries agree with the resulting composition. Choose Entire story
   to distribute values across multiple linked frames.
 
-Change:
-- Letters: changes letters/punctuation and preserves spaces.
-- Spaces: changes only interword spaces and preserves letters.
-- Both: explicitly includes letters and internal interword spaces. In Word
-  mode, each gap follows its preceding word's value.
+New drafts always affect both letters and internal interword spaces. In Word
+mode, every character and the following gap receive the same blend percentage.
+There is no separate Letters/Spaces/Both control. Earlier target modes remain
+supported in saved engine history; reopening the active draft uses Both.
 
 Ordinary and typographic spaces are supported, including nonbreaking and
 em/en spaces. Tabs, control markers, paragraph breaks, and leading/trailing
@@ -275,11 +273,12 @@ preview-group number. One eligible unit receives the curve's starting value;
 a bell needs at least three sampled stages for an interior peak. The UI
 reports undersampled bell groups rather than silently promising a peak.
 
-Preview group below the graph chooses which group's actual blue samples and
-numeric values are displayed. The thin gray guide and orange handles describe
-the shared curve. Changing Preview group only inspects it: it does not modify
-that group's settings or touch the document/Undo transaction. Dragging points
-or changing curve controls updates the same curve across every group.
+Graph: Average is the default. It averages each group's actual assigned samples
+at normalized positions, giving each group equal weight. Short words still have
+their real sampled values; the average does not add peaks to the document.
+Graph: Group enables the group-number field for exact inspection. Neither
+choice changes formatting or Undo history. The gray guide and orange handles
+show the shared curve; dragging handles changes that curve for every group.
 
 Units that cross a restart boundary are split into disjoint fragments. A word
 hyphenated across two lines can therefore receive each line's curve value on
@@ -361,7 +360,7 @@ and offset effects coexist, replacing either retains the other's activation.
 Paragraph left/right indent: 0 to 1000 pt (default range 0 to 36 pt).
 Paragraph first-line indent: -1000 to 1000 pt (default 0 to 36 pt).
 Negative first-line values create a hanging indent. Indent properties use
-Values per Paragraph, Change Both and Restart Never; these controls are locked
+Values per Paragraph and Restart Never; these controls are locked
 while an indent property is selected. Selecting another property restores the
 previous structure choices. Min/Max, steps and all curves remain available.
 
@@ -553,8 +552,8 @@ REAPPLYING / RESETTING OLDER EFFECTS
 Replace previous effect is on by default. V8 retains compatible v3-v7 history
 and saves original affected property values in the story's metadata. Reapplying restores the previous
 baseline before calculating the new result, including old targets that are
-no longer included by the new mode. Narrowing a range or switching from Both
-to Letters therefore does not leave the previous tracking on old gaps.
+no longer included by the new mode. Narrowing a range therefore does not leave
+previous tracking on old targets.
 
 Replacement history contains one effect per property per story. V8 saved
 setups enforce their owning frame/range and restore the full sequence. Use
@@ -689,3 +688,36 @@ https://indiscripts.com/post/2011/04/sprite-buttons-in-scriptui
 
 Native special-character reference:
 https://developer.adobe.com/indesign/uxp/dom/api/s/special-characters/
+
+V8 COLOR MANAGEMENT AND STROKE SAFETY
+
+Generated process colors are named for their endpoints and percentage, grouped
+under Tracking Ramp, and reused when channel values match. Original endpoint
+colors stay in their existing groups. The group can be collapsed in Swatches.
+Colors... at the bottom can group older generated colors or remove only unused
+generated colors. Saved baselines and source-style colors are protected. These
+explicit maintenance actions have a separate Undo and persist through Cancel.
+Old generated names are retained so older saved baselines remain resolvable.
+
+Tints of the same process-color base use the base color and character tint,
+without intermediate swatches. Swatch tint and explicit style tint are combined
+at the endpoints, then interpolated. Tints of different bases are unsupported.
+
+Paint-only style blends keep a previously invisible None stroke invisible even
+when the original text stores a hidden 1 pt width. Explicit stroke width,
+including inherited width, still blends; endpoint inheritance chains and inferred
+attributes are identified in Blend attributes. Switching endpoint styles restores all previous
+attributes before recalculation, including any old stroke width and paint.
+
+Word style blends use one percentage across a word and its following internal
+gap. Mixed original formatting can produce different actual values within that
+word when Missing values uses Original text. That is expected.
+
+Undoing a text edit restores saved-setup eligibility when the original signature
+and owned range are restored. Opening stale controls does not discard metadata.
+The sole bottom Preview checkbox controls live document preview; there is no
+separate Preview button. Saved setups still open with Preview off.
+
+Values per Word with Restart per Word produces one unit per group, so every
+word gets the starting value. Use Values per Character with Restart per Word
+for a curve inside words, or Restart Never for a curve across words.

@@ -1,6 +1,6 @@
 # Tracking Ramp
 
-**Text Distribution Studio for Adobe InDesign — v8.0.0**
+**Text distribution for Adobe InDesign — v8.0.0**
 
 Apply tracking and other text properties along a curve, then repeat that curve
 inside words, sentences, paragraphs, composed lines, or linked frames.
@@ -47,8 +47,7 @@ not a UXP `.idjs` plugin. Other InDesign versions and Windows are unverified.
 | Scope | Which text participates | Highlighted text, current frame, entire linked story |
 | Values per | What receives one value | Character, word, sentence, paragraph, line, frame |
 | Restart curve per | Where the complete curve starts again | Never, word, sentence, paragraph, line, frame |
-| Change | Which characters are eligible | Letters, interword spaces, both |
-| Preview group | Which group's samples appear in the graph | Inspect a group without changing the document |
+| Graph | Average across restart groups, or inspect one group | Display only; document values stay unchanged |
 
 **Min/Max, steps, and the curve are shared by all groups.** Each group receives
 its own complete sampled distribution. To keep one continuous curve across
@@ -150,14 +149,14 @@ remain expensive. These are local measurements, not timing guarantees. See
 
 ## Important behavior
 
-- Tracking **Letters** preserves the outgoing word gap, including the final glyph's tracking before a space. A single-letter word may have no internal tracking target.
+- New drafts affect letters and internal spaces together. In Word mode the following gap receives its preceding word’s percentage. Earlier Letters/Spaces recipes remain readable by the engine; reopening the active draft uses Both.
 - Units crossing a restart boundary are split into disjoint fragments. Groups with one unit receive the curve's starting value; a bell needs at least three sampled stages to show an interior peak.
 - Sentence detection uses punctuation and common abbreviation/decimal handling. It is a heuristic; review ambiguous text.
 - For character properties, Current frame scope continually resamples the final visible text. Text leaving the frame returns to its baseline; newly fitting text joins the distribution. Line/frame structures exclude overset. Semantic units can include overset in entire-story scope.
 - **Auto-stabilize composition** is on by default; **Allow added line breaks** is off. With added breaks enabled, Tracking can insert real soft line breaks at word gaps using a conservative Max-tracking layout. Reapply replaces managed breaks; Cancel restores the text. If fixed sampling is needed, final lines/frames may differ from the sampled groups. Outgoing frame text returns to its baseline; newly fitting text may retain its baseline. Disable Auto-stabilize for strict convergence.
 - Each property can appear once per stack. Kept values are frozen within the current session; reopening recomputes the saved sequence from its baseline. Undo addition returns the last kept effect to editing and discards the current draft. A kept contour remains fixed while adding further properties. After manual edits to a saved setup, Forget adopts the current text and managed breaks as the new baseline.
 - Underline properties enable underlining on eligible targets and preserve original automatic values for replacement/Cancel.
-- Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph, Change is Both, and Restart is Never; previous structure choices return when selecting another property.
+- Indents use whole intersecting paragraphs, including any continuation beyond the selected scope. Values per is Paragraph and Restart is Never; previous structure choices return when selecting another property.
 - Line length uses Current frame / Line / Both / Never. It requires one unthreaded rectangular frame with one ordinary column, equal insets, auto-sizing off and no frame transform. Automatic lists/drop caps are excluded. With added breaks on, it changes paragraph structure and paragraph-aware styles may repeat. With them off, the width curve follows frame height, so short text may use only part of it. Existing paragraph indents remain in the no-break mode.
 - Frame contour shapes only the selected frame. It requires one ordinary column, equal insets, auto-sizing off, and an unrotated/unsheared frame at 100% scale.
 - Baseline shift does not increase leading. Large scale, skew, rotation, or shift values can overlap text or extend beyond a frame.
@@ -186,3 +185,29 @@ and 95 repeated line-length/break-policy checks. Earlier coverage is recorded se
 and visually checked.
 
 [Version notes](CHANGELOG.md)
+
+## v8 refinements
+
+The dialog separates Property, Distribution, Composition and Curve settings.
+One **Preview** checkbox at the bottom controls document preview. Saved setups
+still open with it off. New drafts always affect both letters and internal spaces.
+
+**Graph: Average** shows an equally weighted average of the actual samples in
+each restart group, aligned at normalized positions. **Graph: Group** inspects
+one group. This changes only the graph, not the applied curve or word values.
+With Values per Word, one percentage applies to each word and its following gap;
+mixed original formatting can still produce different inferred values within it.
+
+Generated process colors use readable endpoint names and a **Tracking Ramp**
+swatch group. Equivalent generated channel values are reused. Original endpoints
+stay in their groups. **Colors…** can group older generated colors or remove only
+unused generated colors; saved baseline references are protected. These explicit
+maintenance actions have a separate Undo step and persist if the text dialog is
+cancelled. Same-base process-color tints blend through character tint, creating
+no intermediate swatches. Tint endpoints with different base colors are unsupported.
+
+A paint-only style blend cannot activate a hidden stroke width on text whose
+original stroke paint was None. Explicit widths, including inherited widths,
+still blend. Removed attributes and previous style choices restore their baseline.
+Undoing a text edit restores saved-setup eligibility when the original text/range
+is restored; simply opening the dialog does not delete stale setup metadata.

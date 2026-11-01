@@ -32,19 +32,19 @@ on separate locked layers; metrics are on their own printable layer.
 
 | No. | Example | Applied settings |
 | --- | --- | --- |
-| 01 | Longer text, tracking | Word; Linear; 0–180; Letters |
-| 02 | Spaces only | Word; Linear; 0–850; Spaces |
+| 01 | Longer text, tracking | Word; Linear; 0–180; letters and spaces |
+| 02 | Stepped tracking | Word; Ease out; 0–260; 4 steps; letters and spaces |
 | 03 | Justified line bells | Word; restart Line; Gaussian; 0–260; 5 pt metrics |
 | 04 | Font-size bells | Character; restart Word; Gaussian; 14–48 pt |
 | 05 | Baseline wave | Character; Sine; 0–14 pt; fixed 48 pt leading |
-| 06 | Color reset | Word; restart Paragraph; Linear; Ink to Mist |
+| 06 | Color reset | Word; restart Paragraph; Linear; Ink to Ink 30% tint; no intermediate swatches |
 | 07 | Horizontal scale | Word; restart Sentence; Linear; 65–145% |
 | 08 | Kept skew + tracking | Skew −20–20° Character, then Tracking 0–110 Word; separate Rotation −12–12° Sine |
 | 09 | Weight and stroke | Word; variable Weight 800–100; Character stroke 0–1 pt |
 | 10 | Frame contour | Centered, smooth; width 58–100%; independent Gaussian, bell width 29% |
 | 11 | Live frame scope | Original vs Character tracking 0–100; Linear |
 | 12 | Linked story | Frame; Linear; 0–140; Both; Entire story |
-| 13 | Underline weight | Character Linear / Word Gaussian; 0.2–6 pt; Letters |
+| 13 | Underline weight | Character Linear / Word Gaussian; 0.2–6 pt; letters and spaces |
 | 14 | Underline offset | Character Sine / Word Linear; −2–12 pt; weight held at 1 pt |
 | 15 | Paragraph indents | Left/right 0–72 pt; first line −18–36 pt; four paragraphs |
 | 16 | Longer line-length bell | Line length; Gaussian; centered 45–100%; added breaks ON |
@@ -56,13 +56,12 @@ on separate locked layers; metrics are on their own printable layer.
 | 22 | Mixed original sizes | Word; Linear; original 24/18 pt to 30 pt, skew to 18°; both-missing attributes unchanged |
 | 23 | Remember a full stack | Word; character-style blend A–B, then Tracking 0–80; complete setup saved |
 
-All examples use Auto steps. Indent samples use Paragraph/Both/Never, with
+All examples use Auto steps except 02 (four steps). Letters and internal spaces are included. Indent samples use Paragraph/Never, with
 one value for each complete intersecting paragraph. Unless a caption specifies a restart group, the
 curve runs once across the local scope. Semantic samples use Entire story;
 03, 11, 16 and 17 use Current frame, and 12 uses Entire story across linked frames. Example 10 changes only frame width;
 its faint contour is a guide rule. Example 11 intentionally has overset text:
-the applied frame shows 213 characters versus 234 in the control, and outgoing
-overset retains tracking 0. Example 12 is one continuous story in two frames.
+outgoing overset retains tracking 0. Example 12 is one continuous story in two frames.
 Metrics remain tracking values even when another property is selected.
 
 ## Files and fonts
@@ -116,3 +115,10 @@ endpoints come from pre-effect text and are labeled in Blend attributes. The
 group contains ten editable endpoint/base styles. Example 23 recalls both
 properties; Undo addition returns its kept blend to editing. Edit its A/B styles
 between openings, then Reapply all to refresh the entire sequence.
+
+Graph defaults to an average of actual normalized samples across restart groups.
+Choose Group to inspect one word without changing the page. Generated colors
+are in the collapsible Tracking Ramp group; original guide endpoints stay outside.
+Colors... provides safe grouping and unused-generated-color cleanup. Same-base
+tint sample 06 creates no intermediate colors. One bottom Preview checkbox
+controls document preview.

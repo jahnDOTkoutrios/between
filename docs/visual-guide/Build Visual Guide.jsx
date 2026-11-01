@@ -54,6 +54,7 @@
         var blue=color("Guide - Blue",[45,45,45]), mist=color("Guide - Mist",[190,190,190]);
         var paper=color("Guide - Warm paper",[255,255,255]), rule=color("Guide - Rule",[215,215,215]);
         var white=doc.swatches.itemByName("Paper"), none=doc.swatches.itemByName("None");
+        var inkTint=doc.tints.add(ink,{name:"Guide - Ink 30 percent",tintValue:30});
         function box(name,bounds,fill,layer,stroke) {
             var r=page.rectangles.add({name:name,itemLayer:layer,geometricBounds:bounds,fillColor:fill,strokeWeight:stroke?0.5:0});
             r.strokeColor=stroke||none; r.textWrapPreferences.textWrapMode=TextWrapModes.NONE; return r;
@@ -79,7 +80,7 @@
             specimens.push(tf);return tf;
         }
         function settings(extra) {
-            var s={scope:0,mode:"word",restart:"never",target:"letters",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:false,allowLineBreaks:false,autoStabilize:true,textEnabled:true,missingStyle:"original"};
+            var s={scope:0,mode:"word",restart:"never",target:"both",property:"tracking",min:0,max:180,curve:"linear",power:2,width:22,steps:0,invert:false,points:[],smooth:true,axisName:"",colorA:ink.id,colorB:mist.id,strokeWidth:0.5,replace:true,clearTracking:false,metrics:false,lockLines:false,allowLineBreaks:false,autoStabilize:true,textEnabled:true,missingStyle:"original"};
             for(var k in extra)s[k]=extra[k];return s;
         }
         function apply(tf,extra) {
@@ -117,19 +118,19 @@
             var n=text(index+" - observation",note,[y+270,x+14,y+290,x+cw-14],st.note);
             return {x:x+14,y:y+99,w:cw-28,h:161,note:n};
         }
-        var c=card(1,"A widening sentence","Tracking / Word / Linear / 0 to 180\rChange: Letters / Auto steps / Entire story","Long text: one continuous ramp across all words.");
+        var c=card(1,"A widening sentence","Tracking / Word / Linear / 0 to 180\rLetters and spaces / Auto steps / Entire story","Long text: one continuous ramp across all words.");
         var f=specimen("01 - Tracking by word - linear 0-180","Light had been working quietly. Each morning it crossed the room, touched the same objects, and took a little color with it. Blue softened into grey. A photograph grew pale at its edges, while the face at its center remained almost familiar.",[c.y,c.x,c.y+c.h,c.x+c.w],14,21);apply(f,{});
-        c=card(2,"Only the spaces","Tracking / Word / Linear / 0 to 850\rChange: Spaces / Auto steps / Entire story","The letters stay together; the gaps gradually open.");
-        f=specimen("02 - Spaces only - linear 0-850","Some things fade\rbetween the words\rwe leave behind.",[c.y+8,c.x,c.y+c.h,c.x+c.w],27,45);apply(f,{target:"spaces",max:850});
+        c=card(2,"A stepped disappearance","Tracking / Word / Ease out / 0 to 260\r4 steps / Letters and spaces / Entire story","Each word and its following gap share one tracking value.");
+        f=specimen("02 - Stepped tracking - ease out 0-260","Some things fade\rbetween the words\rwe leave behind.",[c.y+8,c.x,c.y+c.h,c.x+c.w],27,45);apply(f,{target:"both",curve:"ease-out",steps:4,max:260});
         c=card(3,"A bell in every line","Tracking / Word / Gaussian / 0 to 260\rRestart: Line / Justified / Breaks: on / Metrics: on","5 pt numbers print in the gap below each text row.");
         f=specimen("03 - Justified line bells with printable metrics","The room keeps a softer record of us. Curtains lose their blue. Paper turns warm at the edges. Every line begins again, opening at its center and returning to quiet before the next breath.",[c.y-2,c.x,c.y+c.h-1,c.x+c.w],12.5,24,{justified:true});apply(f,{restart:"line",curve:"gaussian",max:260,metrics:true,scope:0,allowLineBreaks:true});
-        c=card(4,"Small, large, small","Font size / Character / Gaussian / 14 to 48 pt\rRestart: Word / Change: Both / Auto steps","The complete size curve starts again inside each word.");
+        c=card(4,"Small, large, small","Font size / Character / Gaussian / 14 to 48 pt\rRestart: Word / Letters and spaces / Auto steps","The complete size curve starts again inside each word.");
         f=specimen("04 - Font size - character bells per word","fading\rfading\rfading",[c.y,c.x,c.y+c.h,c.x+c.w],30,51);apply(f,{property:"pointSize",mode:"character",restart:"word",target:"both",curve:"gaussian",min:14,max:48});
-        c=card(5,"A rising memory","Baseline shift / Character / Sine / 0 to 14 pt\rRestart: Never / Change: Letters / Auto steps","The glyphs rise and fall. Leading stays at 48 pt.");
+        c=card(5,"A rising memory","Baseline shift / Character / Sine / 0 to 14 pt\rRestart: Never / Letters and spaces / Auto steps","The glyphs rise and fall. Leading stays at 48 pt.");
         f=specimen("05 - Baseline shift - sine 0-14 pt","What stays\rwhen light\rleaves?",[c.y+12,c.x,c.y+c.h,c.x+c.w],30,48);apply(f,{property:"baselineShift",mode:"character",curve:"sine",max:14});
-        c=card(6,"Color, then begin again","Character color / Word / Linear / Ink to Mist\rRestart: Paragraph / Change: Both / Auto steps","Each paragraph repeats the same color transition.");
-        f=specimen("06 - Character color - word ramp per paragraph","A letter fades from black to a quiet trace. Its message remains, even as the ink grows light.\rThe second memory begins in darkness, then follows the first toward the edge of sight.",[c.y,c.x,c.y+c.h,c.x+c.w],16,23);f.parentStory.texts[0].spaceAfter=10;apply(f,{property:"fillColor",restart:"paragraph",target:"both",max:100});
-        c=card(7,"A sentence stretches","Horizontal scale / Word / Linear / 65 to 145%\rRestart: Sentence / Change: Both / Auto steps","Three sentences; three independent distributions.");
+        c=card(6,"Color, then begin again","Character color / Word / Linear / Ink to Ink 30%\rRestart: Paragraph / Letters and spaces / Auto steps","Same-base tints fade without generating new swatches.");
+        f=specimen("06 - Character color - word ramp per paragraph","A letter fades from black to a quiet trace. Its message remains, even as the ink grows light.\rThe second memory begins in darkness, then follows the first toward the edge of sight.",[c.y,c.x,c.y+c.h,c.x+c.w],16,23);f.parentStory.texts[0].spaceAfter=10;apply(f,{property:"fillColor",restart:"paragraph",target:"both",colorB:inkTint.id,max:100});
+        c=card(7,"A sentence stretches","Horizontal scale / Word / Linear / 65 to 145%\rRestart: Sentence / Letters and spaces / Auto steps","Three sentences; three independent distributions.");
         f=specimen("07 - Horizontal scale - word ramp per sentence","The edges grow quiet.\rThe hours spread thin.\rThe colors drift away.",[c.y+5,c.x,c.y+c.h,c.x+c.w],25,48);apply(f,{property:"horizontalScale",restart:"sentence",target:"both",min:65,max:145});
         c=card(8,"Keep, then add","Skew -20 to 20 degrees; tracking 0 to 110\rUse + Add property to keep skew, then add tracking.\rLower sample: rotation -12 to 12 degrees / Sine","Two stacked properties above; separate rotation below.");
         f=specimen("08A - Kept skew plus tracking - two-property stack","a leaning memory",[c.y+8,c.x,c.y+70,c.x+c.w],28,45);applyStack(f,[{property:"skew",mode:"character",min:-20,max:20},{property:"tracking",mode:"word",min:0,max:110}]);
@@ -153,7 +154,7 @@
         var end=right.characters.lastItem().index;
         for(var hidden=end+1;hidden<right.parentStory.characters.length;hidden++){require(right.parentStory.characters[hidden].tracking===0,"Overset text must retain its zero baseline.");}
         log("PASS frame comparison: original "+left.characters.length+" visible characters; applied "+right.characters.length+"; overset tracking remains 0.");
-        c=card(12,"One linked story","Tracking / Frame / Linear / 0 to 140\rEntire story / Change: Both / Two linked frames","The curve assigns one value to each visible frame.");
+        c=card(12,"One linked story","Tracking / Frame / Linear / 0 to 140\rEntire story / Letters and spaces / Two linked frames","The curve assigns one value to each visible frame.");
         left=specimen("12A - Linked story frame 1 - tracking 0","Fading is not always a departure. Sometimes it is a change in how a thing remains. The photograph stays on the shelf, the path stays through the grass, and the voice stays somewhere in the room. What disappears is the sharp border between presence and memory. We learn the shape again through its softer edges.",[c.y+14,c.x,c.y+c.h,c.x+narrow],12,18);
         right=specimen("12B - Linked story frame 2 - tracking 140","",[c.y+14,c.x+narrow+18,c.y+c.h,c.x+c.w],12,18);left.nextTextFrame=right;apply(left,{mode:"frame",target:"both",max:140,scope:1});
         text("12A - frame label","FRAME 1 / 0",[c.y-4,c.x,c.y+10,c.x+narrow],st.eye);
@@ -180,7 +181,7 @@
             text(number+" - section settings",caption,[y+49,62,y+87,W-62],st.settings);
         }
         var half=(W-124-34)/2;
-        section("13","Underline weight","Character or Word / Auto steps / 0.2 to 6 pt / Change: Letters\rThe text stays the same size while the underline grows or forms a bell.",246);
+        section("13","Underline weight","Character or Word / Auto steps / 0.2 to 6 pt / Letters and spaces\rThe text stays the same size while the underline grows or forms a bell.",246);
         text("13A - sublabel","CHARACTER / LINEAR",[350,62,370,62+half],st.eye);
         f=specimen("13A - Underline weight - character linear 0.2-6 pt","the ink grows quiet",[393,62,492,62+half],42,64);apply(f,{property:"underlineWeight",mode:"character",min:.2,max:6});
         text("13B - sublabel","WORD / GAUSSIAN",[350,96+half,370,W-62],st.eye);
@@ -250,24 +251,24 @@
         section("18","One curve, several settings","Character-style blend / Word / Linear / 0 to 100% / Auto steps\rA: 14 pt, tracking 0, shift 0, Ink. B: 30 pt, tracking 160, shift 6, Mist.",246);
         var blendPassage="A memory fades through several changes at once. The letters grow, the spaces open, and the ink gives way to a softer grey. The words remain themselves, even as their presence changes. We can follow the whole passage from a small, dark beginning toward a larger and quieter end, or bend the curve and bring its strongest moment back into the center. Nothing is altered in the source styles. The page holds the steps between them.";
         f=specimen("18 - Character-style blend - long word ramp - four attributes",blendPassage,[354,62,790,W-62],24,44);
-        var blendResult=apply(f,{property:"styleBlend",mode:"word",target:"letters",styleA:blendA.id,styleB:blendB.id,min:0,max:100});
+        var blendResult=apply(f,{property:"styleBlend",mode:"word",target:"both",styleA:blendA.id,styleB:blendB.id,min:0,max:100});
         require(blendResult.settings.blendDefinition.attributes.length===4,"Guide blend must interpolate four attributes together.");
         require(blendA.pointSize===14&&blendB.pointSize===30,"Guide source styles must remain unchanged.");
         var bellA=blendGroup.characterStyles.add({name:"Bell A - small ink",basedOn:blendA,pointSize:32});
         var bellB=blendGroup.characterStyles.add({name:"Bell B - large mist",basedOn:blendB,pointSize:72});
-        section("19","A blend inside every word","Character / Restart: Word / Gaussian / 0 to 100% / Letters\rA: 32 pt, tracking 0, Ink. B: 72 pt, tracking 160, Mist.\rBlend attributes: Font size, Tracking and Character color. Baseline shift is excluded.",830);
+        section("19","A blend inside every word","Character / Restart: Word / Gaussian / 0 to 100% / Letters and spaces\rA: 32 pt, tracking 0, Ink. B: 72 pt, tracking 160, Mist.\rBlend attributes: Font size, Tracking and Character color. Baseline shift is excluded.",830);
         f=specimen("19 - Character-style blend - character bells per word - three attributes","fading slowly\rleaving softly",[939,62,1110,W-62],24,86);
-        apply(f,{property:"styleBlend",mode:"character",restart:"word",target:"letters",styleA:bellA.id,styleB:bellB.id,styleAttributes:["pointSize","tracking","fillColor"],curve:"gaussian",min:0,max:100});
+        apply(f,{property:"styleBlend",mode:"character",restart:"word",target:"both",styleA:bellA.id,styleB:bellB.id,styleAttributes:["pointSize","tracking","fillColor"],curve:"gaussian",min:0,max:100});
         section("20","Variable-font endpoints","Word / Linear inverted / B to A / Same variable-font file\rA: 24 pt, Weight "+wmin+". B: 40 pt, Weight "+wmax+". Size and axes blend together.",1132);
         var variableA=blendGroup.characterStyles.add({name:"Axis A - light",appliedFont:variable,pointSize:24});
         var variableB=blendGroup.characterStyles.add({name:"Axis B - heavy",appliedFont:variable,pointSize:40});
         variableA.setNthDesignAxis(weight.index,wmin);variableB.setNthDesignAxis(weight.index,wmax);
         f=specimen("20 - Character-style blend - variable weight and size","Light loses its weight.",[1255,62,1466,W-62],24,64);f.parentStory.texts[0].appliedFont=variable;
-        var variableBlend=apply(f,{property:"styleBlend",mode:"word",target:"letters",styleA:variableA.id,styleB:variableB.id,invert:true,min:0,max:100});
+        var variableBlend=apply(f,{property:"styleBlend",mode:"word",target:"both",styleA:variableA.id,styleB:variableB.id,invert:true,min:0,max:100});
         require(variableBlend.settings.blendDefinition.attributes.length===2,"Guide variable blend must include axes and size.");
         box("Page 4 - footer rule",[1538,48,1538.5,W-48],rule,ground);
         text("Page 4 - footer endpoints label","EDIT THE ENDPOINTS",[1553,48,1572,48+cw],st.eye);
-        text("Page 4 - footer endpoints","Open Character Styles > Guide blends. Change A or B, select its specimen and reapply. Intermediate results are local formatting.",[1578,48,1630,48+cw],st.foot);
+        text("Page 4 - footer endpoints","Edit styles in Character Styles > Guide blends, then Reapply. Graph: Average summarizes groups; Group inspects one word.",[1578,48,1630,48+cw],st.foot);
         text("Page 4 - footer attributes label","CHOOSE ATTRIBUTES",[1553,48+cw+gap,1572,48+2*cw+gap],st.eye);
         text("Page 4 - footer attributes","Shared supported attributes are automatic. Blend attributes lets you exclude them and lists missing or unsupported values.",[1578,48+cw+gap,1630,48+2*cw+gap],st.foot);
         text("Page 4 - footer keep label","KEEP & RESTORE",[1553,48+2*(cw+gap),1572,W-48],st.eye);
@@ -291,10 +292,10 @@
         var originalPassage="The first words have already changed before the curve begins. They are a little larger, holding their shape against the light. The rest of the passage starts quietly. As each word approaches the second style, its size and angle move toward the same destination. A missing setting is taken from the text that was there at the beginning. The page remembers that starting point, so another preview does not keep adding the previous change.";
         f=specimen("22 - One-sided style blend - mixed original sizes",originalPassage,[722,62,1090,W-62],18,44);
         f.parentStory.characters.itemByRange(0,100).pointSize=24;
-        apply(f,{property:"styleBlend",mode:"word",target:"letters",styleA:originalA.id,styleB:originalB.id,min:0,max:100,missingStyle:"original"});
+        apply(f,{property:"styleBlend",mode:"word",target:"both",styleA:originalA.id,styleB:originalB.id,min:0,max:100,missingStyle:"original"});
         section("23","Reopen the whole sequence","Kept Character-style blend, then Tracking / Word / Linear\rBlend: A to B, 0 to 100%. Tracking: 0 to 80. Both stages are saved with this frame.",1132);
         f=specimen("23 - Saved setup - character-style blend then tracking","A remembered curve can return to the page. Close the dialog, change a source character style, and open this frame again. Its saved setup loads with preview off. Reapply reads the new endpoint values and calculates the whole sequence from its original baseline. The words can change without losing the instructions that brought them here.",[1240,62,1480,W-62],24,44);
-        applyStack(f,[{property:"styleBlend",mode:"word",target:"letters",styleA:blendA.id,styleB:blendB.id,min:0,max:100,missingStyle:"original"},{property:"tracking",mode:"word",target:"letters",min:0,max:80}]);
+        applyStack(f,[{property:"styleBlend",mode:"word",target:"both",styleA:blendA.id,styleB:blendB.id,min:0,max:100,missingStyle:"original"},{property:"tracking",mode:"word",target:"both",min:0,max:80}]);
         box("Page 5 - footer rule",[1538,48,1538.5,W-48],rule,ground);
         text("Page 5 - footer reopen label","OPEN AGAIN",[1553,48,1572,48+cw],st.eye);
         text("Page 5 - footer reopen","Select the same frame and run the script. Saved setup loaded identifies its settings. Preview and Reapply update the document explicitly.",[1578,48,1630,48+cw],st.foot);
