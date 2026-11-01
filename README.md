@@ -1,25 +1,29 @@
-# Tracking Ramp
+# Between
 
-**Text distribution for Adobe InDesign — v8.0.0**
+**Two related typography tools: an InDesign plugin and a web tool.**
 
-[**Open the web tool — Between**](https://jahndotkoutrios.github.io/between/)
+The project started with **Tracking Ramp**, the Adobe InDesign plugin. The
+**Between web tool** grew out of that work: it adapts the plugin's ideas for
+style blending, curves and distribution across characters, words and lines
+into interactive, animatable text in the browser.
 
-Apply tracking and other text properties along a curve, then repeat that curve
-inside words, sentences, paragraphs, composed lines, or linked frames.
-A standalone ExtendScript `.jsx` with a ScriptUI interface; no plugin build or
-runtime dependencies are needed in InDesign.
+| Tool | Where it runs | Get started |
+| --- | --- | --- |
+| **Tracking Ramp — original InDesign plugin (v8)** | Adobe InDesign; delivered as a `.jsx` script | [Download the script](https://raw.githubusercontent.com/jahnDOTkoutrios/between/main/Tracking%20Ramp.jsx) · [Install](#install-and-run) · [Visual guide](#visual-guide) |
+| **Between — web tool adapted from the plugin's ideas** | In your browser | [Open the web tool](https://jahndotkoutrios.github.io/between/) · [Web guide](web-prototype/README.md) |
 
-## Web prototype — Between
+## Web tool — Between
 
 **[Use Between in your browser](https://jahndotkoutrios.github.io/between/)** — no installation or account needed.
 
-[Between](web-prototype/) brings style morphing, curves and structural
-text distribution to a local web editor built with
-[Pretext](https://github.com/chenglou/pretext). It includes interactive playback,
-live reflow, shared Base typography and alignment, optional properties, custom fonts, dark mode,
-and settings that survive refresh.
+Define styles A and B, shape a curve, and explore how text changes across
+characters, words, lines and other structures. Built with
+[Pretext](https://github.com/chenglou/pretext), the browser version includes
+interactive playback, live reflow, a text-width ruler, shared Base typography,
+custom fonts, dark mode and settings that survive refresh.
 
-The InDesign script remains **v8.0.0**; the web prototype is a separate app.
+<details>
+<summary>Run the web tool locally</summary>
 
 From this repository, using Node 22.12+ or 24+:
 
@@ -34,9 +38,20 @@ Open **http://127.0.0.1:5173/**. Run `npm test` for the web checks and
 [web README](web-prototype/README.md) and
 [validation results](web-prototype/docs/RESULTS.md) for details.
 
+</details>
+
 ![Between web editor](web-prototype/docs/width-ruler.png)
 
-## Visual guide
+## InDesign plugin — Tracking Ramp
+
+**Adobe InDesign — v8.0.0**
+
+Apply tracking and other text properties along a curve, then repeat that curve
+inside words, sentences, paragraphs, composed lines, or linked frames.
+A standalone ExtendScript `.jsx` with a ScriptUI interface; no plugin build or
+runtime dependencies are needed in InDesign.
+
+### Visual guide
 
 A minimal, five-page A2 visual guide with short and long fading-themed text,
 23 labeled examples, and 31 named editable specimen frames. The second page
@@ -59,7 +74,7 @@ endpoints and saved property stacks.
 
 </details>
 
-## Install and run
+### Install and run
 
 1. Download [Tracking Ramp.jsx](https://raw.githubusercontent.com/jahnDOTkoutrios/between/main/Tracking%20Ramp.jsx), or clone this repository.
 2. In InDesign, open **Window → Utilities → Scripts**.
@@ -69,7 +84,7 @@ endpoints and saved property stacks.
 Tested in **Adobe InDesign 2026 on macOS**. This is an ExtendScript `.jsx` script,
 not a UXP `.idjs` plugin. Other InDesign versions and Windows are unverified.
 
-## Choose the structure
+### Choose the structure
 
 | Control | Purpose | Choices |
 | --- | --- | --- |
@@ -91,7 +106,7 @@ Examples:
 - **Tracking → Character → restart per Line:** the full curve repeats in every resulting line.
 - **Baseline shift → Line → restart per Frame:** each linked frame gets its own rise-and-fall pattern.
 
-## Features
+### Features
 
 - **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, left/right/first-line paragraph indents, centered per-line length, and Character-style blend.
 - **Curves:** linear, ease in/out, S-curve, Gaussian, sine, triangle, and custom draggable control points with shifted or multiple peaks.
@@ -106,7 +121,7 @@ Examples:
 - **Metrics:** printable, visible 5 pt overlays show integer tracking values centered in the gap below each text row. Tight leading may cause overlap; source leading is preserved.
 - **Reapplication:** restores the previous saved baseline for a property before recalculating it. A separate Clear tracking option supports older effects.
 
-## Blend two character styles
+### Blend two character styles
 
 Choose **Character-style blend**, then **Style A** and **Style B**. Min/Max
 become blend percentages (0 = A, 100 = B). The existing curve, value units and
@@ -127,7 +142,7 @@ formatting. Reapply rereads styles; kept values stay frozen within one session.
 
 [![Character-style blend examples](docs/visual-guide/preview-style-blend.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
 
-## Reopen a saved setup
+### Reopen a saved setup
 
 Select its owning frame and run the script. **Saved setup loaded** restores the
 properties, endpoint styles, included attributes, curve, steps, scope and restart
@@ -152,7 +167,7 @@ Recovered blends retain **Skip** until you choose **Original text**.
 
 [![Original endpoints and saved setups](docs/visual-guide/preview-saved-setups.png)](docs/visual-guide/Tracking%20Ramp%20-%20Visual%20Guide.pdf)
 
-## Preview performance
+### Preview performance
 
 Native InDesign 2026 measurements on the same 500-word / 2,672-character
 fixture, comparing v7 with a development v8 build:
@@ -178,7 +193,7 @@ remain expensive. These are local measurements, not timing guarantees. See
 
 </details>
 
-## Important behavior
+### Important behavior
 
 - New drafts affect letters and internal spaces together. In Word mode the following gap receives its preceding word’s percentage. Earlier Letters/Spaces recipes remain readable by the engine; reopening the active draft uses Both.
 - Units crossing a restart boundary are split into disjoint fragments. Groups with one unit receive the curve's starting value; a bell needs at least three sampled stages to show an interior peak.
@@ -196,7 +211,7 @@ remain expensive. These are local measurements, not timing guarantees. See
 See the [full user guide](docs/USER-GUIDE.txt) for property ranges, curve editing,
 metrics, frame shaping, replacement behavior, and composition limits.
 
-## Development and verification
+### Development and verification
 
 Run the dependency-free regression suite with Node.js:
 
@@ -217,7 +232,7 @@ and visually checked.
 
 [Version notes](CHANGELOG.md)
 
-## v8 refinements
+### v8 refinements
 
 The dialog separates Property, Distribution, Composition and Curve settings.
 One **Preview** checkbox at the bottom controls document preview. Saved setups

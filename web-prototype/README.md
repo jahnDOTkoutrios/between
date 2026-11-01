@@ -1,9 +1,15 @@
-# Between
+# Between — web tool
 
 **[Open the public web tool](https://jahndotkoutrios.github.io/between/)**
 
-A small, local web prototype for morphing between two character styles with
-[Pretext](https://github.com/chenglou/pretext). Separate from the InDesign script.
+Between is the browser counterpart to **Tracking Ramp, the original InDesign
+plugin**. It ports the plugin's core ideas—blending styles, shaping curves and
+repeating distributions across text structures—to interactive, animatable text
+on the web, using [Pretext](https://github.com/chenglou/pretext).
+
+This guide covers the web tool. For the InDesign version, see the
+[plugin installation instructions](../README.md#install-and-run) and
+[InDesign visual guide](../docs/visual-guide/README.md).
 
 Run the app locally, then open **http://127.0.0.1:5173/**.
 The web source lives in `web-prototype/` beside the InDesign script.
