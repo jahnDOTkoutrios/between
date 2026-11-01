@@ -2,6 +2,10 @@
 
 ## 8.0.0
 
+- Fix additional stroke fallback cases: preserve explicit None paint, use visible zero for a missing width behind None, and never borrow fill paint when both endpoint styles omit stroke paint, even with positive latent widths. Keep synthetic zero endpoints at true None and retain exact paint-only baselines.
+- Blend None-to-painted stroke through effective width; honor two None endpoints even when the styles store positive widths. Preserve inherited positive outlines, excluded attributes, replacement, Cancel and Undo.
+- Align and standardize primary dropdown widths. Shorten scope/unit/restart/curve/property entries and move explanatory text into tooltips.
+
 - Refine the dialog into Property, Distribution, Composition and Curve sections. Remove extra branding and the Letters/Spaces/Both selector; active drafts always target both. Retain earlier target modes in the engine for history compatibility.
 - Use one bottom Preview checkbox. Add Graph Average across actual normalized group samples, with Group inspection; display choices never alter document assignments.
 - Group generated process colors, name new colors for their endpoints, reuse equal channel values, and add explicit safe grouping/unused-generated-color cleanup with independent Undo. Protect source colors and saved baseline references.

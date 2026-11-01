@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 168 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 175 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -303,3 +303,21 @@ restore the full original paint/width baseline.
 Seven additional native IDML checks pass for tint endpoint name resolution,
 reapply without intermediate colors, exact Cancel, and persistent generated-color
 and group ownership labels.
+
+## v8 stroke fallback follow-up
+
+The original fallback repro produced two failures: zero plus unspecified stroke
+width borrowed fill paint behind an original None/1 pt baseline; a zero-to-positive
+width ramp assigned paint at its zero endpoint. Seven new automated checks cover
+these cases, literal None endpoints, effective width, baseline restoration and
+concise aligned dropdowns. The dependency-free suite passes 175 checks.
+
+23 focused native stroke checks pass, including matching latent 0.64 pt widths
+with no defined paint, explicit None, None-to-painted interpolation, inherited
+positive outlines, attribute exclusions, replacement, Cancel and Undo. A read-only
+inspection confirmed the same latent-width/no-paint pattern in the reported
+styles. Paint inference is removed whenever both endpoint styles omit paint.
+
+21 additional native UI assertions verify the 240 px primary dropdown widths,
+aligned captions, text fit and concise scope/restart values. The dialog was
+also reviewed visually in InDesign 2026.

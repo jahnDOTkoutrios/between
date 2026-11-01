@@ -51,7 +51,7 @@ not a UXP `.idjs` plugin. Other InDesign versions and Windows are unverified.
 
 **Min/Max, steps, and the curve are shared by all groups.** Each group receives
 its own complete sampled distribution. To keep one continuous curve across
-the scope, set **Restart curve per → Never**.
+the scope, set **Restart → Never**.
 
 Examples:
 
@@ -88,7 +88,7 @@ the other endpoint comes from the original text. **Skip** retains the v7 rule.
 Both missing leaves the attribute untouched. Inferred attributes are labeled.
 
 Numbers, compatible process colors and complete axes on a compatible variable
-font can blend. A zero-width stroke can acquire paint as it grows. Automatic
+font can blend. A stroke can grow from zero when an endpoint defines its paint. Automatic
 style endpoints, incompatible paints and discrete switches are skipped;
 unsupported automatic original dimensions need explicit endpoints or Skip.
 Source styles and assignments remain untouched. Intermediate results are local
@@ -211,3 +211,14 @@ original stroke paint was None. Explicit widths, including inherited widths,
 still blend. Removed attributes and previous style choices restore their baseline.
 Undoing a text edit restores saved-setup eligibility when the original text/range
 is restored; simply opening the dialog does not delete stale setup metadata.
+
+The main Property, Scope, Values per, Restart and Curve dropdowns use equal
+widths and aligned captions. Entries are concise (Frame, Story, Line, Custom);
+composition and scope explanations are available as tooltips.
+
+Stroke blending treats None as a real no-stroke endpoint. A missing width
+behind original None paint resolves to visible zero. When both endpoints omit
+stroke paint, the original paint is left unchanged; stored width values alone
+never borrow the fill color. Zero endpoints remain None. Explicit None in both
+styles keeps stroke off, even if the styles store nonzero widths.
+Paint-only blends preserve original None paint and its hidden stored width.

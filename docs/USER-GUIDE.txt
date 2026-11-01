@@ -146,7 +146,8 @@ variable axes can use the original compatible font vector. Original automatic
 underline/strike dimensions without a supported numeric value require explicit
 endpoints or Skip. Paint must remain compatible. A missing stroke color can use
 the defined endpoint's paint when starting at None/zero width; width-only styles
-can use original stroke paint or the original fill so a visible stroke can grow.
+preserve original stroke paint. Define paint in an endpoint style to grow a
+visible stroke from None; width alone does not borrow the fill color.
 
 The original character styles are never edited or assigned to the text by the
 blend. Intermediate output is local formatting; existing character-style
@@ -721,3 +722,18 @@ separate Preview button. Saved setups still open with Preview off.
 Values per Word with Restart per Word produces one unit per group, so every
 word gets the starting value. Use Values per Character with Restart per Word
 for a curve inside words, or Restart Never for a curve across words.
+
+V8 STROKE FALLBACK AND SHORTER MENUS
+
+Style blend treats explicit None stroke paint as a no-stroke endpoint. None
+to a painted stroke grows effective width from zero. None in both styles keeps
+paint off even when stored width values are nonzero. Missing original width
+uses visible zero when original paint is None. When both styles omit paint,
+their widths never borrow fill paint, including matching positive stored widths.
+Define stroke paint in an endpoint to grow a visible stroke; its zero endpoint
+retains true None. Paint-only blends retain original None and its stored width. Cancel/replacement still restore the exact baseline.
+
+Property, Scope, Values per, Restart and Curve share one dropdown width and
+caption alignment. Scope entries are Frame, Story, Selection or Saved selection.
+Line/Frame composition explanations and centered Line length behavior move to
+tooltips. Custom curve editing is unchanged; the menu entry is simply Custom.

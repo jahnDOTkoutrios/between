@@ -647,6 +647,14 @@
             return {id:value.id,name:String(value.name),space:Number(value.space),channels:result,baseID:base?base.id:value.id,tint:tint};
         } catch (_) { return null; }
     }
+    function noStrokePaint(value) {
+        if(!value){return false;}try{if(value.none===true){return true;}}catch(_){}
+        try{return /^(\[?None\]?)$/.test(String(value.name||""));}catch(_){return false;}
+    }
+    function strokeStyleColor(value) {
+        if(value && value.isValid!==false && noStrokePaint(value)){return {id:value.id,name:String(value.name),none:true};}
+        return processStyleColor(value);
+    }
     function blendFontIdentity(font) {
         var location = "", family = "";
         try { location = String(font.location || ""); family = String(font.fontFamily || ""); } catch (_) {}
@@ -667,9 +675,9 @@
             var info = registry[i], av = styleValue(a, info.id, doc), bv = styleValue(b, info.id, doc), attr = null;
             if (missingStyleValue(av) && missingStyleValue(bv)) { continue; }
             if (info.kind === "color") {
-                var ac = processStyleColor(av), bc = processStyleColor(bv);
+                var ac = info.id==="strokeColor"?strokeStyleColor(av):processStyleColor(av), bc = info.id==="strokeColor"?strokeStyleColor(bv):processStyleColor(bv);
                 if (useOriginal && ((ac && missingStyleValue(bv)) || (bc && missingStyleValue(av)))) { attr = {id:info.id,label:info.label,kind:"color",a:ac,b:bc,originalA:!ac,originalB:!bc}; }
-                else if (ac && bc && ac.space === bc.space && ac.channels.length === bc.channels.length) { attr = {id:info.id,label:info.label,kind:"color",a:ac,b:bc}; }
+                else if (ac && bc && (ac.none || bc.none || (ac.space === bc.space && ac.channels.length === bc.channels.length))) { attr = {id:info.id,label:info.label,kind:"color",a:ac,b:bc}; }
                 else { ignored.push(info.label + ": requires two process colors in the same color space"); }
             } else if (info.kind === "axes") {
                 var am=missingStyleValue(av)||(av && av.length===0),bm=missingStyleValue(bv)||(bv && bv.length===0);
@@ -694,12 +702,6 @@
             } else { ignored.push(info.label + ": missing, automatic, or outside the supported range"); }
             if (attr) { if (attr.originalA || attr.originalB) { attr.label += " (" + (attr.originalA ? "A" : "B") + ": original text)"; } available.push({id:attr.id,label:attr.label}); if (enabled(attr.id)) { attrs.push(attr); } else { excluded.push(attr.label); } }
         }
-        if (useOriginal && enabled("strokeColor") && missingStyleValue(styleValue(a,"strokeColor",doc)) && missingStyleValue(styleValue(b,"strokeColor",doc))) {
-            for (var si=0;si<attrs.length;si++) { if(attrs[si].id==="strokeWeight") {
-                var paint={id:"strokeColor",label:"Stroke color (original text / fill)",kind:"color",a:null,b:null,originalA:true,originalB:true,strokePaint:true};
-                attrs.push(paint);available.push({id:paint.id,label:paint.label});break;
-            } }
-        }
         if (!attrs.length) { fail(available.length ? "Select at least one blend attribute." : "These styles have no shared supported blend attributes. Define numeric values or compatible colors in both styles."); }
         return {version:1,styleA:stylePath(a),styleB:stylePath(b),inheritanceA:styleInheritance(a,doc),inheritanceB:styleInheritance(b,doc),attributes:attrs,available:available,ignored:ignored,excluded:excluded};
     }
@@ -717,6 +719,7 @@
         // Paint and width/tint are coupled in InDesign. Own their baselines even
         // when a source style defines paint alone, so replacement is reversible.
         if(seen.strokeColor && !seen.strokeWeight){result.push("strokeWeight");}
+        if(seen.strokeWeight && !seen.strokeColor){result.push("strokeColor");}
         var tintProps={fillColor:"fillTint",strokeColor:"strokeTint",underlineColor:"underlineTint",strikeThroughColor:"strikeThroughTint"};
         for(var paintID in tintProps){if(seen[paintID]&&!seen[tintProps[paintID]]){result.push(tintProps[paintID]);}}
         return result;
@@ -757,8 +760,8 @@
         var value=row.values[attr.id];
         if(attr.kind==="color") {
             var paint=null;
-            if(value && value.swatch!==undefined){paint=processStyleColor(doc.swatches.itemByID(value.swatch));}
-            if(!paint && (attr.strokePaint || (value && value.nativeColorString))){paint=processStyleColor(story.characters.item(index).fillColor);}
+            if(value && value.swatch!==undefined){paint=attr.id==="strokeColor"?strokeStyleColor(doc.swatches.itemByID(value.swatch)):processStyleColor(doc.swatches.itemByID(value.swatch));}
+            if(!paint && (value && value.nativeColorString)){paint=processStyleColor(story.characters.item(index).fillColor);}
             if(!paint && attr.id==="strokeColor"){paint=peer;}
             if(!paint){fail("Original "+attr.label+" is not a compatible process color. Define it in both styles or use Missing values: Skip.");}
             return paint;
@@ -767,13 +770,30 @@
             if(!value || value.length!==attr.axes.length){fail("Original variable-font axes are unavailable. Use the endpoint variable font or exclude axes.");}
             var vector=[];for(var ax=0;ax<attr.axes.length;ax++){if(!numericStyleValue(value[ax],{low:attr.axes[ax].min,high:attr.axes[ax].max})){fail("Original variable-font axes are incompatible with the endpoint.");}vector.push(value[ax]);}return vector;
         }
+        if(attr.id==="strokeWeight" && noStrokePaint(row.values.strokeColor)){return 0;}
         if(attr.id==="leading" && value && value.automaticLeading){var ch=story.characters.item(index);value=Number(ch.pointSize)*Number(ch.autoLeading)/100;}
         var registry=styleBlendRegistry();for(var i=0;i<registry.length;i++){if(registry[i].id===attr.id && numericStyleValue(value,registry[i])){return value;}}
         fail("Original "+attr.label+" is automatic or unsupported. Define a numeric value in both styles or use Missing values: Skip.");
     }
     function applyStyleBlend(story, plan, doc) {
-        var attrs=plan.settings.blendDefinition.attributes,cache={},fontKeys={},hasOriginal=false,pending=null,hasStrokePaint=false,hasStrokeWeight=false,paletteCache={};
-        for(var ai=0;ai<attrs.length;ai++){if(attrs[ai].originalA||attrs[ai].originalB||attrs[ai].kind==="color"){hasOriginal=true;}if(attrs[ai].id==="strokeColor"){hasStrokePaint=true;}if(attrs[ai].id==="strokeWeight"){hasStrokeWeight=true;}}
+        var attrs=plan.settings.blendDefinition.attributes,cache={},fontKeys={},hasOriginal=false,pending=null,hasStrokeWeight=false,paletteCache={};
+        for(var ai=0;ai<attrs.length;ai++){if(attrs[ai].originalA||attrs[ai].originalB||attrs[ai].kind==="color"||attrs[ai].id==="strokeWeight"){hasOriginal=true;}if(attrs[ai].id==="strokeWeight"){hasStrokeWeight=true;}}
+        var nonePaint=null;
+        function noneSwatch(){
+            if(!nonePaint){nonePaint=doc.swatches.itemByName("None");if(!nonePaint.isValid){nonePaint=doc.swatches.itemByName("[None]");}if(!nonePaint.isValid){nonePaint=doc.swatches.itemByName("$ID/None");}if(!nonePaint.isValid){fail("The document's None swatch is unavailable.");}}
+            return nonePaint;
+        }
+        function setNoStroke(values,valueKey){values.strokeColor=noneSwatch();valueKey.strokeColor="color:"+String(values.strokeColor.id);}
+        function writePaint(attr,av,bv,amount,base,values,valueKey,tintOverrides){
+            if(av.space!==bv.space || av.channels.length!==bv.channels.length){fail("Original and endpoint colors must share a process color space. Define both endpoints or use Missing values: Skip.");}
+            var key=av.id+":"+bv.id+":"+Math.round(amount*64/100);
+            if(!cache[key]){cache[key]=blendPaint(doc,{colorA:av.id,colorB:bv.id,paletteCache:paletteCache},amount,64);}var paint=cache[key];values[attr.id]=paint.swatch;valueKey[attr.id]="color:"+String(paint.swatch.id);
+            if(paint.tint!==null){
+                var tintID={fillColor:"fillTint",strokeColor:"strokeTint",underlineColor:"underlineTint",strikeThroughColor:"strikeThroughTint"}[attr.id],ta=base.values[tintID],tb=ta;
+                for(var ti=0;ti<attrs.length;ti++){if(attrs[ti].id===tintID){ta=attrs[ti].originalA?base.values[tintID]:attrs[ti].a;tb=attrs[ti].originalB?base.values[tintID]:attrs[ti].b;break;}}
+                tintOverrides[tintID]=styleBlendNumber({a:(av.tint===undefined?100:av.tint)*ta/100,b:(bv.tint===undefined?100:bv.tint)*tb/100},amount);
+            }
+        }
         function fontKey(font){var name="font:"+String(font.name);if(!fontKeys.hasOwnProperty(name)){fontKeys[name]=blendFontIdentity(font);}return fontKeys[name];}
         function axesOn(range,attr,amount){
             var uniform=null;try{uniform=range.appliedFont;if(uniform instanceof Array){uniform=uniform.length===1?uniform[0]:null;}if(!uniform || !uniform.name){uniform=null;}}catch(_){}
@@ -800,30 +820,42 @@
                 while(cursor<=span.end){
                     var base=hasOriginal?blendBaselineRow(plan.blendBaseline||[],cursor):null,end=base?Math.min(span.end,base.end):span.end;
                     for(var q=0;q<attrs.length;q++){if(base && attrs[q].id==="leading" && (attrs[q].originalA||attrs[q].originalB) && base.values.leading && base.values.leading.automaticLeading){end=cursor;}}
-                    var values={},valueKey={},tracking=null,axisAttr=null,tintOverrides={};
+                    var values={},valueKey={},tracking=null,axisAttr=null,tintOverrides={},stroke=null,strokeWidths=null;
                     for(var a=0;a<attrs.length;a++){
                         var attr=attrs[a],av=attr.a,bv=attr.b;
                         if(attr.originalA){av=originalBlendEndpoint(attr,base,story,cursor,doc,bv);}
                         if(attr.originalB){bv=originalBlendEndpoint(attr,base,story,cursor,doc,av);}
                         if(attr.kind==="number"){
                             var n=styleBlendNumber({a:av,b:bv,integer:attr.integer,angle:attr.angle},amount);
+                            if(attr.id==="strokeWeight"){strokeWidths={a:av,b:bv};}
                             if(attr.id==="tracking" && plan.settings.target==="letters"){tracking=n;}else{values[attr.id]=n;}valueKey[attr.id]=n;
                         }else if(attr.kind==="color"){
-                            if(av.space!==bv.space || av.channels.length!==bv.channels.length){fail("Original and endpoint colors must share a process color space. Define both endpoints or use Missing values: Skip.");}
-                            var key=av.id+":"+bv.id+":"+Math.round(amount*64/100);
-                            if(!cache[key]){cache[key]=blendPaint(doc,{colorA:av.id,colorB:bv.id,paletteCache:paletteCache},amount,64);}var paint=cache[key];values[attr.id]=paint.swatch;valueKey[attr.id]="color:"+String(paint.swatch.id);
-                            if(paint.tint!==null){
-                                var tintID={fillColor:"fillTint",strokeColor:"strokeTint",underlineColor:"underlineTint",strikeThroughColor:"strikeThroughTint"}[attr.id],ta=base.values[tintID],tb=ta;
-                                for(var ti=0;ti<attrs.length;ti++){if(attrs[ti].id===tintID){ta=attrs[ti].originalA?base.values[tintID]:attrs[ti].a;tb=attrs[ti].originalB?base.values[tintID]:attrs[ti].b;break;}}
-                                tintOverrides[tintID]=styleBlendNumber({a:(av.tint===undefined?100:av.tint)*ta/100,b:(bv.tint===undefined?100:bv.tint)*tb/100},amount);
-                            }
+                            if(attr.id==="strokeColor"){stroke={attr:attr,a:av,b:bv};}
+                            else{writePaint(attr,av,bv,amount,base,values,valueKey,tintOverrides);}
                         }else{axisAttr={a:av,b:bv,axes:attr.axes,font:attr.font,fontKey:attr.fontKey};var axisKey=[];for(var ak=0;ak<attr.axes.length;ak++){axisKey.push(av[ak]+(bv[ak]-av[ak])*amount/100);}valueKey.designAxes=axisKey;}
                     }
+                    if(stroke){
+                        var paintA=stroke.a,paintB=stroke.b,originalNone=noStrokePaint(base.values.strokeColor),weight=values.strokeWeight;
+                        if(stroke.attr.strokePaint){
+                            // Older compiled effects may contain an inferred paint entry.
+                            // It may retain existing paint, but must never invent fill paint.
+                            if(!(weight>0)||paintA.none||paintB.none){setNoStroke(values,valueKey);}
+                            else{writePaint(stroke.attr,paintA,paintB,amount,base,values,valueKey,tintOverrides);}
+                        }else if(!hasStrokeWeight && originalNone){
+                            // Paint alone must not expose an invisible original width.
+                            setNoStroke(values,valueKey);values.strokeWeight=valueKey.strokeWeight=base.values.strokeWeight;
+                        }else if(paintA.none && paintB.none){setNoStroke(values,valueKey);}
+                        else{
+                            if(paintA.none||paintB.none){
+                                var wa=strokeWidths?strokeWidths.a:base.values.strokeWeight,wb=strokeWidths?strokeWidths.b:base.values.strokeWeight;
+                                weight=styleBlendNumber({a:paintA.none?0:wa,b:paintB.none?0:wb},amount);
+                                values.strokeWeight=valueKey.strokeWeight=weight;
+                            }
+                            if((paintA.none||paintB.none)&&!(weight>0)){setNoStroke(values,valueKey);}
+                            else{writePaint(stroke.attr,paintA.none?paintB:paintA,paintB.none?paintA:paintB,amount,base,values,valueKey,tintOverrides);}
+                        }
+                    }else if(hasStrokeWeight && !(values.strokeWeight>0)){setNoStroke(values,valueKey);}
                     for(var tintID in tintOverrides){values[tintID]=valueKey[tintID]=tintOverrides[tintID];}
-                    if(hasStrokePaint && !hasStrokeWeight){
-                        var originalPaint=base.values.strokeColor,hidden=originalPaint && /^(\[?None\]?)$/.test(originalPaint.name||"");
-                        values.strokeWeight=valueKey.strokeWeight=hidden?0:base.values.strokeWeight;
-                    }
                     var formatKey=encode(valueKey);
                     if(pending && pending.end+1===cursor && pending.key===formatKey){pending.end=end;}
                     else{flush();pending={start:cursor,end:end,key:formatKey,values:values,tracking:tracking,axis:axisAttr,amount:amount};}cursor=end+1;
@@ -2251,9 +2283,9 @@
             parent.add("statictext", undefined, label);
             var f = parent.add("edittext", undefined, String(text)); f.characters = size || 6; return f;
         }
-        function dropdown(parent, label, choices, width) {
-            if (label) { parent.add("statictext", undefined, label); }
-            var d = parent.add("dropdownlist", undefined, choices); d.selection = 0; d.preferredSize.width = width; return d;
+        function dropdown(parent, label, choices, width, labelWidth) {
+            if (label) { var caption=parent.add("statictext", undefined, label);if(labelWidth){caption.preferredSize.width=labelWidth;caption.minimumSize=[labelWidth,0];caption.maximumSize=[labelWidth,10000];} }
+            var d = parent.add("dropdownlist", undefined, choices); d.selection = 0; d.preferredSize.width = width; d.minimumSize=[width,0];d.maximumSize=[width,10000];return d;
         }
         function panel(name) { var p = dialog.add("panel", undefined, name); p.margins = 10; p.spacing = 8; p.alignChildren = ["fill", "top"]; return p; }
         var stackRow = row(dialog); stackRow.visible = false; stackRow.maximumSize = [10000, 0];
@@ -2266,10 +2298,10 @@
         var targetPanel = panel("Property");
         var propRow = row(targetPanel);
         var propertyIDs = ["tracking", "pointSize", "baselineShift", "designAxes", "horizontalScale", "verticalScale", "characterRotation", "skew", "strokeWeight", "strokeColor", "strokeTint", "fillColor", "fillTint", "underlineWeight", "underlineOffset", "leftIndent", "rightIndent", "firstLineIndent", "lineLength", "styleBlend"];
-        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable-font axis", "Horizontal scale", "Vertical scale", "Character rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Paragraph left indent", "Paragraph right indent", "Paragraph first-line indent", "Line length — centered", "Character-style blend"];
-        var property = dropdown(propRow, "Property", propertyLabels, 220);
+        var propertyLabels = ["Tracking", "Font size", "Baseline shift", "Variable axis", "Horizontal scale", "Vertical scale", "Rotation", "Skew", "Stroke width", "Stroke color", "Stroke tint", "Character color", "Character tint", "Underline weight", "Underline offset", "Left indent", "Right indent", "First-line indent", "Line length", "Style blend"];
+        var property = dropdown(propRow, "Property", propertyLabels, 240, 96);
         var previousStructure = null;
-        var axisRow=propRow.add("group"),axis = dropdown(axisRow, "Axis", ["Select a variable font"], 215);
+        var axisRow=propRow.add("group"),axis = dropdown(axisRow, "Axis", ["Select variable font"], 200, 36);
         var styleObjects = characterStyleList(target.document), styleLabels = [], styleAttributes = null;
         for (i = 0; i < styleObjects.length; i++) { styleLabels.push(stylePath(styleObjects[i])); }
         if (!styleLabels.length) { styleLabels.push("Create character styles first"); }
@@ -2290,7 +2322,7 @@
             blendLoadError=(!foundA||!foundB)?"A saved endpoint style was renamed or deleted. Choose Style A and Style B before reapplying.":"";
             definitionCacheKey="";
         }
-        var policyRow=row(targetPanel),missingStyle=dropdown(policyRow,"Missing values",["Original text","Skip"],160);
+        var policyRow=row(targetPanel),missingStyle=dropdown(policyRow,"Missing values",["Original text","Skip"],240,96);
         var refreshStyles=policyRow.add("button",undefined,"Refresh styles");policyRow.visible=false;policyRow.maximumSize=[0,0];
         missingStyle.helpTip="Use the original text when exactly one style omits an attribute. Both missing leaves it unchanged. Skip preserves the v7 rule.";
         try { var blendHistory = target.story.extractLabel(HISTORY_KEY); if (blendHistory) { var lastBlend = decode(blendHistory).effects.styleBlend; if (lastBlend) { selectBlendStyles(lastBlend.settings); } } } catch (_) {}
@@ -2301,8 +2333,8 @@
         }
         if (!colorLabels.length) { fail("No usable document colors are available."); }
         var strokeRow = row(targetPanel);
-        var colorA = dropdown(strokeRow, "Color A", colorLabels, 160);
-        var colorB = dropdown(strokeRow, "B", colorLabels, 160);
+        var colorA = dropdown(strokeRow, "Color A", colorLabels, 170);
+        var colorB = dropdown(strokeRow, "B", colorLabels, 170);
         var strokeWidth = field(strokeRow, "Width pt", 0.5, 5);
         for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].name === "Black") { colorA.selection = i; break; } }
         colorB.selection = Math.min(colorObjects.length - 1, colorA.selection.index + 1);
@@ -2311,13 +2343,23 @@
         var unitLabel = valueRow.add("statictext", undefined, "1/1000 em"); unitLabel.preferredSize.width = 130;
         var distributionPanel=panel("Distribution");
         var labels = [];
-        for (var i = 0; i < target.scopes.length; i++) { labels.push(target.scopes[i].label); }
-        var scope = dropdown(row(distributionPanel), "Scope", labels, 480);
+        for (var i = 0; i < target.scopes.length; i++) {
+            var sc=target.scopes[i],scopeText="Selection";
+            // Keep these branches explicit for ExtendScript's conditional parser.
+            if(sc.kind==="frame"){scopeText="Frame";}
+            else if(sc.kind==="story"){scopeText="Story";}
+            else if(/Saved/.test(sc.label||"")){scopeText="Saved selection";}
+            labels.push(scopeText);
+        }
+        var scope = dropdown(row(distributionPanel), "Scope", labels, 240, 96);
         var modeRow = row(distributionPanel);
         var modeIDs = ["word", "line", "character", "sentence", "paragraph", "frame"];
-        var mode = dropdown(modeRow, "Values per", ["Word", "Line — resulting composition", "Character", "Sentence", "Paragraph", "Frame"], 200);
+        var mode = dropdown(modeRow, "Values per", ["Word", "Line", "Character", "Sentence", "Paragraph", "Frame"], 240, 96);
         var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame"];
-        var restart = dropdown(row(distributionPanel), "Restart curve per", ["Never — entire scope", "Word", "Sentence", "Paragraph", "Line — resulting composition", "Frame — resulting composition"], 320);
+        var restart = dropdown(row(distributionPanel), "Restart", ["Never", "Word", "Sentence", "Paragraph", "Line", "Frame"], 240, 96);
+        scope.helpTip="Frame follows visible text after recomposition. Story includes linked frames and overset. Selection uses highlighted text.";
+        mode.helpTip="Assign one value per unit. Line and Frame follow the resulting composition.";
+        property.helpTip="Line length uses centered widths. Style blend interpolates the selected character styles.";
         restart.helpTip = "Each group receives the complete curve. Units crossing group boundaries are split. Min/Max and steps are shared by every group.";
         var optionsPanel=panel("Composition and replacement");
         var replace = optionsPanel.add("checkbox", undefined, "Replace previous effect for this property"); replace.value = true;
@@ -2330,9 +2372,9 @@
         allowBreaks.helpTip = "Allow managed tracking soft breaks when composition cycles. For Line length, allow real paragraph breaks for independent per-line indents. Off preserves paragraph structure and uses a frame contour for Line length. Cancel restores everything.";
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
-        var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom — drag control points"];
+        var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom"];
         var curveRow = row(curvePanel);
-        var curve = dropdown(curveRow, "Curve", curveNames, 300);
+        var curve = dropdown(curveRow, "Curve", curveNames, 240, 96);
         var invert = curveRow.add("checkbox", undefined, "Invert");
         var smooth = curveRow.add("checkbox", undefined, "Smooth custom"); smooth.value = true;
         var shapeRow = row(curvePanel);
