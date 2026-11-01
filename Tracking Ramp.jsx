@@ -1055,6 +1055,17 @@
         settings = effectiveSettings(settings);
         var baseUnits = collectUnits(data, settings), restart = settings.restart || "never";
         var spans = structureSpans(data, restart, true), units = [], groups = [], values = [], cursor = 0;
+        if (restart === "word") {
+            var wordCount = parseNumber(settings.restartWords === undefined ? 1 : settings.restartWords, 1, 10000, true);
+            if (wordCount === null) { fail("Words per restart must be a whole number from 1 to 10000."); }
+            if (wordCount > 1) {
+                var wordGroups = [];
+                for (var w = 0; w < spans.length; w += wordCount) {
+                    wordGroups.push({ start: spans[w].start, end: spans[Math.min(w + wordCount, spans.length) - 1].end });
+                }
+                spans = wordGroups;
+            }
+        }
         var minSteps = null, maxSteps = 0, shortGroups = 0;
         for (var g = 0; g < spans.length; g++) {
             var bounds = { start: spans[g].start, end: spans[g].end };
@@ -2356,7 +2367,12 @@
         var modeIDs = ["word", "line", "character", "sentence", "paragraph", "frame"];
         var mode = dropdown(modeRow, "Values per", ["Word", "Line", "Character", "Sentence", "Paragraph", "Frame"], 240, 96);
         var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame"];
-        var restart = dropdown(row(distributionPanel), "Restart", ["Never", "Word", "Sentence", "Paragraph", "Line", "Frame"], 240, 96);
+        var restartRow = row(distributionPanel);
+        var restart = dropdown(restartRow, "Restart", ["Never", "Word", "Sentence", "Paragraph", "Line", "Frame"], 240, 96);
+        var restartCountGroup = row(restartRow), restartWords = field(restartCountGroup, "Every", 1, 4);
+        restartCountGroup.add("statictext", undefined, "words");
+        restartCountGroup.visible = false; restartCountGroup.maximumSize = [0, 0];
+        restartWords.helpTip = "Restart the complete curve after this many words, counted from the start of the scope. A shorter final group also receives the full curve.";
         scope.helpTip="Frame follows visible text after recomposition. Story includes linked frames and overset. Selection uses highlighted text.";
         mode.helpTip="Assign one value per unit. Line and Frame follow the resulting composition.";
         property.helpTip="Line length uses centered widths. Style blend interpolates the selected character styles.";
@@ -2535,6 +2551,8 @@
             if (min > max) { fail("Min must be less than or equal to Max."); }
             var steps = auto.value ? 0 : parseNumber(stepsInput.text, 1, 10000, true);
             if (steps === null) { fail("Steps must be a whole number from 1 to 10000."); }
+            var restartCount = restart.selection.index === 1 ? parseNumber(restartWords.text, 1, 10000, true) : 1;
+            if (restartCount === null) { fail("Words per restart must be a whole number from 1 to 10000."); }
             var curveID = customEditing ? "custom" : curveIDs[curve.selection.index];
             if (curveID === "gaussian" || curveID === "ease-in" || curveID === "ease-out") {
                 var shape = parseNumber(shapeInput.text, curveID === "gaussian" ? 5 : 1, curveID === "gaussian" ? 50 : 8, false);
@@ -2548,6 +2566,7 @@
             var copy = [];
             for (var k = 0; k < points.length; k++) { copy.push({ x: points[k].x, y: points[k].y }); }
             var result = { scope: scope.selection.index, mode: modeIDs[mode.selection.index], restart: restartIDs[restart.selection.index], target: "both",
+                restartWords: restartCount,
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
@@ -2577,7 +2596,7 @@
             var stepsLabel = String(result.distribution.steps);
             if (result.distribution.minSteps !== result.distribution.steps) { stepsLabel = result.distribution.minSteps + "–" + result.distribution.steps; }
             summary.text = result.units.length + " " + noun;
-            if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + settings.restart + " groups"; }
+            if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + (settings.restart === "word" && settings.restartWords > 1 ? settings.restartWords + "-word" : settings.restart) + " groups"; }
             summary.text += " / " + stepsLabel + " steps/group / " + propertyInfo(settings.property, axes[axis.selection.index]).label;
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
             if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
@@ -2616,7 +2635,7 @@
             else if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
                 if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
-                text = "Shared curve restarts in each " + settings.restart + ". " + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
+                text = (settings.restart === "word" && settings.restartWords > 1 ? "Shared curve restarts every " + settings.restartWords + " words. " : "Shared curve restarts in each " + settings.restart + ". ") + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
                 if (isBell(settings.curve) && result.distribution.shortGroups) { text += " " + result.distribution.shortGroups + " group(s) have fewer than 3 steps and cannot represent the bell interior."; }
             }
             if(!editorTrack && settings.mode===settings.restart && result.distribution.steps===1){text="One unit per restart group: each group uses the curve’s starting value. Choose a smaller Values per unit for a curve inside each group. "+text;}
@@ -2655,6 +2674,12 @@
                 if (!lengthProperty && previousLengthScope !== null) { scope.selection = previousLengthScope; previousLengthScope = null; }
                 scope.enabled = !lengthProperty;replace.enabled=!session.savedRecipe;replace.helpTip=session.savedRecipe?"Reapply restores the entire saved stack baseline. Forget saved setup to adopt the current appearance.":"Restore this property baseline before recalculating.";
                 mode.enabled = restart.enabled = textEnabled.value && !paragraphProperty && !lengthProperty;
+                var showRestartCount = restart.selection.index === 1;
+                if (restartCountGroup.visible !== showRestartCount) {
+                    restartCountGroup.visible = showRestartCount; restartCountGroup.maximumSize = showRestartCount ? [10000, 30] : [0, 0];
+                    try { dialog.layout.layout(true); } catch (_) {}
+                }
+                restartWords.enabled = restart.enabled && showRestartCount;
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
@@ -2702,6 +2727,7 @@
             scope.selection = saved.scope;
             for (i = 0; i < modeIDs.length; i++) { if (modeIDs[i] === saved.mode) { mode.selection = i; break; } }
             for (i = 0; i < restartIDs.length; i++) { if (restartIDs[i] === saved.restart) { restart.selection = i; break; } }
+            restartWords.text = String(saved.restartWords === undefined ? 1 : saved.restartWords);
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
@@ -2838,8 +2864,8 @@
             summary.text = "Preview waits for typing to pause…"; inputDelay.request();
         }
         function numberCommitted() { if (!inputDelay.pending) { refresh(true); } }
-        minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = numberChanging;
-        minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = numberCommitted;
+        minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = restartWords.onChanging = numberChanging;
+        minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = restartWords.onChange = numberCommitted;
         styleA.onChange = styleB.onChange = function () { if (switching) { return; } styleAttributes = null;blendLoadError="";definitionCacheKey=""; refresh(true); };
         missingStyle.onChange=function(){definitionCacheKey="";refresh(true);};
         refreshStyles.onClick=function(){definitionCacheKey="";refresh(true);};

@@ -47,6 +47,7 @@ not a UXP `.idjs` plugin. Other InDesign versions and Windows are unverified.
 | Scope | Which text participates | Highlighted text, current frame, entire linked story |
 | Values per | What receives one value | Character, word, sentence, paragraph, line, frame |
 | Restart curve per | Where the complete curve starts again | Never, word, sentence, paragraph, line, frame |
+| Every … words | With Restart → Word, restart after this many words | 1–10000; default 1 |
 | Graph | Average across restart groups, or inspect one group | Display only; document values stay unchanged |
 
 **Min/Max, steps, and the curve are shared by all groups.** Each group receives
@@ -56,6 +57,7 @@ the scope, set **Restart → Never**.
 Examples:
 
 - **Font size → Character → restart per Word → Gaussian:** each word gets a small → large → small pattern.
+- **Tracking → Word → Restart Word, Every 3 words:** repeat the curve across successive three-word groups. A shorter final group also receives the full curve.
 - **Tracking → Word → restart per Sentence:** tracking rises and falls across each sentence.
 - **Tracking → Character → restart per Line:** the full curve repeats in every resulting line.
 - **Baseline shift → Line → restart per Frame:** each linked frame gets its own rise-and-fall pattern.

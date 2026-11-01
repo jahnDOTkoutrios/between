@@ -2,6 +2,8 @@
 
 ## 8.0.0
 
+- Add Every … words to Restart Word (1–10000, default 1). Group consecutive words from the scope start; distribute a complete curve within each group, including a shorter final group. Preserve the count in saved setups and property stacks, with debounced preview input.
+
 - Fix additional stroke fallback cases: preserve explicit None paint, use visible zero for a missing width behind None, and never borrow fill paint when both endpoint styles omit stroke paint, even with positive latent widths. Keep synthetic zero endpoints at true None and retain exact paint-only baselines.
 - Blend None-to-painted stroke through effective width; honor two None endpoints even when the styles store positive widths. Preserve inherited positive outlines, excluded attributes, replacement, Cancel and Undo.
 - Align and standardize primary dropdown widths. Shorten scope/unit/restart/curve/property entries and move explanatory text into tooltips.
