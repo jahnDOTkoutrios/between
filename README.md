@@ -90,8 +90,9 @@ not a UXP `.idjs` plugin. Other InDesign versions and Windows are unverified.
 | --- | --- | --- |
 | Scope | Which text participates | Highlighted text, current frame, entire linked story |
 | Values per | What receives one value | Character, word, sentence, paragraph, line, frame |
-| Restart curve per | Where the complete curve starts again | Never, word, sentence, paragraph, line, frame |
+| Restart curve per | Where the complete curve starts again | Never, word, sentence, paragraph, line, frame, keywords |
 | Every … words | With Restart → Word, restart after this many words | 1–10000; default 1 |
+| Keywords / Start | With Restart → Keywords, enter comma-separated words and choose the boundary | After keyword (default), At keyword |
 | Graph | Average across restart groups, or inspect one group | Display only; document values stay unchanged |
 
 **Min/Max, steps, and the curve are shared by all groups.** Each group receives
@@ -105,6 +106,15 @@ Examples:
 - **Tracking → Word → restart per Sentence:** tracking rises and falls across each sentence.
 - **Tracking → Character → restart per Line:** the full curve repeats in every resulting line.
 - **Baseline shift → Line → restart per Frame:** each linked frame gets its own rise-and-fall pattern.
+
+With **Restart → Keywords**, enter `restart, now`. In “Can we restart this
+plugin now soon after?”, **After keyword** repeats the curve across
+`Can we restart` / `this plugin now` / `soon after?`. **At keyword** uses
+`Can we` / `restart this plugin` / `now soon after?`. The beginning of the
+scope always starts a curve. Matching uses whole words, ignores capitalization
+and surrounding punctuation, and leaves the keywords in the text. No match
+means one curve across the scope. Values per still chooses the units within
+each group; keyword settings are included in saved setups and property stacks.
 
 ### Features
 

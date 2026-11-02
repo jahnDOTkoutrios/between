@@ -117,6 +117,11 @@ properties; Undo addition returns its kept blend to editing. Edit its A/B styles
 between openings, then Reapply all to refresh the entire sequence.
 
 Graph defaults to an average of actual normalized samples across restart groups.
+Restart → Keywords accepts a comma-separated list such as `restart, now`.
+Choose After keyword to start the next curve on the following word, or At keyword
+to start it on the matching word. Scope start always begins a curve; matching
+ignores capitalization and surrounding punctuation. Values per still determines
+the units inside each group. Keyword settings are recalled with saved setups.
 Choose Group to inspect one word without changing the page. Generated colors
 are in the collapsible Tracking Ramp group; original guide endpoints stay outside.
 Colors... provides safe grouping and unused-generated-color cleanup. Same-base

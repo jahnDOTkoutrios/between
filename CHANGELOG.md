@@ -19,6 +19,8 @@
 
 ## 8.0.0
 
+- Add Restart → Keywords with comma-separated whole words and After keyword / At keyword boundaries. Match case-insensitively with surrounding punctuation ignored; keep the scope start, disjoint groups and a full curve per group. Persist keyword settings in saved setups and stacks, and debounce keyword input like numeric fields.
+
 - Simplify the Style blend section: stack Style A/B and Missing values in aligned 240 pt controls, group Attributes/Refresh actions underneath, and align the Min input with the control column. Keep all blend, saved-setup and preview behavior unchanged.
 
 - Add Every … words to Restart Word (1–10000, default 1). Group consecutive words from the scope start; distribute a complete curve within each group, including a shorter final group. Preserve the count in saved setups and property stacks, with debounced preview input.

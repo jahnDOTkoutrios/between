@@ -182,7 +182,7 @@
         var words = collectionBounds(range.words);
         for (i = 0; i < words.length; i++) {
             span = words[i];
-            if (span) { data.words.push({ start: Math.max(bounds.start, span.start), end: Math.min(bounds.end, span.end) }); }
+            if (span) { data.words.push({ start: Math.max(bounds.start, span.start), end: Math.min(bounds.end, span.end), clipped: span.start < bounds.start || span.end > bounds.end }); }
         }
         // Story.lines can expose overset lines. Frame-owned lines describe
         // the actual composition visible in the story's text containers.
@@ -272,6 +272,41 @@
             }
             if (start <= last) { result.push({ start: origin + start, end: origin + last }); }
         }
+        return result;
+    }
+    function keywordToken(text) {
+        // Strip surrounding punctuation only. Internal apostrophes/hyphens
+        // remain literal, so "now" never matches "snow" or "now-later".
+        return String(text).toLowerCase().replace(/^[\s"'\u2018\u2019\u201c\u201d\u00ab\u00bb\u2039\u203a\u300c-\u300f\u3008-\u3011()[\]{}.,!?;:\u2026\u2013\u2014\u3001\u3002\uff0c\uff01\uff1f\u061f]+|[\s"'\u2018\u2019\u201c\u201d\u00ab\u00bb\u2039\u203a\u300c-\u300f\u3008-\u3011()[\]{}.,!?;:\u2026\u2013\u2014\u3001\u3002\uff0c\uff01\uff1f\u061f]+$/g, "");
+    }
+    function parseRestartKeywords(text) {
+        var entries = String(text || "").split(","), words = [], seen = {};
+        for (var i = 0; i < entries.length; i++) {
+            var entry = entries[i].replace(/^\s+|\s+$/g, "");
+            if (!entry) { continue; }
+            var word = keywordToken(entry);
+            if (!word || /\s/.test(word)) { fail("Enter single keywords separated by commas, for example: restart, now."); }
+            if (!seen.hasOwnProperty("word:" + word)) { words.push(word); seen["word:" + word] = true; }
+        }
+        if (!words.length) { fail("Enter at least one keyword, separated by commas."); }
+        return words;
+    }
+    function keywordSpans(data, settings) {
+        var keywords = parseRestartKeywords(settings.restartKeywords), matches = {}, result = [], start = data.bounds.start;
+        var position = settings.restartKeywordPosition || "after";
+        if (position !== "after" && position !== "at") { fail("Choose At keyword or After keyword."); }
+        for (var k = 0; k < keywords.length; k++) { matches["word:" + keywords[k]] = true; }
+        for (var i = 0; i < data.words.length; i++) {
+            var word = data.words[i], text = "";
+            if (word.clipped) { continue; }
+            for (var j = word.start; j <= word.end; j++) { text += data.characters[j - data.bounds.start].text; }
+            if (!matches.hasOwnProperty("word:" + keywordToken(text))) { continue; }
+            // The outgoing gap belongs to the preceding group, just as with
+            // Word restart. Never generate an empty leading/trailing group.
+            var boundary = position === "at" ? word.start : (i + 1 < data.words.length ? data.words[i + 1].start : data.bounds.end + 1);
+            if (boundary > start && boundary <= data.bounds.end) { result.push({ start: start, end: boundary - 1 }); start = boundary; }
+        }
+        if (start <= data.bounds.end) { result.push({ start: start, end: data.bounds.end }); }
         return result;
     }
     function structureSpans(data, kind, includeWordGap) {
@@ -1054,7 +1089,7 @@
     function makePlan(data, settings) {
         settings = effectiveSettings(settings);
         var baseUnits = collectUnits(data, settings), restart = settings.restart || "never";
-        var spans = structureSpans(data, restart, true), units = [], groups = [], values = [], cursor = 0;
+        var spans = restart === "keywords" ? keywordSpans(data, settings) : structureSpans(data, restart, true), units = [], groups = [], values = [], cursor = 0;
         if (restart === "word") {
             var wordCount = parseNumber(settings.restartWords === undefined ? 1 : settings.restartWords, 1, 10000, true);
             if (wordCount === null) { fail("Words per restart must be a whole number from 1 to 10000."); }
@@ -2371,13 +2406,21 @@
         var modeRow = row(distributionPanel);
         var modeIDs = ["word", "line", "character", "sentence", "paragraph", "frame"];
         var mode = dropdown(modeRow, "Values per", ["Word", "Line", "Character", "Sentence", "Paragraph", "Frame"], 240, 96);
-        var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame"];
+        var restartIDs = ["never", "word", "sentence", "paragraph", "line", "frame", "keywords"];
         var restartRow = row(distributionPanel);
-        var restart = dropdown(restartRow, "Restart", ["Never", "Word", "Sentence", "Paragraph", "Line", "Frame"], 240, 96);
+        var restart = dropdown(restartRow, "Restart", ["Never", "Word", "Sentence", "Paragraph", "Line", "Frame", "Keywords"], 240, 96);
         var restartCountGroup = row(restartRow), restartWords = field(restartCountGroup, "Every", 1, 4);
         restartCountGroup.add("statictext", undefined, "words");
         restartCountGroup.visible = false; restartCountGroup.maximumSize = [0, 0];
         restartWords.helpTip = "Restart the complete curve after this many words, counted from the start of the scope. A shorter final group also receives the full curve.";
+        var keywordGroup = distributionPanel.add("group"); keywordGroup.orientation = "column"; keywordGroup.alignChildren = ["left", "top"]; keywordGroup.spacing = 6;
+        var keywordRow = row(keywordGroup), keywordLabel = keywordRow.add("statictext", undefined, "Keywords");
+        keywordLabel.preferredSize.width = 96; keywordLabel.minimumSize = [96, 0]; keywordLabel.maximumSize = [96, 10000];
+        var restartKeywords = keywordRow.add("edittext", undefined, ""); restartKeywords.preferredSize.width = 240;
+        restartKeywords.helpTip = "Comma-separated whole words, for example: restart, now. Matching ignores capitalization and surrounding punctuation. Keywords stay in the text.";
+        var restartKeywordPosition = dropdown(row(keywordGroup), "Start", ["After keyword", "At keyword"], 240, 96);
+        restartKeywordPosition.helpTip = "After: the next word starts a new curve. At: the keyword starts it. The beginning of the scope always starts a curve.";
+        keywordGroup.visible = false; keywordGroup.maximumSize = [0, 0];
         scope.helpTip="Frame follows visible text after recomposition. Story includes linked frames and overset. Selection uses highlighted text.";
         mode.helpTip="Assign one value per unit. Line and Frame follow the resulting composition.";
         property.helpTip="Line length uses centered widths. Style blend interpolates the selected character styles.";
@@ -2558,6 +2601,7 @@
             if (steps === null) { fail("Steps must be a whole number from 1 to 10000."); }
             var restartCount = restart.selection.index === 1 ? parseNumber(restartWords.text, 1, 10000, true) : 1;
             if (restartCount === null) { fail("Words per restart must be a whole number from 1 to 10000."); }
+            if (restartIDs[restart.selection.index] === "keywords") { parseRestartKeywords(restartKeywords.text); }
             var curveID = customEditing ? "custom" : curveIDs[curve.selection.index];
             if (curveID === "gaussian" || curveID === "ease-in" || curveID === "ease-out") {
                 var shape = parseNumber(shapeInput.text, curveID === "gaussian" ? 5 : 1, curveID === "gaussian" ? 50 : 8, false);
@@ -2572,6 +2616,7 @@
             for (var k = 0; k < points.length; k++) { copy.push({ x: points[k].x, y: points[k].y }); }
             var result = { scope: scope.selection.index, mode: modeIDs[mode.selection.index], restart: restartIDs[restart.selection.index], target: "both",
                 restartWords: restartCount,
+                restartKeywords: restartKeywords.text, restartKeywordPosition: restartKeywordPosition.selection.index === 1 ? "at" : "after",
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
@@ -2640,7 +2685,7 @@
             else if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
                 if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
-                text = (settings.restart === "word" && settings.restartWords > 1 ? "Shared curve restarts every " + settings.restartWords + " words. " : "Shared curve restarts in each " + settings.restart + ". ") + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
+                text = (settings.restart === "keywords" ? "Shared curve restarts " + (settings.restartKeywordPosition === "at" ? "at" : "after") + " matching keywords. " : settings.restart === "word" && settings.restartWords > 1 ? "Shared curve restarts every " + settings.restartWords + " words. " : "Shared curve restarts in each " + settings.restart + ". ") + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
                 if (isBell(settings.curve) && result.distribution.shortGroups) { text += " " + result.distribution.shortGroups + " group(s) have fewer than 3 steps and cannot represent the bell interior."; }
             }
             if(!editorTrack && settings.mode===settings.restart && result.distribution.steps===1){text="One unit per restart group: each group uses the curve’s starting value. Choose a smaller Values per unit for a curve inside each group. "+text;}
@@ -2685,6 +2730,12 @@
                     try { dialog.layout.layout(true); } catch (_) {}
                 }
                 restartWords.enabled = restart.enabled && showRestartCount;
+                var showKeywords = restartIDs[restart.selection.index] === "keywords";
+                if (keywordGroup.visible !== showKeywords) {
+                    keywordGroup.visible = showKeywords; keywordGroup.maximumSize = showKeywords ? [10000, 10000] : [0, 0];
+                    try { dialog.layout.layout(true); } catch (_) {}
+                }
+                restartKeywords.enabled = restartKeywordPosition.enabled = restart.enabled && showKeywords;
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
@@ -2733,6 +2784,8 @@
             for (i = 0; i < modeIDs.length; i++) { if (modeIDs[i] === saved.mode) { mode.selection = i; break; } }
             for (i = 0; i < restartIDs.length; i++) { if (restartIDs[i] === saved.restart) { restart.selection = i; break; } }
             restartWords.text = String(saved.restartWords === undefined ? 1 : saved.restartWords);
+            restartKeywords.text = saved.restartKeywords || "";
+            restartKeywordPosition.selection = saved.restartKeywordPosition === "at" ? 1 : 0;
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
@@ -2871,6 +2924,8 @@
         function numberCommitted() { if (!inputDelay.pending) { refresh(true); } }
         minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = restartWords.onChanging = numberChanging;
         minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = restartWords.onChange = numberCommitted;
+        restartKeywords.onChanging = numberChanging; restartKeywords.onChange = numberCommitted;
+        restartKeywordPosition.onChange = function () { refresh(true); };
         styleA.onChange = styleB.onChange = function () { if (switching) { return; } styleAttributes = null;blendLoadError="";definitionCacheKey=""; refresh(true); };
         missingStyle.onChange=function(){definitionCacheKey="";refresh(true);};
         refreshStyles.onClick=function(){definitionCacheKey="";refresh(true);};
