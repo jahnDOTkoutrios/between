@@ -1,6 +1,7 @@
 import { StyleCascade,ALL_FIELDS,PROPERTIES,validStyleNumber } from './properties.js';
 import { FONT_CHOICES } from './typography.js';
 import { defaultDistribution,CURVES } from './distribution.js';
+import { normalizeNoise } from './noise.js';
 import { MODES,defaultInteraction } from './interactions.js';
 import { ALIGNMENTS } from './alignment.js';
 import { envelope } from './geometry.js';
@@ -33,6 +34,7 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
   if(Array.isArray(saved.active))state.active=new Set(saved.active.filter(id=>PROPERTIES.some(p=>p.id===id)));
   try{const {a,b}=state.styles();envelope(1,Math.max(a.size,b.size),a,b);defaults.styles=cascadeSnapshot(state);}catch{/* Invalid saved geometry uses safe defaults. */}
   const d=defaults.distribution,s=object(source.distribution);
+  d.noise=normalizeNoise(s.noise);
   for(const key of ['unit','scope','restart','curve']){
     const allowed={unit:['all','character','letter','word','sentence','line','paragraph'],scope:['text','paragraph','sentence','line','word'],restart:['never','word','sentence','paragraph','line'],curve:CURVES.map(([id])=>id)};
     d[key]=choice(s[key],allowed[key],d[key]);

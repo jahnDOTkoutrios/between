@@ -61,6 +61,8 @@ npm run dev
 - **Press:** hold the specimen, or hold Space while it is focused, to approach B;
   release to return toward A.
 - **∿** opens Distribution: Values per, Restart, Scope, Steps and the curve editor.
+- **Noise** (the vertical-bars icon beside the curve button) opens Type, Amount,
+  Seed and targets. Noise starts Off and affects **Curve mode only**.
 - **⋯** beside the mode opens only the relevant interaction settings: radius
   or width, cycle duration, playback direction, response in
   milliseconds, easing, reverse travel and A/B inversion. No settings appear on the main canvas.
@@ -71,6 +73,39 @@ npm run dev
   It compares cached word widths against per-frame Pretext preparation and
   also exercises independent pointer-driven word styles. Keep the tab visible
   and avoid resizing during the test.
+
+## Seeded noise
+
+The vertical-bars button beside ∿ opens a small **Noise** popover. Type starts
+**Off**. Choose Random for independent samples, Smooth for gradual variation,
+or Fractal for several scales. Amount controls strength; Seed reproduces a field.
+New seed explicitly chooses another one. All noise runs in **Curve mode only**;
+active noise edits enter that mode. Other interactions keep their usual behavior.
+
+- **Blend values:** perturb the shared A–B amount across the chosen units.
+  Amount is a percentage of the blend range; results remain between A and B.
+  All active style properties follow the same noisy blend. Steps still share
+  sample buckets, and the curve editor continues to edit the underlying curve.
+- **Words per restart:** enable Restart → Word in Distribution, then choose
+  this target. Every 4 words with Amount 50% permits groups of 2–6 words.
+  Every group gets a complete curve, including the shorter final group.
+
+Both targets can be active, with independent streams from the same seed. Noise
+continues between groups and stays fixed during playback; the main slider
+animates the curve's strength. Smooth spans roughly four samples; Fractal layers
+several scales. The integer fields match the InDesign plugin's noise generator.
+
+Noise settings survive refresh, including valid seed edits still waiting for
+the typing delay. Restore defaults returns noise to Off. Seed input waits briefly
+before updating; amount dragging coalesces into one update per animation frame.
+No font measurements are prepared again for noise edits. Live reflow and bounded
+line-cycle handling use the same seeded samples as the fixed renderer.
+
+Verified with 114 web tests, the production build and browser checks for seeded
+refresh, pending input, defaults, Curve-only behavior, live reflow, dark mode
+and a 390 px viewport.
+
+![Seeded noise controls](docs/noise.png)
 
 ## How it works
 

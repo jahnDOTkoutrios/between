@@ -19,7 +19,7 @@ into interactive, animatable text in the browser.
 Define styles A and B, shape a curve, and explore how text changes across
 characters, words, lines and other structures. Built with
 [Pretext](https://github.com/chenglou/pretext), the browser version includes
-interactive playback, live reflow, a text-width ruler, shared Base typography,
+interactive playback, live reflow, seeded curve noise, a text-width ruler, shared Base typography,
 custom fonts, dark mode and settings that survive refresh.
 
 <details>

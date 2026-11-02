@@ -2,6 +2,8 @@
 
 ## Web prototype — 0.1.0
 
+- Port seeded Random, Smooth and Fractal noise to a compact web popover. Target blend values and/or words per restart in Curve mode only; preserve other interactions, scopes, steps and A/B bounds. Persist type, amount, seed and targets, default to Off, flush pending seed edits on refresh and cancel them on Restore defaults. Reuse cached measurements, coalesce slider updates per animation frame, and retain deterministic live reflow and playback.
+
 - Move text width from Base to a ruler slider above the specimen. Resize using current-style composition even with Live reflow off; retain fitted curve samples, saved widths and Auto, and coalesce drag refits to one per animation frame.
 
 - Use `between` as the repository name and public Pages path; update canonical web, source and script download links.

@@ -28,10 +28,12 @@
           <label class="morph-control" for="morph"><span id="morph-start">A</span><input id="morph" aria-label="Morph amount" type="range" min="0" max="100" step="0.1" value="0" /><span id="morph-end">B</span><output id="amount" for="morph">0%</output></label>
           <label class="mode-control"><span class="sr-only">Interaction</span><select id="interaction" aria-label="Interaction"><option value="scrub">Scrub</option><option value="curve">Curve</option><option value="pointer">Proximity</option><option value="wipe">Wipe</option><option value="wave">Wave</option><option value="scroll">Scroll</option><option value="press">Press</option></select></label>
           <button id="distribution-settings" class="icon-button" aria-label="Distribution" title="Distribution and curve" popovertarget="distribution-panel"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M3 17C7 17 8 7 12 7S17 17 21 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button id="noise-settings" class="icon-button" aria-label="Noise" aria-pressed="false" title="Noise (Curve mode)" popovertarget="noise-panel"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9v6M8 5v14M12 10v4M16 3v18M20 7v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
           <button id="interaction-settings" class="icon-button" aria-label="Interaction settings" title="Interaction settings" popovertarget="interaction-panel">⋯</button>
           <button id="play" class="small-button" aria-pressed="false">Play</button>
         </div>
         <div id="distribution-panel" class="popover distribution-panel" popover="auto" aria-label="Distribution"></div>
+        <div id="noise-panel" class="popover noise-panel" popover="auto" aria-label="Noise settings"></div>
         <div id="interaction-panel" class="popover interaction-panel" popover="auto" aria-label="Interaction settings"></div>
         <p id="hint" class="sr-only">Drag the slider to move every word between A and B.</p>
         <div class="width-control" aria-label="Text block width">

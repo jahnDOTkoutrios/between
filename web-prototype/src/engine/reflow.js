@@ -59,7 +59,7 @@ export function fitLiveLayout(model,catalog,appearances,amounts,width,a,b,alignm
   return alignLayout({lines,entries:lines.flat(),height,lineHeight,autoLineHeight,width,contentWidth,edgePadding,wordCount:catalog.words.length,oversized,live:true},alignment);
 }
 function targetsFor(layout,amount,mode,pointer,settings,distribution){
-  const structure=buildStructureDistribution(layout,distribution),targets=[];
+  const structure=buildStructureDistribution(layout,distribution,mode),targets=[];
   layout.lines.forEach((line,lineIndex)=>line.forEach(entry=>{
     const unit=structure.entries[entry.index];let target=0;
     if(unit){if(mode==='curve'){target=amount*unit.value;if(settings.invert)target=1-target;}else target=fieldAmount(amount,{entry,lineIndex,lineCount:layout.lines.length,wordCount:layout.wordCount,lineHeight:layout.lineHeight,mode,pointer,settings,coordinate:unit});}

@@ -232,6 +232,18 @@ select:hover { border-color:var(--border);background-color:var(--hover); }
 .mode-control select { min-width:112px; }
 .icon-button { display:inline-flex;align-items:center;justify-content:center; }
 .icon-button svg { display:block;flex-shrink:0; }
+.noise-amount,.noise-seed { display:flex;align-items:center;gap:8px;min-width:0;width:164px; }
+.noise-amount input { flex:1;min-width:0;width:100%;accent-color:var(--accent); }
+.noise-amount output { min-width:34px;text-align:right;font-variant-numeric:tabular-nums; }
+.noise-seed input[type=number] { min-width:0;width:100%; }
+.noise-seed .icon-button { flex-shrink:0;width:28px;height:28px; }
+.noise-targets { border-top:1px solid var(--rule);margin-top:14px;padding-top:12px;display:grid;gap:10px; }
+.noise-target { display:flex;align-items:center;gap:8px;cursor:pointer; }
+.noise-target input { margin:0;accent-color:var(--accent); }
+.noise-target:has(input:disabled) { color:var(--muted);cursor:default; }
+.noise-detail { display:block;color:var(--muted);margin-top:12px;font-variant-numeric:tabular-nums; }
+.noise-detail[hidden] { display:none; }
+.icon-button.has-noise { background:var(--hover);border-color:var(--ink); }
 @supports (appearance:base-select) {
   select,.mode-control select,.setting-row select,.property-value select,select::picker(select) { appearance:base-select; }
   select::picker-icon { display:none; }

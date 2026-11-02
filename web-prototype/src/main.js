@@ -10,6 +10,8 @@ import { TextRenderer } from './ui/renderer.js';
 import { PropertyEditor } from './ui/property-editor.js';
 import { InteractionEditor } from './ui/interaction-editor.js';
 import { DistributionEditor } from './ui/distribution-editor.js';
+import { NoiseEditor } from './ui/noise-editor.js';
+import { activeNoise } from './engine/noise.js';
 import { defaultDistribution, characterUnits, buildStructureDistribution } from './engine/distribution.js';
 import { runComparison } from './benchmark/runner.js';
 import { PHRASE, PARAGRAPH } from './samples.js';
@@ -61,16 +63,20 @@ const interactionEditor=new InteractionEditor($('interaction-settings'),$('inter
   requestPaint();
 });
 interactionEditor.render(mode,profiles.get(mode));
-const distributionEditor=new DistributionEditor($('distribution-settings'),$('distribution-panel'),distribution,key=>{
+let noiseEditor=null;
+function distributionChanged(key){
   queueSave();
+  noiseEditor?.sync(mode);
   if(key==='scope'&&layout)distributionEditor.scopeCount(buildStructureDistribution(layout,distribution).scopeCount);
-  const editsCurve=['curve','points','peak','width','power','steps','invert','smooth'].includes(key);
+  const editsCurve=['curve','points','peak','width','power','steps','invert','smooth'].includes(key)||key==='noise'&&!!(activeNoise(distribution.noise,'values')||distribution.restart==='word'&&activeNoise(distribution.noise,'restartWords'));
   if((editsCurve||mode==='scrub'&&['unit','restart','restartWords'].includes(key))&&mode!=='curve')setMode('curve');
   else if(editsCurve)stopPlayback();
   if(model&&model.characters!==characterUnits(distribution)){
     generation++;clearTimeout(preparationTimer);preparationTimer=setTimeout(rebuild,220);
   }else requestPaint();
-});
+}
+const distributionEditor=new DistributionEditor($('distribution-settings'),$('distribution-panel'),distribution,distributionChanged);
+noiseEditor=new NoiseEditor($('noise-settings'),$('noise-panel'),distribution,()=>distributionChanged('noise'));
 
 function currentSetup(){return normalizeSetup({version:1,styles:cascadeSnapshot(propertyEditor.state),text,distribution,profiles:Object.fromEntries(profiles),mode,amount,liveReflow,dark});}
 function queueSave(){if(!canSave)return;clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,250);}
@@ -82,7 +88,7 @@ function syncSample(){for(const key of ['phrase','paragraph']){const selected=te
 function restoreDefaults(){
   canSave=false;clearTimeout(saveTimer);clearTimeout(preparationTimer);generation++;stopPlayback();
   const defaults=defaultSetup();text=defaults.text;profiles.clear();for(const[key,value]of Object.entries(defaults.profiles))profiles.set(key,value);
-  distributionEditor.restore(defaults.distribution);restoreCascade(propertyEditor.state,defaults.styles);applyTheme(false);applyFrameWidth();
+  distributionEditor.restore(defaults.distribution);noiseEditor.restore();restoreCascade(propertyEditor.state,defaults.styles);applyTheme(false);applyFrameWidth();
   liveReflow=false;$('live-reflow').checked=false;pointer=null;touchScroll=null;stage.scrollLeft=0;
   $('editor').hidden=true;$('edit').setAttribute('aria-expanded','false');syncSample();
   for(const panel of document.querySelectorAll(':popover-open'))panel.hidePopover();
@@ -127,6 +133,7 @@ function syncControls(){
 }
 function setMode(value){
   stopPlayback();mode=value;$('interaction').value=value;pointer=null;touchScroll=null;
+  noiseEditor?.sync(mode);
   if(mode==='press'||mode==='pointer')amount=0;
   if(mode==='wave')amount=.5;
   if(mode==='curve')amount=1;
@@ -280,7 +287,7 @@ $('benchmark').addEventListener('click',async()=>{
   finally{benchmarkController=null;document.body.classList.remove('benchmarking');lockControls(false);$('benchmark').textContent='Run comparison';mount();requestPaint();$('performance').scrollIntoView({block:'center',behavior:'instant'});}
 });
 window.addEventListener('pageshow',event=>{if(event.persisted){disposed=false;resizeObserver.observe(stage);resizeObserver.observe(specimen);requestPaint();}});
-window.addEventListener('pagehide',()=>{disposed=true;distributionEditor.flushNumbers();saveNow();clearTimeout(preparationTimer);cancelAnimationFrame(frame);frame=0;resizeObserver.disconnect();benchmarkController?.abort();});
+window.addEventListener('pagehide',()=>{disposed=true;distributionEditor.flushNumbers();noiseEditor.flush();noiseEditor.discardInput();saveNow();clearTimeout(preparationTimer);cancelAnimationFrame(frame);frame=0;resizeObserver.disconnect();benchmarkController?.abort();});
 try{
   await document.fonts.load('400 30px "Manrope Morph"');await document.fonts.ready;
   if(!document.fonts.check('400 30px "Manrope Morph"'))throw new Error('The bundled font did not load.');

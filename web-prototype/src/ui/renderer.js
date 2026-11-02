@@ -56,7 +56,7 @@ export class TextRenderer {
       this.nodes.forEach((item,index)=>{const hidden=!visible.has(index);if(item.hidden!==hidden){item.node.style.display=hidden?'none':'block';item.hidden=hidden;writes++;}if(hidden){item.amount=liveFrame.amounts[index]??0;this.positions[index]={x:0,y:0,width:0,amount:item.amount,state:0,hidden:true};}});
     }else{
       this.reflowState=null;
-      if(distribution){const key=JSON.stringify(distribution);if(this.structureKey!==key){this.structure=buildStructureDistribution(this.layout,distribution);this.structureKey=key;}}
+      if(distribution){const key=JSON.stringify([mode,distribution]);if(this.structureKey!==key){this.structure=buildStructureDistribution(this.layout,distribution,mode);this.structureKey=key;}}
       else{this.structure=null;this.structureKey=null;}
     }
     const layout=this.layout,snapshot=this.referenceLayout.fitSnapshot;

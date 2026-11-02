@@ -68,3 +68,15 @@ test('skew does not add per-unit spacing in the actual stable or live renderer',
     }
   }finally{if(saved===undefined)delete globalThis.document;else globalThis.document=saved;}
 });
+
+test('seeded Curve noise drives style properties and switching modes clears its cached assignments',async()=>{
+  const{reflowModel}=await import('./helpers/reflow-model.js'),{layoutModel}=await import('../src/engine/measurements.js'),{defaultDistribution}=await import('../src/engine/distribution.js');
+  const saved=globalThis.document;globalThis.document={createElement:node,createDocumentFragment:node,createTextNode:text=>({textContent:text})};
+  try{
+    const model=reflowModel(),renderer=new TextRenderer(node()),distribution={...defaultDistribution(),restart:'word',restartWords:4,noise:{type:'random',amount:50,seed:42,values:true,restartWords:true}};
+    renderer.mount(model,layoutModel(model,600));renderer.render(1,{mode:'curve',distribution});const noisy=renderer.nodes.map(n=>n.ink.style.fontSize);assert.ok(new Set(noisy).size>1);
+    renderer.render(1,{mode:'scrub',distribution});assert.ok(renderer.nodes.every(n=>n.ink.style.fontSize==='50px'));
+    renderer.render(1,{mode:'curve',distribution});assert.deepEqual(renderer.nodes.map(n=>n.ink.style.fontSize),noisy);
+    const writes=renderer.frameWrites;renderer.render(1,{mode:'curve',distribution});assert.equal(renderer.frameWrites,0);assert.ok(writes>0);
+  }finally{if(saved===undefined)delete globalThis.document;else globalThis.document=saved;}
+});

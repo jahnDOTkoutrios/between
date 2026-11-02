@@ -1,6 +1,7 @@
 import { clamp } from './morph.js';
+import { defaultNoise,activeNoise,noiseSample,noisyValue,wordGroupIndices } from './noise.js';
 export const CURVES=[['linear','Linear'],['in','Ease in'],['out','Ease out'],['smooth','S-curve'],['gaussian','Gaussian'],['sine','Sine'],['triangle','Triangle'],['custom','Custom']];
-export const defaultDistribution=()=>({unit:'word',scope:'text',scopeIndex:1,restart:'never',restartWords:1,curve:'linear',steps:0,peak:.5,width:.22,power:2,invert:false,smooth:true,points:[{x:0,y:0},{x:.5,y:1},{x:1,y:0}]});
+export const defaultDistribution=()=>({unit:'word',scope:'text',scopeIndex:1,restart:'never',restartWords:1,curve:'linear',steps:0,peak:.5,width:.22,power:2,invert:false,smooth:true,points:[{x:0,y:0},{x:.5,y:1},{x:1,y:0}],noise:defaultNoise()});
 export const characterUnits=settings=>['letter','character'].includes(settings.unit);
 export function graphemes(text){return Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text),part=>part.segment);}
 export function textStructure(text){
@@ -34,19 +35,21 @@ export function curveAt(x,settings){
 export function moveCurvePoint(points,index,x,y){const point=points[index];point.x=index===0?0:index===points.length-1?1:clamp(x,points[index-1].x+.005,points[index+1].x-.005);point.y=clamp(y);return point;}
 export function addCurvePoint(points,x,y){x=clamp(x,.005,.995);if(points.length>=12)return points.length-1;const close=points.findIndex(p=>Math.abs(p.x-x)<.01);if(close>=0)return close;points.push({x,y:clamp(y)});points.sort((a,b)=>a.x-b.x);return points.findIndex(p=>p.x===x);}
 const keyOf=(entry,kind)=>kind==='text'||kind==='all'?'all':kind==='character'||kind==='letter'?entry.index:entry[`${kind}Index`]??(kind==='word'?entry.index:0);
-export function buildStructureDistribution(layout,settings){
+export function buildStructureDistribution(layout,settings,mode='curve'){
   const entries=layout.lines.flatMap((line,lineIndex)=>line.map(entry=>({...entry,lineIndex}))),result=[],scopeKeys=[...new Set(entries.filter(e=>!e.isSpace).map(e=>keyOf(e,settings.scope)))];
   const selected=settings.scope==='text'?null:scopeKeys[Math.min(scopeKeys.length-1,Math.max(0,settings.scopeIndex-1))];
   const scoped=entries.filter(e=>selected===null||keyOf(e,settings.scope)===selected),wordKeys=[...new Set(scoped.map(e=>keyOf(e,'word')))],wordRanks=new Map(wordKeys.map((key,i)=>[key,i]));
+  const config=mode==='curve'?settings.noise:null,wordGroups=settings.restart==='word'?wordGroupIndices(wordKeys.length,settings.restartWords,config):null,valueNoise=activeNoise(config,'values');
   const groups=new Map();
-  for(const entry of scoped){const key=settings.restart==='word'?Math.floor(wordRanks.get(keyOf(entry,'word'))/Math.max(1,settings.restartWords)):keyOf(entry,settings.restart==='never'?'text':settings.restart);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
-  const samples=[];
+  for(const entry of scoped){const key=settings.restart==='word'?wordGroups[wordRanks.get(keyOf(entry,'word'))]:keyOf(entry,settings.restart==='never'?'text':settings.restart);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
+  const samples=[];let noiseOffset=0;
   for(const group of groups.values()){
     const units=new Map();
     for(const entry of group){if(settings.unit==='letter'&&entry.isSpace)continue;const key=keyOf(entry,settings.unit);if(!units.has(key))units.set(key,[]);units.get(key).push(entry);}
     const list=[...units.values()],steps=settings.steps?Math.max(1,Math.min(list.length,Math.round(settings.steps))):list.length,values=[];
     list.forEach((unit,i)=>{
-      const progress=list.length<2?0:i/(list.length-1),sample=steps<2?0:Math.round(progress*(steps-1))/(steps-1),value=curveAt(sample,settings);
+      const progress=list.length<2?0:i/(list.length-1),bucket=steps<2?0:Math.round(progress*(steps-1)),sample=steps<2?0:bucket/(steps-1);
+      const delta=valueNoise?valueNoise.amount*noiseSample(valueNoise,noiseOffset+bucket*list.length/steps):0,value=valueNoise?noisyValue(curveAt(sample,settings),delta):curveAt(sample,settings);
       const x=unit.reduce((sum,e)=>sum+e.envelopeCenter,0)/unit.length,y=unit.reduce((sum,e)=>sum+(e.anchorY??(e.lineIndex+.5)*layout.lineHeight),0)/unit.length;
       for(const entry of unit)result[entry.index]={u:(i+.5)/list.length,value,x,y,verticalOnly:settings.unit==='line'};values.push(value);
     });
@@ -54,6 +57,7 @@ export function buildStructureDistribution(layout,settings){
     // those gaps as additional curve samples.
     let previous=null;for(const entry of group){if(result[entry.index])previous=result[entry.index];else if(entry.isSpace)result[entry.index]=previous;}
     samples.push(values);
+    noiseOffset+=list.length;
   }
   return{entries:result,groups:groups.size,scopeCount:scopeKeys.length,samples};
 }
