@@ -135,3 +135,12 @@ Words per restart (Restart → Word), or both. For example, Every 4 words with
 Amount 50% varies groups from 2 to 6 words; values stay inside Min/Max. The seed
 and targets are recalled with the frame's setup. Set updates the main preview;
 Cancel discards panel edits. Each kept property can use its own noise setup.
+
+For a reflow pattern, use example 03's Restart → Line, then choose
+**Line sampling → Fixed** in Composition, Apply, and change the frame width.
+Formatting stays with the originally sampled text as new lines form.
+**Resample lines** replaces the sample at the current width after restoring the
+active property's baseline. It turns Preview on; Cancel restores the old sample.
+Reopening and Reapply preserve fixed sampling, including sampled overset text.
+Newly visible text outside the sample keeps its baseline until resampling.
+Fixed mode adds no breaks. Follow layout remains the default.

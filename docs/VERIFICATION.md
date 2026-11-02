@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 215 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 231 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -47,6 +47,22 @@ Off and update only on Set; noisy smooth/stepped contours preserve paragraphs,
 repeat their paths and restore geometry on Cancel. The panel was inspected
 visually. 48 numeric samples also match between Node/V8 and native ExtendScript.
 These checks used disposable documents and left user artwork unchanged.
+
+## V8 fixed line sampling
+
+16 added automated checks cover fixed baseline sampling without composition
+iterations or forced breaks; exact assignments across resize, reapply and
+overset; explicit resampling; Cancel and Undo; curve/noise edits; line units and
+multi-attribute blends; independent saved stacks; scope/context changes;
+stale-sample rejection; cache invalidation on Resample; Clear tracking;
+conditional controls; default Follow layout; and wholly overset frame recall.
+
+30 focused native assertions passed in InDesign 2026 on macOS. These cover real
+width changes, saved sample/value retention, Resample and replacement history,
+Cancel/Undo, completely overset frames and empty-frame resampling rejection,
+save/reopen, actual tracking-driven recomposition, and native UI layout,
+recalled controls and preview behavior. Tests used disposable documents. The
+native controls were visually inspected; user artwork was preserved.
 
 ## Historical v5 native verification
 

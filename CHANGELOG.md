@@ -21,6 +21,8 @@
 
 ## 8.0.0
 
+- Add Follow layout / Fixed line sampling and Resample lines for line units/restarts. Save original line boundaries per property with the owning frame; keep them across resize, overset, curve/noise edits and Reapply. Resample restores the property baseline and captures at the current width, turns Preview on and participates in Cancel/Undo. Disable added breaks in Fixed mode, retain per-stage samples in stacks, and keep fully overset saved frames reopenable. Follow layout remains the default; Line length and paragraph indents keep their existing behavior.
+
 - Add an off-by-default Noise panel with Random, Smooth and Fractal fields, Amount, Seed and New seed. Target the current property's values and/or words per restart. Keep values within Min/Max, steps intact and word groups positive; use separate deterministic streams and continue value sampling between groups. Preserve noise in saved setups and property stacks, keep popup edits local until Set, and support Line length contours without changing auxiliary Line width.
 
 - Add Restart → Keywords with comma-separated whole words and After keyword / At keyword boundaries. Match case-insensitively with surrounding punctuation ignored; keep the scope start, disjoint groups and a full curve per group. Persist keyword settings in saved setups and stacks, and debounce keyword input like numeric fields.

@@ -116,6 +116,31 @@ and surrounding punctuation, and leaves the keywords in the text. No match
 means one curve across the scope. Values per still chooses the units within
 each group; keyword settings are included in saved setups and property stacks.
 
+### Fixed line sampling
+
+For **Values per → Line** or **Restart → Line**, Composition shows
+**Line sampling: Follow layout / Fixed**. Follow layout remains the default.
+
+Choose **Fixed**, Preview and Apply, then resize the text frame. The original
+line boundaries stay attached to the sampled text, so reflow shifts the
+repetitions into new positions without recalculating them for the new lines.
+Curve, range, steps and noise edits continue to use the same sample. Fixed
+sampling adds no line breaks and disables the live composition controls.
+
+Reopening loads the saved sample with Preview off. Reapply keeps it;
+**Resample lines** explicitly replaces it at the current frame width and turns
+Preview on. Resampling restores the active property's baseline first, with kept
+properties still applied. Cancel restores the prior sample and appearance;
+Undo after Apply restores the previous setup. Each stacked property owns its
+own sample. Changing the property, units, restart structure or scope starts a
+new sampling context.
+
+Sampled text keeps its assigned formatting even if it becomes overset. Text
+newly revealed outside the sampled range retains its baseline until Resample.
+A fully overset frame can recall and reapply its sample; enlarge it before
+resampling. Existing text-change and frame-ownership checks still apply.
+Paragraph indents and Line length retain their separate composition behavior.
+
 ### Seeded noise
 
 **Noise…** opens a compact panel. It starts **Off**; older setups retain their
@@ -256,7 +281,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **215 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **231 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.

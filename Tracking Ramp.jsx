@@ -109,6 +109,19 @@
         }
         if (frame) {
             var frameBounds = visibleBounds(frame);
+            if (!frameBounds) {
+                // A resized fixed sample can become wholly overset. Keep its
+                // frame scope available so reopening/reapply does not lose it.
+                try {
+                    var recipe = decode(story.extractLabel(SETUP_KEY));
+                    if (recipe.owner && recipe.owner.token === setupFrameToken(frame)) {
+                        for (var fs = 0; fs < recipe.stages.length; fs++) {
+                            var stage = recipe.stages[fs];
+                            if (stage.scope.kind === "frame" && usesFixedLines(stage.settings) && stage.settings.lineSample) { frameBounds = stage.settings.lineSample.bounds; break; }
+                        }
+                    }
+                } catch (_) {}
+            }
             if (frameBounds) {
                 scopes.push({ label: "Current frame (live composition)", kind: "frame", bounds: frameBounds });
             }
@@ -329,9 +342,52 @@
     function usesComposition(settings) {
         return /^(line|frame)$/.test(settings.mode) || /^(line|frame)$/.test(settings.restart || "never");
     }
+    function usesFixedLines(settings) {
+        return settings.textEnabled !== false && settings.lineSampling === "fixed" && settings.property !== "lineLength" && !isParagraphProperty(settings.property) &&
+            (settings.mode === "line" || settings.restart === "line");
+    }
+    function lineSampleKey(settings, scope) {
+        return encode([settings.property, settings.mode, settings.restart || "never", scope.kind, scope.kind === "selection" ? scope.bounds : null]);
+    }
+    function savedLineSample(story, scope, settings) {
+        var sample = settings.lineSample;
+        if (!usesFixedLines(settings) || !sample || sample.key !== lineSampleKey(settings, scope)) { return null; }
+        if (sample.version !== 1 || sample.signature !== signature(story) || !sample.bounds || sample.bounds.start < 0 || sample.bounds.end >= story.characters.length || sample.bounds.end < sample.bounds.start || !(sample.lines instanceof Array) || !sample.lines.length || !(sample.frames instanceof Array)) {
+            fail("The fixed line sample no longer matches this text. Forget the saved setup before sampling changed text.");
+        }
+        var end = sample.bounds.start - 1;
+        for (var i = 0; i < sample.lines.length; i++) {
+            var span = sample.lines[i];
+            if (typeof span.start !== "number" || typeof span.end !== "number" || span.start <= end || span.end < span.start || span.start < sample.bounds.start || span.end > sample.bounds.end) { fail("Invalid saved line sample. Resample lines before applying."); }
+            end = span.end;
+        }
+        return sample;
+    }
+    function lineSamplingData(target, scope, settings) {
+        var story = target.story, sample = savedLineSample(story, scope, settings), data;
+        if (!sample) {
+            // InDesign can expose a phantom Line with overset characters even
+            // when an empty frame renders no contents at all.
+            if (scope.kind === "frame" && target.frame && typeof target.frame.contents === "string" && !target.frame.contents.length) { fail("No visible lines to sample. Enlarge the frame before resampling."); }
+            var bounds = boundsFor(target, scope); if (!bounds) { fail("No visible lines to sample. Enlarge the frame before resampling."); }
+            data = captureEffect(story, bounds, settings);
+            if (!data.lines.length) { fail("No visible lines to sample."); }
+            sample = { version: 1, key: lineSampleKey(settings, scope), signature: signature(story), bounds: data.bounds, lines: data.lines, frames: data.frames || [] };
+            sample = decode(encode(sample));
+        } else { data = captureEffect(story, sample.bounds, settings); }
+        settings.lineSample = sample;
+        // Re-read characters/words, but preserve sampled structural boundaries.
+        // The sampled text remains owned even if it has since become overset.
+        data.lines = decode(encode(sample.lines)); data.frames = decode(encode(sample.frames));
+        return data;
+    }
 
     function isParagraphProperty(id) { return /^(leftIndent|rightIndent|firstLineIndent)$/.test(id); }
     function effectiveSettings(settings) {
+        if (usesFixedLines(settings)) {
+            var fixed = {}; for (var field in settings) { fixed[field] = settings[field]; }
+            fixed.lockLines = fixed.allowLineBreaks = false; return fixed;
+        }
         if (!isParagraphProperty(settings.property) && settings.property !== "lineLength") { return settings; }
         var copy = {}; for (var key in settings) { copy[key] = settings[key]; }
         copy.mode = settings.property === "lineLength" ? "line" : "paragraph"; copy.restart = "never"; copy.target = "both";
@@ -1896,6 +1952,7 @@
         if (removedBreaks) { textEdits.push({ positions: removedBreaks, removing: true }); }
         var effectKey = settings.property;
         var previous = history.effects[effectKey];
+        if (usesFixedLines(settings) && settings.lineSample === undefined && settings.replace && previous && previous.settings) { settings.lineSample = previous.settings.lineSample ? decode(encode(previous.settings.lineSample)) : null; }
         if (settings.textEnabled !== false && settings.replace && previous) {
             if (previous.signature !== signature(story)) { fail("Text changed since the previous effect. Disable Replace previous effect to start a new baseline."); }
             restoreSnapshot(story, previous.original, doc);
@@ -1920,6 +1977,8 @@
         var frameWidthResult = applyFrameWidth(target, settings);
         removeMetrics(doc, story.id,story.extractLabel(OWNER_KEY));
         var bounds = boundsFor(target, scope);
+        var fixedSample = savedLineSample(story, scope, settings);
+        if (fixedSample) { bounds = fixedSample.bounds; }
         if (!bounds && settings.textEnabled === false) { bounds = boundsOf(story); }
         if (!bounds) { fail("This frame has no visible text. Choose Entire story."); }
         var properties = propertiesFor(settings);
@@ -1941,6 +2000,11 @@
         }
         var plan;
         if (settings.textEnabled === false) { plan = makePlan(currentData(), settings); }
+        else if (usesFixedLines(settings)) {
+            plan = makePlan(lineSamplingData(target, scope, settings), settings);
+            applyValues(story, liveClear ? clearedFramePlan(plan) : plan, doc, baseline); story.recompose();
+            plan.fixedLines = true; plan.sampledLineCount = settings.lineSample.lines.length; plan.composition = true;
+        }
         else if (scope.kind === "frame" || usesComposition(settings)) {
             var iterationTouched = {}, baselineTracking = null;
             if (liveClear) { iterationTouched = touchedIndices([{ spans: [cleared] }]); }
@@ -2212,7 +2276,7 @@
                             self.liveTarget.story.recompose(); advanceScopes(self.liveTarget, result);
                         }
                     }
-                    if (settings) { result = applyEffect(self.liveTarget, settings); advanceScopes(self.liveTarget, result); }
+                    if (settings) { result = applyEffect(self.liveTarget, settings); settings = result.settings; advanceScopes(self.liveTarget, result); }
                     if (result) { result.keptCount = self.stages.length; writeSavedSetup(self,settings); }
                 } catch (e) { error = e; }
                 finally { app.scriptPreferences.enableRedraw = true; }
@@ -2220,7 +2284,9 @@
             self.active = self.target.document.undoName === TITLE && self.target.story.extractLabel(TOKEN_KEY) === self.token;
             if (error) { if (self.active) { self.rollback(); } throw error; }
             if (!self.active) { fail("InDesign did not create the preview transaction; preview cannot be safely restored."); }
-            self.result = result; self.cacheKey = key; return result;
+            self.result = result; self.cacheKey = key;
+            if (settings && usesFixedLines(settings) && result.settings.lineSample) { settings.lineSample = result.settings.lineSample; self.cacheKey = encode(settings); }
+            return result;
         } finally { app.scriptPreferences.enableRedraw = oldRedraw; }
     };
     PreviewSession.prototype.keep = function (settings) {
@@ -2475,6 +2541,11 @@
         lockLines.helpTip = "Try exact live composition, then freeze sampled assignments if needed. Added breaks require their own toggle. Min/Max are not reduced.";
         var allowBreaks = compositionRow.add("checkbox", undefined, "Allow added line breaks"); allowBreaks.value = false;
         allowBreaks.helpTip = "Allow managed tracking soft breaks when composition cycles. For Line length, allow real paragraph breaks for independent per-line indents. Off preserves paragraph structure and uses a frame contour for Line length. Cancel restores everything.";
+        var samplingRow = row(optionsPanel), lineSampling = dropdown(samplingRow, "Line sampling", ["Follow layout", "Fixed"], 240, 96);
+        var resampleLines = samplingRow.add("button", undefined, "Resample lines");
+        lineSampling.helpTip = "Fixed keeps sampled line boundaries while the text reflows. Resizing does not redistribute values across the new lines. Follow layout recalculates from the resulting composition.";
+        resampleLines.helpTip = "Replace this property's line sample at the current frame width, after restoring its baseline. Kept properties remain in place. Preview turns on; Cancel restores the previous setup and appearance.";
+        samplingRow.visible = false; samplingRow.maximumSize = [0, 0]; resampleLines.visible = false;
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
         var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom"];
@@ -2517,6 +2588,7 @@
 
         var session = new PreviewSession(target), settings = null, plan = null;
         var noiseOptions = { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
+        var lineSample = null;
         if(savedState.status!=="none"){live.value=false;}
         var points = [], selected = -1, dragging = false, customEditing = false, busy = false, pendingRefresh = false, shown = false;
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
@@ -2704,10 +2776,13 @@
                 restartWords: restartCount,
                 restartKeywords: restartKeywords.text, restartKeywordPosition: restartKeywordPosition.selection.index === 1 ? "at" : "after",
                 noise: decode(encode(noiseOptions)),
+                lineSampling: lineSampling.selection.index === 1 ? "fixed" : "follow", lineSample: lineSample ? decode(encode(lineSample)) : null,
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
                 clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: allowBreaks.value, allowLineBreaks: allowBreaks.value, autoStabilize: lockLines.value };
+            if (usesFixedLines(result)) { result.lockLines = result.allowLineBreaks = false; }
+            else { result.lineSampling = "follow"; result.lineSample = null; }
             if (id === "styleBlend") {
                 if (!styleObjects.length) { fail("Create character styles in this document before choosing Character-style blend."); }
                 if(!styleA.selection || !styleB.selection){fail(blendLoadError||"Choose Style A and Style B.");}
@@ -2736,7 +2811,8 @@
             if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + (settings.restart === "word" && activeNoise(settings, "restartWords") ? "variable-word" : settings.restart === "word" && settings.restartWords > 1 ? settings.restartWords + "-word" : settings.restart) + " groups"; }
             summary.text += " / " + stepsLabel + " steps/group / " + propertyInfo(settings.property, axes[axis.selection.index]).label;
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
-            if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
+            if (result.fixedLines) { summary.text += " / Fixed: " + result.sampledLineCount + " sampled lines"; }
+            else if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
             if (result.fixedSampling) { summary.text += " / Fixed sampling"; }
             if (result.lineLength && result.fixedSampling) { summary.text += " / sampled " + result.sampleCount + " rows"; }
             if (result.lineLengthContour) { summary.text += " / paragraphs preserved"; }
@@ -2753,6 +2829,7 @@
             samples.text = (editorTrack ? "Width samples: " : (displayed.average ? "Average across groups: " : "Group " + (previewIndex + 1) + " values: ")) + values.join("  >  ");
             var text = "Cancel restores the document. Metrics print and show actual tracking below each line.";
             if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use fixed breaks when Allow added line breaks is on."; }
+            if (usesFixedLines(settings)) { text = "Fixed samples stay attached during reflow. Resample uses the current width. Added breaks are off; text outside the sample keeps its baseline."; }
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
             else if (settings.target === "spaces") { text += "\nOnly interword spaces change. Tabs, breaks, and leading/trailing spaces are excluded."; }
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
@@ -2826,6 +2903,13 @@
                 noiseButton.enabled = textEnabled.value;
                 noiseButton.text = noiseOptions.type !== "off" && noiseOptions.amount > 0 && (noiseOptions.values || noiseOptions.restartWords && showRestartCount) ? "Noise · " + noiseOptions.amount + "%…" : "Noise…";
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
+                var samplingAvailable = textEnabled.value && !paragraphProperty && !lengthProperty && (modeIDs[mode.selection.index] === "line" || restartIDs[restart.selection.index] === "line");
+                var fixedLines = samplingAvailable && lineSampling.selection.index === 1;
+                var samplingLayoutChanged = samplingRow.visible !== samplingAvailable || resampleLines.visible !== fixedLines;
+                samplingRow.visible = samplingAvailable; samplingRow.maximumSize = samplingAvailable ? [10000, 35] : [0, 0];
+                lineSampling.enabled = samplingAvailable; resampleLines.visible = resampleLines.enabled = fixedLines; resampleLines.maximumSize = fixedLines ? [160, 35] : [0, 0];
+                if (fixedLines) { lockLines.enabled = allowBreaks.enabled = false; }
+                if (samplingLayoutChanged) { try { dialog.layout.layout(true); } catch (_) {} }
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
                 // snapshot, so edits never accumulate across control changes.
@@ -2838,9 +2922,13 @@
                 }
                 else {
                     if (session.stages.length) { session.preview(null); } else { session.rollback(); }
-                    var b = scopeBounds(); if (!b) { fail("No visible text in this frame."); }
-                    plan = makePlan(captureEffect(target.story, b, settings), settings);
+                    var b = scopeBounds();
+                    if (usesFixedLines(settings)) {
+                        plan = makePlan(lineSamplingData(target, target.scopes[settings.scope], settings), settings);
+                        plan.fixedLines = true; plan.sampledLineCount = settings.lineSample.lines.length;
+                    } else { if (!b) { fail("No visible text in this frame."); } plan = makePlan(captureEffect(target.story, b, settings), settings); }
                 }
+                if (live.value && shown && plan.fixedLines) { lineSample = decode(encode(plan.settings.lineSample)); }
                 showResult(plan); apply.enabled = true; addProperty.enabled = textEnabled.value && session.stages.length < propertyIDs.length - 1; syncStack();
                 removePoint.enabled = curveIDs[curve.selection.index] === "custom" && selected > 0 && selected < points.length - 1;
                 redraw(); if (shown) { dialog.update(); }
@@ -2876,6 +2964,8 @@
             restartKeywords.text = saved.restartKeywords || "";
             restartKeywordPosition.selection = saved.restartKeywordPosition === "at" ? 1 : 0;
             noiseOptions = saved.noise ? decode(encode(saved.noise)) : { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
+            lineSampling.selection = saved.lineSampling === "fixed" ? 1 : 0;
+            lineSample = saved.lineSample ? decode(encode(saved.lineSample)) : null;
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
@@ -3055,6 +3145,8 @@
         };
         scope.onChange = function () { try { session.rollback(); updateAxes(); } catch (_) {} refresh(true); };
         mode.onChange = restart.onChange = colorA.onChange = colorB.onChange = function () { refresh(true); };
+        lineSampling.onChange = function () { if (switching) { return; } lineSample = null; refresh(true); };
+        resampleLines.onClick = function () { if (switching) { return; } inputDelay.cancel(); lineSample = null; live.value = true; refresh(true); };
         textEnabled.onClick = live.onClick = metrics.onClick = invert.onClick = auto.onClick = smooth.onClick = replace.onClick = clearTracking.onClick = lockLines.onClick = allowBreaks.onClick = function () { refresh(true); };
         apply.onClick = function () {
             inputDelay.cancel();definitionCacheKey="";
