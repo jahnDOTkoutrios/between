@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 231 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 247 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -63,6 +63,29 @@ Cancel/Undo, completely overset frames and empty-frame resampling rejection,
 save/reopen, actual tracking-driven recomposition, and native UI layout,
 recalled controls and preview behavior. Tests used disposable documents. The
 native controls were visually inspected; user artwork was preserved.
+
+## V8 fractional pattern offset
+
+16 added automated checks cover signed cyclic shifts across sampled line
+boundaries, fractional interpolation at the wrap seam and step edges, integer
+tracking precision, exact zero/full-cycle restoration and a single sample.
+They also cover zero/off compatibility, unchanged source values, curve/noise
+edits, invalid-number rollback, saved recipes/stacks, resize and overset,
+Resample, style blends, local graph-only dragging, delayed typing, final Apply
+and Cancel with pending changes.
+
+23 focused native assertions passed in InDesign 2026 on macOS. These verify
+actual tint assignments without recomposition, whole-field seam wrapping,
+fractions, exact zero/full cycles, retained source boundaries across resize,
+Resample, saved recipes and save/reopen, Cancel/Undo, word fragments and joint
+font-size/skew blending. The native dialog was visually inspected. Its saved
+offset loads with Preview off, signed slider units match the sampling mode,
+dragging leaves formatting untouched, release previews the final fraction,
+and Cancel restores the previously committed setup and appearance. Tests used
+disposable documents and restored the user's original document and selection.
+
+The web prototype's 114 existing tests also pass, including native noise parity.
+No web prototype behavior changed in this update.
 
 ## Historical v5 native verification
 

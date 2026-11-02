@@ -1220,8 +1220,53 @@
             for (var i = 0; i < groupUnits.length; i++) { units.push(groupUnits[i]); values.push(distribution.values[i]); }
         }
         if (!units.length && settings.textEnabled !== false) { fail("No matching targets in this structure. Frame/line groups exclude overset; Tracking Letters excludes outgoing gaps."); }
-        return { data: data, units: units, groups: groups, settings: settings,
-            distribution: { steps: maxSteps, minSteps: minSteps || 0, values: values, levels: groups.length === 1 ? groups[0].distribution.levels : [], shortGroups: shortGroups }, passes: 1 };
+        return withPatternOffset({ data: data, units: units, groups: groups, settings: settings,
+            distribution: { steps: maxSteps, minSteps: minSteps || 0, values: values, levels: groups.length === 1 ? groups[0].distribution.levels : [], shortGroups: shortGroups }, passes: 1 }, settings);
+    }
+    function offsetPatternValues(source, offset, integer) {
+        var count = source.length, shift = count ? ((offset % count) + count) % count : 0;
+        if (!shift) { return source; }
+        var values = [], precision = integer ? 1 : 1000;
+        for (var i = 0; i < count; i++) {
+            var at = (i - shift + count) % count, left = Math.floor(at), fraction = at - left;
+            var value = source[left] + (source[(left + 1) % count] - source[left]) * fraction;
+            values.push(fraction ? Math.round(value * precision) / precision : source[left]);
+        }
+        return values;
+    }
+    function withPatternOffset(plan, settings) {
+        if (!usesFixedLines(settings)) { return plan; }
+        var offset = parseNumber(settings.patternOffset === undefined ? 0 : settings.patternOffset, -Infinity, Infinity, false);
+        if (offset === null) { fail("Pattern offset must be a finite signed number. Fractions are supported."); }
+        var source = plan.patternSourceValues || plan.distribution.values;
+        var values = offsetPatternValues(source, offset, !settings.property || settings.property === "tracking"), next = {}, key;
+        for (key in plan) { next[key] = plan[key]; }
+        next.settings = settings; next.patternSourceValues = source; next.patternOffset = offset; next.patternPeriod = source.length;
+        next.distribution = {}; for (key in plan.distribution) { next.distribution[key] = plan.distribution[key]; }
+        next.distribution.values = values; next.groups = [];
+        for (var g = 0; g < plan.groups.length; g++) {
+            var original = plan.groups[g], group = {}; for (key in original) { group[key] = original[key]; }
+            group.distribution = {}; for (key in original.distribution) { group.distribution[key] = original.distribution[key]; }
+            group.distribution.values = values.slice(group.offset, group.offset + group.count);
+            if (values !== source) { group.distribution.levels = []; }
+            next.groups.push(group);
+        }
+        if (values !== source) { next.distribution.levels = []; }
+        return next;
+    }
+    function patternPlanForSettings(plan, settings) {
+        // Rebuild only the scalar field for local slider feedback. The saved
+        // topology and all native document formatting remain untouched.
+        var next = {}, key, values = []; for (key in plan) { next[key] = plan[key]; }
+        delete next.patternSourceValues; next.settings = settings; next.groups = [];
+        for (var g = 0; g < plan.groups.length; g++) {
+            var source = plan.groups[g], group = {}; for (key in source) { group[key] = source[key]; }
+            group.distribution = buildDistribution(group.count, settings, group.offset);
+            for (var i = 0; i < group.count; i++) { values.push(group.distribution.values[i]); }
+            next.groups.push(group);
+        }
+        next.distribution = {}; for (key in plan.distribution) { next.distribution[key] = plan.distribution[key]; }
+        next.distribution.values = values; return withPatternOffset(next, settings);
     }
     function trackingPlansEquivalent(applied, desired, baseline) {
         function valuesOf(plan) {
@@ -2411,6 +2456,7 @@
     }
 
     function averageDistribution(result, overrideSettings) {
+        if (overrideSettings && usesFixedLines(overrideSettings)) { return averageDistribution(patternPlanForSettings(result, overrideSettings)); }
         var groups=result.groups||[],count=1,rows=[];
         for(var g=0;g<groups.length;g++){var d=groups[g].distribution;if(overrideSettings){d=buildDistribution(d.values.length,overrideSettings,groups[g].offset);}rows.push(d.values);count=Math.max(count,d.values.length);}
         if(!rows.length){return result.distribution;}
@@ -2546,6 +2592,14 @@
         lineSampling.helpTip = "Fixed keeps sampled line boundaries while the text reflows. Resizing does not redistribute values across the new lines. Follow layout recalculates from the resulting composition.";
         resampleLines.helpTip = "Replace this property's line sample at the current frame width, after restoring its baseline. Kept properties remain in place. Preview turns on; Cancel restores the previous setup and appearance.";
         samplingRow.visible = false; samplingRow.maximumSize = [0, 0]; resampleLines.visible = false;
+        var offsetRow = row(optionsPanel), offsetCaption = offsetRow.add("statictext", undefined, "Pattern offset");
+        offsetCaption.preferredSize.width = 96; offsetCaption.minimumSize = [96, 0]; offsetCaption.maximumSize = [96, 10000];
+        var patternOffsetSlider = offsetRow.add("slider", undefined, 0, -100, 100); patternOffsetSlider.preferredSize.width = 240;
+        var patternOffsetInput = offsetRow.add("edittext", undefined, "0"); patternOffsetInput.characters = 7;
+        var offsetUnits = offsetRow.add("statictext", undefined, "characters"); offsetUnits.preferredSize.width = 85;
+        patternOffsetSlider.helpTip = "Move the complete sampled pattern across line boundaries. Positive moves forward; negative moves backward. Wraps at the ends. The slider spans one full cycle each way. Document preview updates on release.";
+        patternOffsetInput.helpTip = "Signed offset in sampled units. Fractions blend neighboring values. 0 restores the exact source pattern. Larger numbers wrap through the full sample.";
+        offsetRow.visible = false; offsetRow.maximumSize = [0, 0];
         var curvePanel = panel("Curve and steps");
         var curveIDs = ["linear", "ease-in", "ease-out", "smooth", "gaussian", "sine", "triangle", "custom"];
         var curveNames = ["Linear", "Ease in", "Ease out", "S-curve", "Gaussian bell", "Sine arch", "Triangle", "Custom"];
@@ -2594,7 +2648,7 @@
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
         var lastValid = { curve: "linear", power: 2, width: 22, invert: false };
         var lastPreview = 0, dragOrigin = null, switching = false, editorTrack = 0, previewIndex = 0;
-        var windowClosed = false, sliderAdjusting = false, previousLengthScope = null;
+        var windowClosed = false, sliderAdjusting = false, offsetAdjusting = false, previousLengthScope = null;
         var inputDelay = new PreviewDelay(350, function () { refresh(true); }, {
             now: function () { return new Date().getTime(); },
             wait: typeof $ !== "undefined" && $.sleep ? function (milliseconds) { $.sleep(milliseconds); } : null,
@@ -2728,7 +2782,11 @@
             if (gs && editorTrack) { distribution = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, gs); }
             else if (plan) {
                 distribution = selectedDistribution(plan);
-                if (sliderAdjusting && gs) { distribution = graphMode.selection.index===0 ? averageDistribution(plan,gs) : buildDistribution(distribution.values.length, gs, plan.groups && plan.groups.length ? plan.groups[previewIndex].offset : 0); }
+                if ((offsetAdjusting || sliderAdjusting) && gs && usesFixedLines(gs)) {
+                    var fieldPlan = offsetAdjusting ? withPatternOffset(plan, gs) : patternPlanForSettings(plan, gs);
+                    distribution = graphMode.selection.index === 0 ? averageDistribution(fieldPlan) : fieldPlan.groups[Math.min(previewIndex, fieldPlan.groups.length - 1)].distribution;
+                }
+                else if (sliderAdjusting && gs) { distribution = graphMode.selection.index===0 ? averageDistribution(plan,gs) : buildDistribution(distribution.values.length, gs, plan.groups && plan.groups.length ? plan.groups[previewIndex].offset : 0); }
             }
             drawGraph(graph, distribution, gs, displayPoints(), selected);
         };
@@ -2781,8 +2839,12 @@
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
                 clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: allowBreaks.value, allowLineBreaks: allowBreaks.value, autoStabilize: lockLines.value };
-            if (usesFixedLines(result)) { result.lockLines = result.allowLineBreaks = false; }
-            else { result.lineSampling = "follow"; result.lineSample = null; }
+            if (usesFixedLines(result)) {
+                result.lockLines = result.allowLineBreaks = false;
+                result.patternOffset = parseNumber(patternOffsetInput.text, -Infinity, Infinity, false);
+                if (result.patternOffset === null) { fail("Pattern offset must be a finite signed number. Fractions are supported."); }
+            }
+            else { result.lineSampling = "follow"; result.lineSample = null; result.patternOffset = 0; }
             if (id === "styleBlend") {
                 if (!styleObjects.length) { fail("Create character styles in this document before choosing Character-style blend."); }
                 if(!styleA.selection || !styleB.selection){fail(blendLoadError||"Choose Style A and Style B.");}
@@ -2803,6 +2865,16 @@
         }
         function showResult(result) {
             syncPreviewGroup(result);
+            if (usesFixedLines(settings)) {
+                var period = Math.max(1, result.units.length), offsetValue = Number(patternOffsetInput.text) || 0;
+                patternOffsetSlider.minvalue = -period; patternOffsetSlider.maxvalue = period;
+                patternOffsetSlider.value = Math.abs(offsetValue) > period ? offsetValue % period : offsetValue;
+                var offsetLabel = "samples";
+                if (settings.mode === "character") { offsetLabel = "characters"; }
+                else if (settings.mode === "word") { offsetLabel = "words"; }
+                else if (settings.mode === "line") { offsetLabel = "lines"; }
+                offsetUnits.text = offsetLabel;
+            }
             var noun = settings.mode + "s";
             if (settings.mode === "word" && settings.target === "spaces") { noun = "word gaps"; }
             var stepsLabel = String(result.distribution.steps);
@@ -2863,7 +2935,7 @@
         }
         function refresh(force) {
             if (switching || windowClosed) { return; }
-            inputDelay.cancel(); sliderAdjusting = false;
+            inputDelay.cancel(); sliderAdjusting = offsetAdjusting = false;
             if (busy) { pendingRefresh = true; return; } busy = true;
             try {
                 apply.enabled = addProperty.enabled = false; error.text = " ";
@@ -2908,6 +2980,8 @@
                 var samplingLayoutChanged = samplingRow.visible !== samplingAvailable || resampleLines.visible !== fixedLines;
                 samplingRow.visible = samplingAvailable; samplingRow.maximumSize = samplingAvailable ? [10000, 35] : [0, 0];
                 lineSampling.enabled = samplingAvailable; resampleLines.visible = resampleLines.enabled = fixedLines; resampleLines.maximumSize = fixedLines ? [160, 35] : [0, 0];
+                offsetRow.visible = fixedLines; offsetRow.maximumSize = fixedLines ? [10000, 35] : [0, 0];
+                patternOffsetSlider.enabled = patternOffsetInput.enabled = fixedLines;
                 if (fixedLines) { lockLines.enabled = allowBreaks.enabled = false; }
                 if (samplingLayoutChanged) { try { dialog.layout.layout(true); } catch (_) {} }
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
@@ -2966,6 +3040,7 @@
             noiseOptions = saved.noise ? decode(encode(saved.noise)) : { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
             lineSampling.selection = saved.lineSampling === "fixed" ? 1 : 0;
             lineSample = saved.lineSample ? decode(encode(saved.lineSample)) : null;
+            patternOffsetInput.text = String(saved.patternOffset === undefined ? 0 : saved.patternOffset);
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
@@ -3091,12 +3166,21 @@
             // Keep dragging local to ScriptUI. Native composition (and metrics)
             // runs once on release, using the final value and exact boundaries.
             try {
-                settings = readSettings(); lastValid = graphSettings(settings); sliderAdjusting = true;
+                settings = readSettings(); lastValid = graphSettings(settings); sliderAdjusting = true; offsetAdjusting = false;
                 summary.text = "Release slider to update document preview.";
                 redraw();
             } catch (e) { error.text = e.message; }
         };
         shapeSlider.onChange = function () { shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10); refresh(true); };
+        patternOffsetSlider.onChanging = function () {
+            if (switching || windowClosed || !shown) { return; }
+            inputDelay.cancel(); patternOffsetInput.text = String(Math.round(patternOffsetSlider.value * 1000) / 1000);
+            try {
+                settings = readSettings(); lastValid = graphSettings(settings); offsetAdjusting = true; sliderAdjusting = false;
+                summary.text = "Release slider to update document preview."; redraw();
+            } catch (e) { error.text = e.message; }
+        };
+        patternOffsetSlider.onChange = function () { patternOffsetInput.text = String(Math.round(patternOffsetSlider.value * 1000) / 1000); refresh(true); };
         function numberChanging() {
             if (switching || windowClosed || !shown) { return; }
             summary.text = "Preview waits for typing to pause…"; inputDelay.request();
@@ -3105,6 +3189,7 @@
         minInput.onChanging = maxInput.onChanging = shapeInput.onChanging = stepsInput.onChanging = strokeWidth.onChanging = restartWords.onChanging = numberChanging;
         minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = restartWords.onChange = numberCommitted;
         restartKeywords.onChanging = numberChanging; restartKeywords.onChange = numberCommitted;
+        patternOffsetInput.onChanging = numberChanging; patternOffsetInput.onChange = numberCommitted;
         restartKeywordPosition.onChange = function () { refresh(true); };
         styleA.onChange = styleB.onChange = function () { if (switching) { return; } styleAttributes = null;blendLoadError="";definitionCacheKey=""; refresh(true); };
         missingStyle.onChange=function(){definitionCacheKey="";refresh(true);};
