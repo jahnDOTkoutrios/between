@@ -141,11 +141,17 @@ A fully overset frame can recall and reapply its sample; enlarge it before
 resampling. Existing text-change and frame-ownership checks still apply.
 Paragraph indents and Line length retain their separate composition behavior.
 
-**Pattern offset** appears beneath Fixed sampling. It starts at **0** and moves
-the complete sampled pattern through the text, across the original line
-boundaries. Positive moves forward; negative moves backward. The ends wrap.
+### Pattern offset
+
+**Pattern offset** appears under Distribution for text properties and works with
+all restart types, including Never, Word, Sentence, Paragraph, Line, Frame and
+Keywords. It starts at **0** and moves the complete pattern through the text,
+across restart boundaries. Positive moves forward; negative moves backward.
+The ends wrap.
 Units follow Values per: characters, words, lines, or other sampled fragments.
 For an internal line pattern, use Character or Word with Restart → Line.
+Fixed line sampling preserves the source boundaries through reflow; Follow layout
+uses the resulting layout. Paragraph indents and Line length use their own controls.
 
 Fractional offsets interpolate neighbouring source values, including the wrap
 seam and step edges. Tracking still rounds to native integers; other values
@@ -153,8 +159,8 @@ retain their supported fractional precision. Style blends shift one shared
 percentage for all included attributes. Returning to zero restores the exact
 current source pattern; offsets never accumulate or regenerate seeded noise.
 
-The slider spans one full sampled cycle in each direction. The number field
-also accepts larger signed offsets, which wrap through the sample. Dragging
+The slider snaps to whole sampled units and spans one full cycle in each
+direction. The number field also accepts larger signed offsets, which wrap through the sample. Dragging
 updates the graph locally and applies document preview on release; typing uses
 the existing delay. Curve/range/steps/noise edits update the source pattern
 while retaining the offset. Resample keeps the offset and replaces the source.
@@ -300,7 +306,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **247 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **253 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.

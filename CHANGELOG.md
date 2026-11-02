@@ -21,6 +21,8 @@
 
 ## 8.0.0
 
+- Extend Pattern offset to all restart types and Follow layout for text properties. Move it under Distribution; snap slider dragging to integers while retaining fractional numeric input and saved setups. Keep zero-offset processing on the previous allocation path.
+
 - Add Pattern offset beneath Fixed line sampling: a signed slider and fractional number field shift the full sampled value field across line boundaries with cyclic wrapping and neighbouring-value interpolation. Keep zero and full cycles exact, respect native precision, preserve noise and sampled topology, and persist independent offsets in saved property stacks. Graph feedback stays local while dragging; document preview updates on release and typed values use the input delay. Resample retains the offset while replacing its source.
 
 - Add Follow layout / Fixed line sampling and Resample lines for line units/restarts. Save original line boundaries per property with the owning frame; keep them across resize, overset, curve/noise edits and Reapply. Resample restores the property baseline and captures at the current width, turns Preview on and participates in Cancel/Undo. Disable added breaks in Fixed mode, retain per-stage samples in stacks, and keep fully overset saved frames reopenable. Follow layout remains the default; Line length and paragraph indents keep their existing behavior.

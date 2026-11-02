@@ -346,6 +346,9 @@
         return settings.textEnabled !== false && settings.lineSampling === "fixed" && settings.property !== "lineLength" && !isParagraphProperty(settings.property) &&
             (settings.mode === "line" || settings.restart === "line");
     }
+    function usesPatternOffset(settings) {
+        return settings.textEnabled !== false && settings.property !== "lineLength" && !isParagraphProperty(settings.property);
+    }
     function lineSampleKey(settings, scope) {
         return encode([settings.property, settings.mode, settings.restart || "never", scope.kind, scope.kind === "selection" ? scope.bounds : null]);
     }
@@ -1235,9 +1238,11 @@
         return values;
     }
     function withPatternOffset(plan, settings) {
-        if (!usesFixedLines(settings)) { return plan; }
+        if (!usesPatternOffset(settings)) { return plan; }
         var offset = parseNumber(settings.patternOffset === undefined ? 0 : settings.patternOffset, -Infinity, Infinity, false);
         if (offset === null) { fail("Pattern offset must be a finite signed number. Fractions are supported."); }
+        // Preserve the default path's allocations and legacy plan shape.
+        if (!offset && !plan.patternSourceValues && !usesFixedLines(settings)) { return plan; }
         var source = plan.patternSourceValues || plan.distribution.values;
         var values = offsetPatternValues(source, offset, !settings.property || settings.property === "tracking"), next = {}, key;
         for (key in plan) { next[key] = plan[key]; }
@@ -2456,7 +2461,7 @@
     }
 
     function averageDistribution(result, overrideSettings) {
-        if (overrideSettings && usesFixedLines(overrideSettings)) { return averageDistribution(patternPlanForSettings(result, overrideSettings)); }
+        if (overrideSettings && usesPatternOffset(overrideSettings)) { return averageDistribution(patternPlanForSettings(result, overrideSettings)); }
         var groups=result.groups||[],count=1,rows=[];
         for(var g=0;g<groups.length;g++){var d=groups[g].distribution;if(overrideSettings){d=buildDistribution(d.values.length,overrideSettings,groups[g].offset);}rows.push(d.values);count=Math.max(count,d.values.length);}
         if(!rows.length){return result.distribution;}
@@ -2592,12 +2597,12 @@
         lineSampling.helpTip = "Fixed keeps sampled line boundaries while the text reflows. Resizing does not redistribute values across the new lines. Follow layout recalculates from the resulting composition.";
         resampleLines.helpTip = "Replace this property's line sample at the current frame width, after restoring its baseline. Kept properties remain in place. Preview turns on; Cancel restores the previous setup and appearance.";
         samplingRow.visible = false; samplingRow.maximumSize = [0, 0]; resampleLines.visible = false;
-        var offsetRow = row(optionsPanel), offsetCaption = offsetRow.add("statictext", undefined, "Pattern offset");
+        var offsetRow = row(distributionPanel), offsetCaption = offsetRow.add("statictext", undefined, "Pattern offset");
         offsetCaption.preferredSize.width = 96; offsetCaption.minimumSize = [96, 0]; offsetCaption.maximumSize = [96, 10000];
         var patternOffsetSlider = offsetRow.add("slider", undefined, 0, -100, 100); patternOffsetSlider.preferredSize.width = 240;
         var patternOffsetInput = offsetRow.add("edittext", undefined, "0"); patternOffsetInput.characters = 7;
         var offsetUnits = offsetRow.add("statictext", undefined, "characters"); offsetUnits.preferredSize.width = 85;
-        patternOffsetSlider.helpTip = "Move the complete sampled pattern across line boundaries. Positive moves forward; negative moves backward. Wraps at the ends. The slider spans one full cycle each way. Document preview updates on release.";
+        patternOffsetSlider.helpTip = "Shift the complete pattern across restart boundaries. Drag in whole sampled units; positive moves forward, negative backward. Wraps at the ends. The number field also accepts fractions. Document preview updates on release.";
         patternOffsetInput.helpTip = "Signed offset in sampled units. Fractions blend neighboring values. 0 restores the exact source pattern. Larger numbers wrap through the full sample.";
         offsetRow.visible = false; offsetRow.maximumSize = [0, 0];
         var curvePanel = panel("Curve and steps");
@@ -2782,7 +2787,7 @@
             if (gs && editorTrack) { distribution = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, gs); }
             else if (plan) {
                 distribution = selectedDistribution(plan);
-                if ((offsetAdjusting || sliderAdjusting) && gs && usesFixedLines(gs)) {
+                if ((offsetAdjusting || sliderAdjusting) && gs && usesPatternOffset(gs)) {
                     var fieldPlan = offsetAdjusting ? withPatternOffset(plan, gs) : patternPlanForSettings(plan, gs);
                     distribution = graphMode.selection.index === 0 ? averageDistribution(fieldPlan) : fieldPlan.groups[Math.min(previewIndex, fieldPlan.groups.length - 1)].distribution;
                 }
@@ -2841,10 +2846,13 @@
                 clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: allowBreaks.value, allowLineBreaks: allowBreaks.value, autoStabilize: lockLines.value };
             if (usesFixedLines(result)) {
                 result.lockLines = result.allowLineBreaks = false;
+            }
+            else { result.lineSampling = "follow"; result.lineSample = null; }
+            result.patternOffset = 0;
+            if (usesPatternOffset(result)) {
                 result.patternOffset = parseNumber(patternOffsetInput.text, -Infinity, Infinity, false);
                 if (result.patternOffset === null) { fail("Pattern offset must be a finite signed number. Fractions are supported."); }
             }
-            else { result.lineSampling = "follow"; result.lineSample = null; result.patternOffset = 0; }
             if (id === "styleBlend") {
                 if (!styleObjects.length) { fail("Create character styles in this document before choosing Character-style blend."); }
                 if(!styleA.selection || !styleB.selection){fail(blendLoadError||"Choose Style A and Style B.");}
@@ -2865,7 +2873,7 @@
         }
         function showResult(result) {
             syncPreviewGroup(result);
-            if (usesFixedLines(settings)) {
+            if (usesPatternOffset(settings)) {
                 var period = Math.max(1, result.units.length), offsetValue = Number(patternOffsetInput.text) || 0;
                 patternOffsetSlider.minvalue = -period; patternOffsetSlider.maxvalue = period;
                 patternOffsetSlider.value = Math.abs(offsetValue) > period ? offsetValue % period : offsetValue;
@@ -2977,11 +2985,12 @@
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
                 var samplingAvailable = textEnabled.value && !paragraphProperty && !lengthProperty && (modeIDs[mode.selection.index] === "line" || restartIDs[restart.selection.index] === "line");
                 var fixedLines = samplingAvailable && lineSampling.selection.index === 1;
-                var samplingLayoutChanged = samplingRow.visible !== samplingAvailable || resampleLines.visible !== fixedLines;
+                var offsetAvailable = textEnabled.value && !paragraphProperty && !lengthProperty;
+                var samplingLayoutChanged = samplingRow.visible !== samplingAvailable || resampleLines.visible !== fixedLines || offsetRow.visible !== offsetAvailable;
                 samplingRow.visible = samplingAvailable; samplingRow.maximumSize = samplingAvailable ? [10000, 35] : [0, 0];
                 lineSampling.enabled = samplingAvailable; resampleLines.visible = resampleLines.enabled = fixedLines; resampleLines.maximumSize = fixedLines ? [160, 35] : [0, 0];
-                offsetRow.visible = fixedLines; offsetRow.maximumSize = fixedLines ? [10000, 35] : [0, 0];
-                patternOffsetSlider.enabled = patternOffsetInput.enabled = fixedLines;
+                offsetRow.visible = offsetAvailable; offsetRow.maximumSize = offsetAvailable ? [10000, 35] : [0, 0];
+                patternOffsetSlider.enabled = patternOffsetInput.enabled = offsetAvailable;
                 if (fixedLines) { lockLines.enabled = allowBreaks.enabled = false; }
                 if (samplingLayoutChanged) { try { dialog.layout.layout(true); } catch (_) {} }
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
@@ -3174,13 +3183,13 @@
         shapeSlider.onChange = function () { shapeInput.text = String(Math.round(shapeSlider.value * 10) / 10); refresh(true); };
         patternOffsetSlider.onChanging = function () {
             if (switching || windowClosed || !shown) { return; }
-            inputDelay.cancel(); patternOffsetInput.text = String(Math.round(patternOffsetSlider.value * 1000) / 1000);
+            inputDelay.cancel(); patternOffsetSlider.value = Math.round(patternOffsetSlider.value); patternOffsetInput.text = String(patternOffsetSlider.value);
             try {
                 settings = readSettings(); lastValid = graphSettings(settings); offsetAdjusting = true; sliderAdjusting = false;
                 summary.text = "Release slider to update document preview."; redraw();
             } catch (e) { error.text = e.message; }
         };
-        patternOffsetSlider.onChange = function () { patternOffsetInput.text = String(Math.round(patternOffsetSlider.value * 1000) / 1000); refresh(true); };
+        patternOffsetSlider.onChange = function () { patternOffsetSlider.value = Math.round(patternOffsetSlider.value); patternOffsetInput.text = String(patternOffsetSlider.value); refresh(true); };
         function numberChanging() {
             if (switching || windowClosed || !shown) { return; }
             summary.text = "Preview waits for typing to pause…"; inputDelay.request();

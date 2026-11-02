@@ -145,10 +145,14 @@ Reopening and Reapply preserve fixed sampling, including sampled overset text.
 Newly visible text outside the sample keeps its baseline until resampling.
 Fixed mode adds no breaks. Follow layout remains the default.
 
-**Pattern offset** beneath Fixed sampling shifts the sampled values through
+**Pattern offset** under Distribution shifts the sampled values through
 the text, even for tint/color properties that leave composition unchanged.
 Try 0, 0.5, 1 and -1 with Values per Character or Word and Restart → Line.
 Values cross the original line boundaries and wrap at the sample's ends.
 Fractions interpolate adjacent values; zero restores the exact source pattern.
 The slider updates the document on release. Saved setups remember the offset;
 Resample replaces the source at the current width while retaining that offset.
+
+Pattern offset now sits under Distribution and also works with Word, Sentence,
+Paragraph, Frame, Keywords and Never restarts, and with Follow layout. Dragging
+snaps to whole units; type fractions for smooth intermediate animation frames.

@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 247 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 253 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -86,6 +86,25 @@ disposable documents and restored the user's original document and selection.
 
 The web prototype's 114 existing tests also pass, including native noise parity.
 No web prototype behavior changed in this update.
+
+## V8 offset across restart types and integer slider
+
+The automated suite now passes 253 checks. Six new checks cover complete-field
+shifts across Never, Word, Sentence, Paragraph, Line, Frame and Keywords with
+both word and character units; unchanged noise/topology; Follow layout plan
+application; non-line saved stacks, exact reapply, zero replacement and Undo;
+shared style-blend percentages; graph-only curve edits; and signed integer
+slider snapping with fractional typed input. Prior fixed-sampling checks remain.
+Zero/absent offsets retain the previous non-fixed allocation path.
+
+30 focused native checks passed in InDesign 2026. All seven restart structures
+apply their expected shifted values, return exactly to zero and restore the
+baseline on Cancel. Further checks cover Follow layout tracking composition,
+saved non-line offsets and unchanged reapply, native Distribution placement,
+positive/negative integer snapping without writes during dragging, release
+preview, typed fractions and Cancel restoring previous settings/formatting.
+The controls were visually inspected in a disposable document.
+The web prototype's 114 regression checks also pass; no web behavior changed.
 
 ## Historical v5 native verification
 
