@@ -127,3 +127,11 @@ are in the collapsible Tracking Ramp group; original guide endpoints stay outsid
 Colors... provides safe grouping and unused-generated-color cleanup. Same-base
 tint sample 06 creates no intermediate colors. One bottom Preview checkbox
 controls document preview.
+
+**Noise…** adds repeatable variation to these examples without changing the
+base curve. It starts Off. Random gives independent samples, Smooth gives
+gradual variation and Fractal layers several scales. Choose Property values,
+Words per restart (Restart → Word), or both. For example, Every 4 words with
+Amount 50% varies groups from 2 to 6 words; values stay inside Min/Max. The seed
+and targets are recalled with the frame's setup. Set updates the main preview;
+Cancel discards panel edits. Each kept property can use its own noise setup.

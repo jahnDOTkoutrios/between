@@ -19,6 +19,8 @@
 
 ## 8.0.0
 
+- Add an off-by-default Noise panel with Random, Smooth and Fractal fields, Amount, Seed and New seed. Target the current property's values and/or words per restart. Keep values within Min/Max, steps intact and word groups positive; use separate deterministic streams and continue value sampling between groups. Preserve noise in saved setups and property stacks, keep popup edits local until Set, and support Line length contours without changing auxiliary Line width.
+
 - Add Restart → Keywords with comma-separated whole words and After keyword / At keyword boundaries. Match case-insensitively with surrounding punctuation ignored; keep the scope start, disjoint groups and a full curve per group. Persist keyword settings in saved setups and stacks, and debounce keyword input like numeric fields.
 
 - Simplify the Style blend section: stack Style A/B and Missing values in aligned 240 pt controls, group Attributes/Refresh actions underneath, and align the Min input with the control column. Keep all blend, saved-setup and preview behavior unchanged.

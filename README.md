@@ -116,6 +116,33 @@ and surrounding punctuation, and leaves the keywords in the text. No match
 means one curve across the scope. Values per still chooses the units within
 each group; keyword settings are included in saved setups and property stacks.
 
+### Seeded noise
+
+**Noise…** opens a compact panel. It starts **Off**; older setups retain their
+original appearance. Choose **Random** for independent samples, **Smooth** for
+gradual variation, or **Fractal** for variation at several scales. **Amount**
+sets strength; **Seed** reproduces the same field on the same text and settings.
+**New seed** explicitly generates another seed. Amount 0 also disables noise.
+
+Choose one or both targets:
+
+- **Property values:** vary the current property's sampled values within Min/Max.
+  Amount is a percentage of that range. Steps still define shared value buckets.
+  For Style blend, noise varies one shared blend percentage for all included
+  attributes. Each kept property can have a separate noise setup.
+- **Words per restart:** with Restart → Word, vary the number of words around
+  Every … words. For example, Every 4 words with Amount 50% allows groups of
+  2–6 words. Groups always contain at least one word, and the final shorter group
+  still receives a complete curve. Other restart modes ignore this target.
+
+Noise follows the ordered samples across the scope, continuing between restart
+groups. Smooth changes over roughly four samples; Fractal combines several
+scales. Values and restart lengths use separate seeded streams. The curve guide
+remains editable; the graph's samples show the noise-affected results. Controls
+inside Noise do not recalculate the document until **Set**. Cancel discards the
+panel edits; main Cancel restores the complete preview. Noise is saved with
+frame setups and property stacks and is reused on Reapply.
+
 ### Features
 
 - **Properties:** tracking, font size, baseline shift, variable-font axes, horizontal/vertical scale, character rotation, skew, character fill color/tint, text stroke width/color/tint, underline weight/offset, left/right/first-line paragraph indents, centered per-line length, and Character-style blend.
@@ -229,7 +256,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **162 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **215 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.
@@ -239,6 +266,11 @@ checks, 30 actual UI checks, 93 exported-IDML checks, 14 recalled-layout checks
 and 95 repeated line-length/break-policy checks. Earlier coverage is recorded separately in the
 [verification notes](docs/VERIFICATION.md). All five guide pages were rendered
 and visually checked.
+
+Keyword restart adds 18 native checks. Seeded noise adds 26 native checks for
+repeatability, replacement/Cancel, saved setup recall, panel layout and input
+behavior, and smooth/stepped Line length contours. Another 48 seeded samples
+match between V8 and native ExtendScript.
 
 [Version notes](CHANGELOG.md)
 

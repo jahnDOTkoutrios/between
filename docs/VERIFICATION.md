@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 175 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 215 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -25,6 +25,28 @@ actual script functions in a mocked document/ScriptUI host. Coverage includes:
 New performance coverage checks trailing numeric input, cancellation/disposal,
 immediate Apply, bulk-read fallbacks, lazy snapshots, exact kept patches,
 narrow replacement restoration, advanced-stage fallback and stale signatures.
+
+## V8 seeded noise and keyword restart
+
+The current suite retains all earlier coverage and adds comma-separated keyword
+boundaries and deterministic Random, Smooth and Fractal noise. Noise checks cover:
+
+- Exact Off/zero-Amount compatibility, bounded values and unchanged step buckets.
+- Seed variation, exact 32-bit reference mixing and coherent smooth samples.
+- Positive bounded word counts, disjoint complete groups, partial scopes and
+  separate value/restart streams; inactive targets do not change other modes.
+- Multi-attribute style blending, saved stacks, exact reapply, Cancel and Undo.
+- Off-by-default UI, transactional panel edits, local slider/seed changes and
+  restoring previous appearances when noise is disabled.
+- Bounded Line length contours and isolation from auxiliary Line width.
+
+18 focused native keyword checks passed in InDesign 2026 on macOS. Noise passed
+26 native checks: all three fields repeat exactly; Cancel and saved reapply
+preserve baselines; real panel controls have usable widths, start disabled when
+Off and update only on Set; noisy smooth/stepped contours preserve paragraphs,
+repeat their paths and restore geometry on Cancel. The panel was inspected
+visually. 48 numeric samples also match between Node/V8 and native ExtendScript.
+These checks used disposable documents and left user artwork unchanged.
 
 ## Historical v5 native verification
 

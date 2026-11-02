@@ -459,9 +459,38 @@
 
     function isBell(curve) { return /^(gaussian|sine|triangle)$/.test(curve); }
 
-    function buildDistribution(count, settings) {
+    function activeNoise(settings, target) {
+        var n = settings.noise;
+        if (!n || !n.type || n.type === "off" || Number(n.amount) === 0) { return null; }
+        if (!/^(random|smooth|fractal)$/.test(n.type)) { fail("Choose a supported Noise type."); }
+        var amount = parseNumber(n.amount, 0, 100, false), seed = parseNumber(n.seed, 0, 2147483647, true);
+        if (amount === null || seed === null) { fail("Noise needs Amount 0–100% and a whole-number Seed from 0 to 2147483647."); }
+        if (!n[target]) { return null; }
+        return { type: n.type, amount: amount / 100, seed: seed };
+    }
+    function noiseSample(noise, position, channel) {
+        // Exact 32-bit integer mixing works in ExtendScript and JS alike.
+        // No document state or Math.random participates in the field.
+        function multiply(a, b) { return ((a & 65535) * b + (((a >>> 16) * b & 65535) << 16)) | 0; }
+        function random(index) {
+            var x = noise.seed ^ (index | 0) ^ channel;
+            x = multiply(x ^ (x >>> 16), 0x7feb352d);
+            x = multiply(x ^ (x >>> 15), 0x846ca68b);
+            return ((x ^ (x >>> 16)) >>> 0) / 4294967295 * 2 - 1;
+        }
+        function smooth(scale) {
+            var x = position / scale, left = Math.floor(x), t = x - left;
+            t = t * t * (3 - 2 * t);
+            return random(left) * (1 - t) + random(left + 1) * t;
+        }
+        if (noise.type === "random") { return random(Math.floor(position)); }
+        if (noise.type === "smooth") { return smooth(4); }
+        return (smooth(8) * 8 + smooth(4) * 4 + smooth(2) * 2 + smooth(1)) / 15;
+    }
+    function buildDistribution(count, settings, noiseOffset) {
         var steps = settings.steps === 0 ? count : Math.min(count, settings.steps);
         var weights = [], peak = 0, levels = [], values = [];
+        var noise = activeNoise(settings, "values");
         var i, weight;
         for (i = 0; i < steps; i++) {
             weight = curveValue(steps > 1 ? i / (steps - 1) : 0, settings);
@@ -476,6 +505,7 @@
             // even-sized bells. Two endpoints alone cannot represent a peak.
             if (isBell(settings.curve) && peak > 0) { weight /= peak; }
             if (settings.invert) { weight = 1 - weight; }
+            if (noise) { weight = Math.max(0, Math.min(1, weight + noise.amount * noiseSample(noise, (noiseOffset || 0) + i * count / steps, 1013904223))); }
             var raw = settings.min + (settings.max - settings.min) * weight;
             var precision = !settings.property || settings.property === "tracking" ? 1 : 1000;
             levels.push(Math.round(raw * precision) / precision);
@@ -1093,10 +1123,13 @@
         if (restart === "word") {
             var wordCount = parseNumber(settings.restartWords === undefined ? 1 : settings.restartWords, 1, 10000, true);
             if (wordCount === null) { fail("Words per restart must be a whole number from 1 to 10000."); }
-            if (wordCount > 1) {
-                var wordGroups = [];
-                for (var w = 0; w < spans.length; w += wordCount) {
-                    wordGroups.push({ start: spans[w].start, end: spans[Math.min(w + wordCount, spans.length) - 1].end });
+            var restartNoise = activeNoise(settings, "restartWords");
+            if (wordCount > 1 || restartNoise) {
+                var wordGroups = [], groupIndex = 0;
+                for (var w = 0; w < spans.length; groupIndex++) {
+                    var nextCount = restartNoise ? Math.max(1, Math.min(10000, Math.round(wordCount * (1 + restartNoise.amount * noiseSample(restartNoise, groupIndex, 1664525))))) : wordCount;
+                    wordGroups.push({ start: spans[w].start, end: spans[Math.min(w + nextCount, spans.length) - 1].end });
+                    w += nextCount;
                 }
                 spans = wordGroups;
             }
@@ -1123,7 +1156,7 @@
                 }
             }
             if (!groupUnits.length) { continue; }
-            var distribution = buildDistribution(groupUnits.length, settings);
+            var distribution = buildDistribution(groupUnits.length, settings, units.length);
             groups.push({ start: bounds.start, end: bounds.end, structureIndex: g, count: groupUnits.length, offset: units.length, distribution: distribution });
             minSteps = minSteps === null ? distribution.steps : Math.min(minSteps, distribution.steps);
             maxSteps = Math.max(maxSteps, distribution.steps);
@@ -1520,7 +1553,8 @@
         var bands = options.steps || 12, count = options.smooth ? 97 : bands, widths = [], path = [], i;
         var sampleSettings = { property: "pointSize", min: low + 2 * base.pad, max: high + 2 * base.pad,
             curve: curve.curve, power: curve.power, width: curve.width, invert: curve.invert,
-            points: curve.points, smooth: curve.smooth, steps: options.smooth ? 0 : bands };
+            points: curve.points, smooth: curve.smooth, steps: options.smooth ? 0 : bands,
+            noise: curve.property === "lineLength" ? curve.noise : null };
         widths = buildDistribution(count, sampleSettings).values;
         function edge(i, right) {
             var w = widths[i], left = (b[1] + b[3] - w) / 2;
@@ -1536,7 +1570,7 @@
             for (i = 0; i < count; i++) { path.push([edge(i, false), b[0] + (b[2] - b[0]) * i / count]); path.push([edge(i, false), b[0] + (b[2] - b[0]) * (i + 1) / count]); }
             for (i = count - 1; i >= 0; i--) { path.push([edge(i, true), b[0] + (b[2] - b[0]) * (i + 1) / count]); path.push([edge(i, true), b[0] + (b[2] - b[0]) * i / count]); }
         }
-        return { path: path, min: low, max: high };
+        return { path: path, min: low, max: high, widths: widths };
     }
     function applyFrameWidth(target, settings) {
         var frame = target.frame, options = settings.frameWidth;
@@ -1824,7 +1858,7 @@
         var options = { enabled: true, linked: true, min: settings.min, max: settings.max, unit: "%", anchor: "center",
             smooth: !settings.steps, steps: settings.steps || 12, curve: decode(encode(settings)), owner: "lineLength" };
         var shape = applyFrameWidth(target, { frameWidth: options, curve: settings.curve, power: settings.power, width: settings.width,
-            invert: settings.invert, points: settings.points, smooth: settings.smooth });
+            invert: settings.invert, points: settings.points, smooth: settings.smooth, property: "lineLength", noise: settings.noise });
         var bounds = visibleBounds(target.frame); if (!bounds) { fail("No text fits in this line-length contour. Increase Min or enlarge the frame."); }
         var plan = makePlan(capture(story, bounds), settings);
         // Contours run down the frame, rather than restarting at the last row.
@@ -1832,7 +1866,12 @@
         var values = [], bands = settings.steps ? buildDistribution(settings.steps, settings).values : null;
         for (var i = 0; i < plan.units.length; i++) {
             var fraction = Math.max(0, Math.min(1, (Number(story.characters.item(plan.units[i].spans[0].start).baseline) - base.bounds[0]) / (base.bounds[2] - base.bounds[0]))), value;
-            if (bands) { value = bands[Math.min(bands.length - 1, Math.floor(fraction * bands.length))]; }
+            if (activeNoise(settings, "values")) {
+                var at = settings.steps ? Math.min(shape.widths.length - 1, Math.floor(fraction * shape.widths.length)) : fraction * (shape.widths.length - 1);
+                var sampledWidth = shape.widths[Math.floor(at)] + (shape.widths[Math.ceil(at)] - shape.widths[Math.floor(at)]) * (at - Math.floor(at));
+                value = (sampledWidth - 2 * base.pad) / geometry.usable * 100;
+            }
+            else if (bands) { value = bands[Math.min(bands.length - 1, Math.floor(fraction * bands.length))]; }
             else { var weight = curveValue(fraction, settings); if (settings.invert) { weight = 1 - weight; } value = settings.min + (settings.max - settings.min) * weight; }
             values.push(Math.round(value * 1000) / 1000);
         }
@@ -2307,7 +2346,7 @@
 
     function averageDistribution(result, overrideSettings) {
         var groups=result.groups||[],count=1,rows=[];
-        for(var g=0;g<groups.length;g++){var d=groups[g].distribution;if(overrideSettings){d=buildDistribution(d.values.length,overrideSettings);}rows.push(d.values);count=Math.max(count,d.values.length);}
+        for(var g=0;g<groups.length;g++){var d=groups[g].distribution;if(overrideSettings){d=buildDistribution(d.values.length,overrideSettings,groups[g].offset);}rows.push(d.values);count=Math.max(count,d.values.length);}
         if(!rows.length){return result.distribution;}
         count=Math.min(201,count);var values=[];
         for(var i=0;i<count;i++){var sum=0;for(g=0;g<rows.length;g++){var at=count===1?0:i*(rows[g].length-1)/(count-1),lo=Math.floor(at),hi=Math.ceil(at);sum+=rows[g][lo]+(rows[g][hi]-rows[g][lo])*(at-lo);}values.push(Math.round(sum/rows.length*1000)/1000);}
@@ -2322,6 +2361,8 @@
         var heading = dialog.add("group"); heading.orientation = "row";
         var title = heading.add("statictext", undefined, "Text distribution");
         var widthButton = heading.add("button", undefined, "Line width…");
+        var noiseButton = heading.add("button", undefined, "Noise…");
+        noiseButton.helpTip = "Seeded variation for this property's values and/or words per restart. Off by default.";
         var textEnabled = heading.add("checkbox", undefined, "Apply text property"); textEnabled.value = true;
         try { title.graphics.font = ScriptUI.newFont(title.graphics.font.name, "BOLD", 16); } catch (_) {}
         function row(parent) { var r = parent.add("group"); r.orientation = "row"; r.alignChildren = ["left", "center"]; return r; }
@@ -2475,6 +2516,7 @@
         var apply = footer.add("button", undefined, "Apply", { name: "ok" });
 
         var session = new PreviewSession(target), settings = null, plan = null;
+        var noiseOptions = { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
         if(savedState.status!=="none"){live.value=false;}
         var points = [], selected = -1, dragging = false, customEditing = false, busy = false, pendingRefresh = false, shown = false;
         var power = 2, width = 22, axes = [], lastProperty = "tracking", savedRanges = {};
@@ -2489,6 +2531,50 @@
         });
         var textCurve = { curve: "linear", power: 2, width: 22, invert: false, points: [], smooth: true, steps: 0 };
         var widthOptions = { enabled: false, linked: true, min: 40, max: 100, unit: "%", anchor: "center", smooth: true, steps: 12, curve: decode(encode(textCurve)) };
+        noiseButton.onClick = function () {
+            inputDelay.cancel();
+            var n = decode(encode(noiseOptions)), ids = ["off", "random", "smooth", "fractal"];
+            var w = new Window("dialog", "Noise"); w.orientation = "column"; w.alignChildren = ["fill", "top"]; w.margins = 16; w.spacing = 10;
+            var type = dropdown(row(w), "Type", ["Off", "Random", "Smooth", "Fractal"], 240, 64);
+            for (var i = 0; i < ids.length; i++) { if (ids[i] === n.type) { type.selection = i; } }
+            type.helpTip = "Random: independent samples. Smooth: gradual changes across about four samples. Fractal: layered changes at several scales.";
+            var amountRow = row(w), amountLabel = amountRow.add("statictext", undefined, "Amount"); amountLabel.preferredSize.width = 64;
+            var amount = amountRow.add("slider", undefined, n.amount, 0, 100); amount.preferredSize.width = 175;
+            var amountInput = amountRow.add("edittext", undefined, String(n.amount)); amountInput.characters = 4; amountRow.add("statictext", undefined, "%");
+            var seedRow = row(w), seed = field(seedRow, "Seed", n.seed, 12, 64), newSeed = seedRow.add("button", undefined, "New seed");
+            seed.helpTip = "Whole number 0–2147483647. Identical seed and settings reproduce the same pattern on identical text.";
+            var targets = w.add("panel", undefined, "Affect"); targets.orientation = "column"; targets.alignChildren = ["left", "top"]; targets.margins = 12;
+            var values = targets.add("checkbox", undefined, "Property values"); values.value = n.values;
+            values.helpTip = "Vary " + propertyInfo(propertyIDs[property.selection.index]).label + " within Min/Max. Style blend varies the shared blend percentage for all included attributes. Each kept property can have its own noise.";
+            var words = targets.add("checkbox", undefined, "Words per restart"); words.value = n.restartWords;
+            words.helpTip = "Vary around Every … words. Only active with Restart → Word; each group has at least one word.";
+            var detail = w.add("statictext", undefined, " ", { multiline: true }); detail.preferredSize = [350, 36];
+            var err = w.add("statictext", undefined, " "); err.preferredSize.width = 350;
+            var buttons = row(w); buttons.alignment = "right"; buttons.add("button", undefined, "Cancel", {name:"cancel"}); var set = buttons.add("button", undefined, "Set", {name:"ok"});
+            function sync() {
+                var enabled = type.selection.index !== 0;
+                amount.enabled = amountInput.enabled = seed.enabled = newSeed.enabled = values.enabled = enabled;
+                words.enabled = enabled && restart.selection.index === 1;
+                var a = parseNumber(amountInput.text, 0, 100, false), base = parseNumber(restartWords.text, 1, 10000, true);
+                detail.text = "";
+                if (enabled && a !== null && values.value) { detail.text = "Values stay inside Min/Max; Amount controls variation."; }
+                if (enabled && a !== null && words.value && base !== null && restart.selection.index === 1) {
+                    detail.text += (detail.text ? "\n" : "") + "Words per restart: " + Math.max(1, Math.round(base * (1 - a / 100))) + "–" + Math.min(10000, Math.round(base * (1 + a / 100))) + " (base " + base + ").";
+                }
+            }
+            amount.onChanging = amount.onChange = function () { amountInput.text = String(Math.round(amount.value)); sync(); };
+            amountInput.onChanging = amountInput.onChange = function () { var a = parseNumber(amountInput.text, 0, 100, false); if (a !== null) { amount.value = a; } sync(); };
+            type.onChange = values.onClick = words.onClick = sync;
+            newSeed.onClick = function () { seed.text = String(Math.floor(Math.random() * 2147483648)); };
+            set.onClick = function () { try {
+                var a = parseNumber(amountInput.text, 0, 100, false), s = parseNumber(seed.text, 0, 2147483647, true), id = ids[type.selection.index];
+                if (id !== "off" && (a === null || s === null)) { fail("Enter Amount 0–100% and a whole-number Seed from 0 to 2147483647."); }
+                if (id !== "off" && a > 0 && !values.value && !(words.value && restart.selection.index === 1)) { fail("Choose Property values, or use Restart → Word for Words per restart."); }
+                n = { type: id, amount: a === null ? 25 : a, seed: s === null ? 1 : s, values: values.value, restartWords: words.value }; w.close(1);
+            } catch (e) { err.text = e.message; } };
+            sync();
+            if (w.show() === 1) { noiseOptions = n; refresh(true); }
+        };
         try { var storedShape = target.frame ? target.frame.extractLabel(SHAPE_KEY) : ""; if (storedShape && !hasLineLengthShape(target.frame)) { widthOptions = decode(storedShape).options; if (widthOptions.linked) { textCurve = decode(encode(widthOptions.curve)); } } } catch (_) {}
         function copyCurve(from, to) { var keys = ["curve", "power", "width", "invert", "points", "smooth", "steps"]; for (var k = 0; k < keys.length; k++) { to[keys[k]] = from[keys[k]]; } return to; }
         function graphSettings(s) {
@@ -2570,7 +2656,7 @@
             if (gs && editorTrack) { distribution = buildDistribution(widthOptions.smooth ? 97 : widthOptions.steps, gs); }
             else if (plan) {
                 distribution = selectedDistribution(plan);
-                if (sliderAdjusting && gs) { distribution = graphMode.selection.index===0 ? averageDistribution(plan,gs) : buildDistribution(distribution.values.length, gs); }
+                if (sliderAdjusting && gs) { distribution = graphMode.selection.index===0 ? averageDistribution(plan,gs) : buildDistribution(distribution.values.length, gs, plan.groups && plan.groups.length ? plan.groups[previewIndex].offset : 0); }
             }
             drawGraph(graph, distribution, gs, displayPoints(), selected);
         };
@@ -2617,6 +2703,7 @@
             var result = { scope: scope.selection.index, mode: modeIDs[mode.selection.index], restart: restartIDs[restart.selection.index], target: "both",
                 restartWords: restartCount,
                 restartKeywords: restartKeywords.text, restartKeywordPosition: restartKeywordPosition.selection.index === 1 ? "at" : "after",
+                noise: decode(encode(noiseOptions)),
                 property: id, min: min, max: max, curve: curveID, power: power, width: width, steps: steps, invert: customEditing ? false : invert.value,
                 points: copy, smooth: smooth.value, axisName: selectedAxis ? selectedAxis.name : "", colorA: colorObjects[colorA.selection.index].id,
                 colorB: colorObjects[colorB.selection.index].id, strokeWidth: sw || 0.5, replace: replace.value,
@@ -2646,7 +2733,7 @@
             var stepsLabel = String(result.distribution.steps);
             if (result.distribution.minSteps !== result.distribution.steps) { stepsLabel = result.distribution.minSteps + "–" + result.distribution.steps; }
             summary.text = result.units.length + " " + noun;
-            if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + (settings.restart === "word" && settings.restartWords > 1 ? settings.restartWords + "-word" : settings.restart) + " groups"; }
+            if (settings.restart !== "never") { summary.text += " / " + result.groups.length + " " + (settings.restart === "word" && activeNoise(settings, "restartWords") ? "variable-word" : settings.restart === "word" && settings.restartWords > 1 ? settings.restartWords + "-word" : settings.restart) + " groups"; }
             summary.text += " / " + stepsLabel + " steps/group / " + propertyInfo(settings.property, axes[axis.selection.index]).label;
             if (settings.frameWidth && settings.frameWidth.enabled) { summary.text += " / width " + settings.frameWidth.min + "–" + settings.frameWidth.max + settings.frameWidth.unit; }
             if ((usesComposition(settings) || target.scopes[settings.scope].kind === "frame") && settings.textEnabled !== false) { summary.text += live.value && shown ? (result.fixedSampling ? " / auto-stabilized" : " / settled in " + result.passes + " pass(es)") : " / composition calculated on Apply"; }
@@ -2685,7 +2772,7 @@
             else if (settings.metrics) { text += " Metrics: " + result.metricsFrames + " printable overlay(s).";
                 if (result.metricsCrowded) { text += " " + result.metricsCrowded + " tight gap(s); labels remain centered and may overlap."; } }
             if (!editorTrack && settings.restart !== "never") {
-                text = (settings.restart === "keywords" ? "Shared curve restarts " + (settings.restartKeywordPosition === "at" ? "at" : "after") + " matching keywords. " : settings.restart === "word" && settings.restartWords > 1 ? "Shared curve restarts every " + settings.restartWords + " words. " : "Shared curve restarts in each " + settings.restart + ". ") + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
+                text = (settings.restart === "keywords" ? "Shared curve restarts " + (settings.restartKeywordPosition === "at" ? "at" : "after") + " matching keywords. " : settings.restart === "word" && activeNoise(settings, "restartWords") ? "Seeded groups vary around " + settings.restartWords + " words. " : settings.restart === "word" && settings.restartWords > 1 ? "Shared curve restarts every " + settings.restartWords + " words. " : "Shared curve restarts in each " + settings.restart + ". ") + (displayed.average ? "Graph averages actual samples across groups at normalized positions. " : "Graph shows group " + (previewIndex + 1) + "/" + result.groups.length + ". ") + text;
                 if (isBell(settings.curve) && result.distribution.shortGroups) { text += " " + result.distribution.shortGroups + " group(s) have fewer than 3 steps and cannot represent the bell interior."; }
             }
             if(!editorTrack && settings.mode===settings.restart && result.distribution.steps===1){text="One unit per restart group: each group uses the curve’s starting value. Choose a smaller Values per unit for a curve inside each group. "+text;}
@@ -2736,6 +2823,8 @@
                     try { dialog.layout.layout(true); } catch (_) {}
                 }
                 restartKeywords.enabled = restartKeywordPosition.enabled = restart.enabled && showKeywords;
+                noiseButton.enabled = textEnabled.value;
+                noiseButton.text = noiseOptions.type !== "off" && noiseOptions.amount > 0 && (noiseOptions.values || noiseOptions.restartWords && showRestartCount) ? "Noise · " + noiseOptions.amount + "%…" : "Noise…";
                 auto.enabled = !editorTrack; stepsInput.enabled = !auto.value && !editorTrack; lockLines.enabled = allowBreaks.enabled = textEnabled.value;
                 widthButton.enabled = curveTrack.enabled = !session.hasKeptWidth() && !hasLineLengthShape(target.frame) && !lengthProperty;
                 // Undo the previous preview before resolving a new scope or
@@ -2786,6 +2875,7 @@
             restartWords.text = String(saved.restartWords === undefined ? 1 : saved.restartWords);
             restartKeywords.text = saved.restartKeywords || "";
             restartKeywordPosition.selection = saved.restartKeywordPosition === "at" ? 1 : 0;
+            noiseOptions = saved.noise ? decode(encode(saved.noise)) : { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
             for (i = 0; i < colorObjects.length; i++) { if (colorObjects[i].id === saved.colorA) { colorA.selection = i; } if (colorObjects[i].id === saved.colorB) { colorB.selection = i; } }
