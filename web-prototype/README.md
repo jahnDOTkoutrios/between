@@ -107,6 +107,46 @@ and a 390 px viewport.
 
 ![Seeded noise controls](docs/noise.png)
 
+## Sample width and pattern offset
+
+In **Distribution**, choose **Character** values and **Restart → Line**. Set
+**Line sampling → Fixed** to reveal **Sample width** and **Resample**.
+
+Sample width defaults to **100%**. It composes Style A at that percentage of the
+currently displayed text width, then attaches the curve values to the same text
+in the actual frame. Try 75–125% with a Linear color/opacity ramp to make drifting
+bands. The displayed text width stays unchanged. Use the ruler above the text
+to change its actual width; Fixed keeps the source pattern through that reflow.
+
+- **Follow layout** remains the default. Fixed is available for Line values,
+  Line restart or Line scope, and affects **Curve mode only**.
+- **Resample** replaces the source at the saved percentage of the current frame
+  width. Changing Sample width also resamples. Curve, steps, noise, offset and
+  strength edits keep the same source boundaries. Text, source A geometry and
+  structural unit/scope/restart changes create a new sampling context.
+- Fixed samples survive refresh and B-only metric changes. Live reflow still
+  fits the displayed styles to the actual frame, with assignments attached to
+  the sampled text. Whole words stay together in this prototype; it does not
+  reproduce InDesign's hyphenation or paragraph composer.
+- **Pattern offset** works with every Curve restart type and the selected scope.
+  Positive moves the whole field forward; negative moves backward; the ends
+  wrap. Slider dragging uses whole units; type fractions to interpolate between
+  source samples, including across restart boundaries. Zero restores the exact
+  source pattern. All active A/B properties share that shifted blend amount.
+- Sliders coalesce into one update per animation frame, and number fields keep
+  the 220 ms typing delay. Source sampling uses cached Style A measurements;
+  offset edits and playback do not prepare fonts or resample source lines.
+
+Restore defaults returns Follow layout, Sample width 100% and Pattern offset 0.
+Play continues to animate Curve strength; the sample and offset stay fixed.
+
+Verified with 132 web tests and a production build. Browser checks cover width
+changes without changing the display box, fixed values across resize/live
+reflow, explicit resampling, exact refresh recovery, non-line offsets, defaults,
+light/dark controls and no console errors.
+
+![Sample width and pattern offset controls](docs/sampling.png)
+
 ## How it works
 
 The bundled Manrope variable font supplies actual weight interpolation. System
@@ -162,6 +202,7 @@ src/
     appearance.js          Shared sampled geometry for fitting and painting
     reflow.js              Stable identities, cached-width fitting and bounded settling
     distribution.js        Grapheme structures, scopes, restarts and curve sampling
+    sampling.js            Persistent virtual-width source lines and identity projection
   ui/
     renderer.js            DOM word renderer; no geometry reads in cached frames
     styles.css             Minimal, responsive UI

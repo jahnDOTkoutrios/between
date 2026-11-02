@@ -40,6 +40,10 @@ Open **http://127.0.0.1:5173/**. Run `npm test` for the web checks and
 
 </details>
 
+The web tool also includes **Fixed line sampling**, **Sample width** and
+**Pattern offset** in Distribution. These bring the plugin's reflow patterns to
+interactive Curve mode; see the [web sampling guide](web-prototype/README.md#sample-width-and-pattern-offset).
+
 ![Between web editor](web-prototype/docs/width-ruler.png)
 
 ## InDesign plugin — Tracking Ramp

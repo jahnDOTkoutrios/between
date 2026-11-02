@@ -12,7 +12,7 @@ import { InteractionEditor } from './ui/interaction-editor.js';
 import { DistributionEditor } from './ui/distribution-editor.js';
 import { NoiseEditor } from './ui/noise-editor.js';
 import { activeNoise } from './engine/noise.js';
-import { defaultDistribution, characterUnits, buildStructureDistribution } from './engine/distribution.js';
+import { characterUnits } from './engine/distribution.js';
 import { runComparison } from './benchmark/runner.js';
 import { PHRASE, PARAGRAPH } from './samples.js';
 import { defaultSetup,normalizeSetup,cascadeSnapshot,restoreCascade,readSetup,writeSetup } from './engine/settings.js';
@@ -26,6 +26,7 @@ const initialSetup=normalizeSetup(stored);
 let canSave=false,saveTimer=0;
 
 const $=id=>document.getElementById(id),stage=$('stage'),specimen=stage.parentElement,renderer=new TextRenderer(stage);
+renderer.onSampleChange=queueSave;
 let text=initialSetup.text,a={...DEFAULT_A},b={...DEFAULT_B},model=null,layout=null;
 const OVERSIZE_MESSAGE='A word is wider than the frame. Reduce the size or widen the window.';
 let liveReflow=initialSetup.liveReflow,currentStatus=null,stableOversized=false;
@@ -67,8 +68,7 @@ let noiseEditor=null;
 function distributionChanged(key){
   queueSave();
   noiseEditor?.sync(mode);
-  if(key==='scope'&&layout)distributionEditor.scopeCount(buildStructureDistribution(layout,distribution).scopeCount);
-  const editsCurve=['curve','points','peak','width','power','steps','invert','smooth'].includes(key)||key==='noise'&&!!(activeNoise(distribution.noise,'values')||distribution.restart==='word'&&activeNoise(distribution.noise,'restartWords'));
+  const editsCurve=['curve','points','peak','width','power','steps','invert','smooth','patternOffset','lineSampling','sampleWidth','resample'].includes(key)||key==='noise'&&!!(activeNoise(distribution.noise,'values')||distribution.restart==='word'&&activeNoise(distribution.noise,'restartWords'));
   if((editsCurve||mode==='scrub'&&['unit','restart','restartWords'].includes(key))&&mode!=='curve')setMode('curve');
   else if(editsCurve)stopPlayback();
   if(model&&model.characters!==characterUnits(distribution)){
@@ -110,13 +110,13 @@ function requestPaint(){if(!frame&&!disposed)frame=requestAnimationFrame(paint);
 function paint(now){
   frame=0;
   if(benchmarkController||!model||rebuilding||document.hidden)return;
-  if(widthFitPending){widthFitPending=false;mount();distributionEditor.scopeCount(renderer.structure?.scopeCount??1);return;}
+  if(widthFitPending){widthFitPending=false;mount();syncDistributionCounts();return;}
   const settings=profiles.get(mode),deltaMs=Math.min(64,lastPaint?now-lastPaint:16);lastPaint=now;
   if(playing){amount=timelineAmount(now-animationStart,settings,animationPhase);updateAmount();}
   renderer.render(amount,{mode,pointer,a,b,settings,distribution,liveReflow,deltaMs,alignment:propertyEditor.state.alignment});
   layout=renderer.layout;
   if(!currentStatus||currentStatus===OVERSIZE_MESSAGE)status((liveReflow?layout.oversized:stableOversized)?OVERSIZE_MESSAGE:'');
-  distributionEditor.scopeCount(renderer.structure?.scopeCount??1);
+  syncDistributionCounts();
   if(mode==='pointer'||mode==='press')updateAmount(Math.max(0,...renderer.positions.map(position=>position.amount)));
   if(playing||renderer.needsAnimation)requestPaint();
 }
@@ -143,7 +143,8 @@ function setMode(value){
 function mount(nextModel=model){
   widthFitPending=false;
   const reference=layoutModel(nextModel,stageWidth(),a,b,propertyEditor.state.alignment);
-  const nextLayout=fitReferenceLayout(nextModel,reference,amount,{a,b,mode,pointer,settings:profiles.get(mode),distribution,alignment:propertyEditor.state.alignment});lastWidth=nextLayout.width;
+  const samplingLayout=renderer.sampling.resolve(nextModel,reference,a,b,distribution,mode);
+  const nextLayout=fitReferenceLayout(nextModel,reference,amount,{a,b,mode,pointer,settings:profiles.get(mode),distribution,alignment:propertyEditor.state.alignment,samplingLayout});lastWidth=nextLayout.width;
   stableOversized=nextLayout.oversized;
   $('benchmark').disabled=false;model=nextModel;layout=nextLayout;lastGoodStyles={a:{...a},b:{...b}};renderer.mount(model,layout);cacheRect();
   renderer.render(amount,{mode,pointer,a,b,settings:{...profiles.get(mode),response:0},distribution,liveReflow,alignment:propertyEditor.state.alignment});
@@ -151,6 +152,7 @@ function mount(nextModel=model){
   const oversized=liveReflow?renderer.reflowState.oversized:stableOversized;
   status(oversized?OVERSIZE_MESSAGE:'');
 }
+function syncDistributionCounts(){distributionEditor.scopeCount(renderer.structure?.scopeCount??1);distributionEditor.sampleCount(renderer.structure?.unitCount??1);}
 async function rebuild(){
   if(!fontReady)return;
   const latest=propertyEditor.read();if(latest){a=latest.a;b=latest.b;}

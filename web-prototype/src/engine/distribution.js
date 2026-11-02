@@ -1,7 +1,14 @@
 import { clamp } from './morph.js';
 import { defaultNoise,activeNoise,noiseSample,noisyValue,wordGroupIndices } from './noise.js';
 export const CURVES=[['linear','Linear'],['in','Ease in'],['out','Ease out'],['smooth','S-curve'],['gaussian','Gaussian'],['sine','Sine'],['triangle','Triangle'],['custom','Custom']];
-export const defaultDistribution=()=>({unit:'word',scope:'text',scopeIndex:1,restart:'never',restartWords:1,curve:'linear',steps:0,peak:.5,width:.22,power:2,invert:false,smooth:true,points:[{x:0,y:0},{x:.5,y:1},{x:1,y:0}],noise:defaultNoise()});
+export const defaultDistribution=()=>({unit:'word',scope:'text',scopeIndex:1,restart:'never',restartWords:1,curve:'linear',steps:0,peak:.5,width:.22,power:2,invert:false,smooth:true,points:[{x:0,y:0},{x:.5,y:1},{x:1,y:0}],noise:defaultNoise(),lineSampling:'follow',sampleWidth:100,patternOffset:0,lineSample:null});
+export const lineDistribution=settings=>settings.unit==='line'||settings.restart==='line'||settings.scope==='line';
+export const fixedSampling=settings=>settings.lineSampling==='fixed'&&lineDistribution(settings);
+export function offsetValues(source,offset=0){
+  if(!Number.isFinite(offset))throw new RangeError('Pattern offset must be finite.');
+  const count=source.length,shift=count?((offset%count)+count)%count:0;if(!shift)return source;
+  return source.map((_,i)=>{const at=(i-shift+count)%count,left=Math.floor(at),fraction=at-left;return fraction?source[left]+(source[(left+1)%count]-source[left])*fraction:source[left];});
+}
 export const characterUnits=settings=>['letter','character'].includes(settings.unit);
 export function graphemes(text){return Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text),part=>part.segment);}
 export function textStructure(text){
@@ -42,7 +49,7 @@ export function buildStructureDistribution(layout,settings,mode='curve'){
   const config=mode==='curve'?settings.noise:null,wordGroups=settings.restart==='word'?wordGroupIndices(wordKeys.length,settings.restartWords,config):null,valueNoise=activeNoise(config,'values');
   const groups=new Map();
   for(const entry of scoped){const key=settings.restart==='word'?wordGroups[wordRanks.get(keyOf(entry,'word'))]:keyOf(entry,settings.restart==='never'?'text':settings.restart);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
-  const samples=[];let noiseOffset=0;
+  const samples=[],field=[];let noiseOffset=0;
   for(const group of groups.values()){
     const units=new Map();
     for(const entry of group){if(settings.unit==='letter'&&entry.isSpace)continue;const key=keyOf(entry,settings.unit);if(!units.has(key))units.set(key,[]);units.get(key).push(entry);}
@@ -51,7 +58,8 @@ export function buildStructureDistribution(layout,settings,mode='curve'){
       const progress=list.length<2?0:i/(list.length-1),bucket=steps<2?0:Math.round(progress*(steps-1)),sample=steps<2?0:bucket/(steps-1);
       const delta=valueNoise?valueNoise.amount*noiseSample(valueNoise,noiseOffset+bucket*list.length/steps):0,value=valueNoise?noisyValue(curveAt(sample,settings),delta):curveAt(sample,settings);
       const x=unit.reduce((sum,e)=>sum+e.envelopeCenter,0)/unit.length,y=unit.reduce((sum,e)=>sum+(e.anchorY??(e.lineIndex+.5)*layout.lineHeight),0)/unit.length;
-      for(const entry of unit)result[entry.index]={u:(i+.5)/list.length,value,x,y,verticalOnly:settings.unit==='line'};values.push(value);
+      const coordinate={u:(i+.5)/list.length,value,x,y,verticalOnly:settings.unit==='line'};field.push(coordinate);
+      for(const entry of unit)result[entry.index]=coordinate;values.push(value);
     });
     // Letter mode leaves gaps tied to their preceding grapheme without counting
     // those gaps as additional curve samples.
@@ -59,5 +67,9 @@ export function buildStructureDistribution(layout,settings,mode='curve'){
     samples.push(values);
     noiseOffset+=list.length;
   }
-  return{entries:result,groups:groups.size,scopeCount:scopeKeys.length,samples};
+  if(mode==='curve'&&settings.patternOffset){
+    const values=offsetValues(field.map(unit=>unit.value),settings.patternOffset);field.forEach((unit,i)=>{unit.value=values[i];});
+    let at=0;for(const row of samples)for(let i=0;i<row.length;i++)row[i]=values[at++];
+  }
+  return{entries:result,groups:groups.size,scopeCount:scopeKeys.length,samples,unitCount:field.length};
 }

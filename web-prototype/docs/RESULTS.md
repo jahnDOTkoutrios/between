@@ -399,3 +399,26 @@ Narrowing to 160 px produced five lines with Live reflow off, and the ruler/box
 width survived an actual refresh. Auto returned to the full 624 px workspace.
 A real pointer drag changed 380 px to about 220 px and immediately refitted to
 four lines. Width is absent from Base and is now the ruler above the specimen.
+
+## Fixed source sampling and offsets
+
+132 web checks pass. The 18 added checks cover signed/fractional wrapping, all
+restart modes and scopes, coherent source noise, virtual Style A composition,
+stable glyph identities (including repeated letters/emoji), immutable source
+lines across resize/refresh/B metric preparation, explicit Resample and context
+changes, live composition without source feedback, fitted stable snapshots,
+unchanged color-only frame geometry, DOM node retention and zero repeated-frame
+writes. UI checks cover conditional controls, coalesced sliders, integer dragging
+with fractional input, delayed/invalid positive width input, pending input flush
+and Restore defaults. Existing 114 checks remain passing.
+
+The production build passes. Browser checks confirmed changed colors with an
+unchanged frame at 75% versus 125%; exact character colors across actual width
+936 → 600 px, Live reflow and refresh; changed values on Resample; non-line word
+restart offsets; default restoration; light/dark popover fit; and no console
+errors. Browser testing used a separate local origin to preserve user settings.
+
+Sampling changes line topology only. Source widths come from cached Style A
+measurements; offset/curve edits and animation retain the same source. Whole-word
+wrapping, the existing 65 metric states and the lack of InDesign hyphenation remain
+prototype limits. No new timing benchmark is claimed for this follow-up.

@@ -2,6 +2,7 @@ import { StyleCascade,ALL_FIELDS,PROPERTIES,validStyleNumber } from './propertie
 import { FONT_CHOICES } from './typography.js';
 import { defaultDistribution,CURVES } from './distribution.js';
 import { normalizeNoise } from './noise.js';
+import { validLineSample } from './sampling.js';
 import { MODES,defaultInteraction } from './interactions.js';
 import { ALIGNMENTS } from './alignment.js';
 import { envelope } from './geometry.js';
@@ -41,6 +42,7 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
   }
   for(const key of ['scopeIndex','restartWords'])d[key]=number(s[key],d[key],1,Number.MAX_SAFE_INTEGER,true);
   d.steps=number(s.steps,d.steps,0,Number.MAX_SAFE_INTEGER,true);d.peak=number(s.peak,d.peak,0,1);
+  d.lineSampling=choice(s.lineSampling,['follow','fixed'],'follow');d.sampleWidth=number(s.sampleWidth,100,Number.MIN_VALUE);d.patternOffset=number(s.patternOffset,0);
   for(const key of ['width','power'])d[key]=number(s[key],d[key],Number.MIN_VALUE);
   for(const key of ['invert','smooth'])if(typeof s[key]==='boolean')d[key]=s[key];
   if(Array.isArray(s.points)&&s.points.length>=2&&s.points.length<=12&&s.points.every((p,i,all)=>p&&number(p.x,null,0,1)!==null&&number(p.y,null,0,1)!==null&&(i===0?p.x===0:p.x-all[i-1].x>=.004999))&&s.points.at(-1).x===1)d.points=s.points.map(p=>({x:p.x,y:p.y}));
@@ -52,6 +54,7 @@ export function normalizeSetup(source,fontIDs=FONT_CHOICES.map(font=>font.id)){
   }
   defaults.mode=choice(source.mode,MODES,defaults.mode);defaults.amount=number(source.amount,0,0,1);
   if(typeof source.text==='string')defaults.text=source.text.slice(0,3000);
+  if(validLineSample(s.lineSample,defaults.text.match(/\S+/gu)?.length??0))d.lineSample={version:1,context:s.lineSample.context,referenceWidth:s.lineSample.referenceWidth,width:s.lineSample.width,lines:s.lineSample.lines.map(line=>[...line])};
   defaults.sample=defaults.text===PHRASE?'phrase':defaults.text===PARAGRAPH?'paragraph':'custom';
   for(const key of ['dark','liveReflow'])if(typeof source[key]==='boolean')defaults[key]=source[key];
   return defaults;

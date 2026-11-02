@@ -6,10 +6,11 @@ import { fieldAmount, approach, defaultInteraction } from '../engine/interaction
 import { appearanceAt } from '../engine/appearance.js';
 import { LiveReflow,fittingKey } from '../engine/reflow.js';
 import { buildStructureDistribution } from '../engine/distribution.js';
+import { CurveSampling,mapSampledStructure } from '../engine/sampling.js';
 import { measureWordFresh } from '../engine/measurements.js';
 
 export class TextRenderer {
-  constructor(stage) { this.stage = stage; this.nodes = []; this.positions = []; this.frameWrites = 0; }
+  constructor(stage) { this.stage = stage; this.nodes = []; this.positions = []; this.frameWrites = 0; this.sampling=new CurveSampling(()=>this.onSampleChange?.()); }
   mount(model, layout) {
     this.referenceLayout=layout;this.live=false;this.liveEngine=null;this.installNodes(model,layout);
   }
@@ -45,10 +46,10 @@ export class TextRenderer {
       else this.installNodes(this.model,this.referenceLayout);
       this.live=liveReflow;
     }
-    const model=this.model,controls=settings||{...defaultInteraction(mode),response:0};let writes=0,liveFrame=null;
+    const model=this.model,controls=settings||{...defaultInteraction(mode),response:0},samplingLayout=distribution?this.sampling.resolve(model,this.referenceLayout,a,b,distribution,mode):null;let writes=0,liveFrame=null;
     this.needsAnimation=false;
     if(this.live){
-      liveFrame=this.liveEngine.compose(amount,{a,b,mode,pointer,settings:controls,distribution:distribution||undefined,deltaMs,previous:this.nodes.map(node=>node.amount),alignment});
+      liveFrame=this.liveEngine.compose(amount,{a,b,mode,pointer,settings:controls,distribution:distribution||undefined,deltaMs,previous:this.nodes.map(node=>node.amount),alignment,samplingLayout});
       this.layout=liveFrame.layout;this.structure=liveFrame.structure;this.needsAnimation=liveFrame.needsAnimation;
       if(this.stageHeight!==this.layout.height){this.stage.style.height=`${this.layout.height}px`;this.stageHeight=this.layout.height;writes++;}
       this.reflowState={passes:liveFrame.passes,stabilized:liveFrame.stabilized,oversized:this.layout.oversized};
@@ -56,7 +57,10 @@ export class TextRenderer {
       this.nodes.forEach((item,index)=>{const hidden=!visible.has(index);if(item.hidden!==hidden){item.node.style.display=hidden?'none':'block';item.hidden=hidden;writes++;}if(hidden){item.amount=liveFrame.amounts[index]??0;this.positions[index]={x:0,y:0,width:0,amount:item.amount,state:0,hidden:true};}});
     }else{
       this.reflowState=null;
-      if(distribution){const key=JSON.stringify([mode,distribution]);if(this.structureKey!==key){this.structure=buildStructureDistribution(this.layout,distribution,mode);this.structureKey=key;}}
+      if(distribution){const key=JSON.stringify([mode,distribution]);if(this.structureKey!==key){
+        const structure=buildStructureDistribution(samplingLayout||this.layout,distribution,mode);
+        this.structure=samplingLayout?mapSampledStructure(structure,samplingLayout,this.layout,model.characters):structure;this.structureKey=key;
+      }}
       else{this.structure=null;this.structureKey=null;}
     }
     const layout=this.layout,snapshot=this.referenceLayout.fitSnapshot;

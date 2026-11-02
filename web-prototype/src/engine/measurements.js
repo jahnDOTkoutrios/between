@@ -51,7 +51,7 @@ export function layoutModel(model, availableWidth, a=model.a, b=model.b, alignme
         const i=fragment.itemIndex,word=metadata[i],gap=position<fragments.length-1;
         if(model.characters){
           const pieces=[...word.graphemes,...(gap?[' ']:[])];
-          for(const piece of pieces){const width=envelopes.get(piece).width;line.push({...word,index:renderIndex++,word:piece,isSpace:piece===' ',gapAfter:false,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;}
+          pieces.forEach((piece,charIndex)=>{const width=envelopes.get(piece).width;line.push({...word,index:renderIndex++,word:piece,charIndex,isSpace:piece===' ',gapAfter:false,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;});
         }else{const width=items[i].width-(!gap&&i<metadata.length-1?maxSpace:0);line.push({...word,index:renderIndex++,gapAfter:gap,envelopeX,envelopeWidth:width,envelopeCenter:envelopeX+width/2});envelopeX+=width;}
       });lines.push(line);
     });

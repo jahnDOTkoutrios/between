@@ -69,8 +69,9 @@ function targetsFor(layout,amount,mode,pointer,settings,distribution){
 }
 export class LiveReflow {
   constructor(model,reference){this.model=model;this.catalog=reflowCatalog(model,reference);this.result=null;this.key=null;this.pointerKey=null;}
-  compose(amount,{a=this.model.a,b=this.model.b,mode='scrub',pointer=null,settings=defaultInteraction(mode),distribution=defaultDistribution(),deltaMs=16,previous=[],alignment=this.catalog.reference.alignment||'left'}={}){
-    const key=JSON.stringify([amount,a,b,mode,pointer,settings,distribution,alignment]);
+  compose(amount,{a=this.model.a,b=this.model.b,mode='scrub',pointer=null,settings=defaultInteraction(mode),distribution=defaultDistribution(),deltaMs=16,previous=[],alignment=this.catalog.reference.alignment||'left',samplingLayout=null}={}){
+    samplingLayout=mode==='curve'?samplingLayout:null;
+    const key=JSON.stringify([amount,a,b,mode,pointer,settings,distribution,alignment,samplingLayout?.sampleKey]);
     if(key===this.key&&this.result&&!this.result.needsAnimation)return this.result;
     if(key!==this.key)this.latched=null;
     let seed=this.catalog.reference;
@@ -82,10 +83,11 @@ export class LiveReflow {
       seed=this.pointerAnchor;
     }
     const dependent=distribution.scope==='line'||(['curve','wave','wipe'].includes(mode)&&(['line','character'].includes(distribution.unit)||distribution.restart==='line'));
-    const iterate=dependent&&mode!=='pointer'&&!this.latched;
+    const iterate=dependent&&mode!=='pointer'&&!this.latched&&!samplingLayout;
     const seen=new Set([signature(seed)]);let result;
     for(let pass=1;pass<=(iterate?6:1);pass++){
-      const sampled=this.latched||targetsFor(seed,amount,mode,pointer,settings,distribution),amounts=[],appearances=[];let needsAnimation=false;
+      const sampled=this.latched||targetsFor(samplingLayout||seed,amount,mode,pointer,settings,distribution),amounts=[],appearances=[];let needsAnimation=false;
+      if(samplingLayout)for(const entry of this.catalog.entries)sampled.targets[entry.index]??=0;
       for(const entry of this.catalog.entries){if(sampled.targets[entry.index]===undefined)continue;const target=sampled.targets[entry.index],t=approach(previous[entry.index]??null,target,deltaMs,settings.response);amounts[entry.index]=t;needsAnimation||=t!==target;appearances[entry.index]=appearanceAt(this.model,entry,t,a,b);}
       for(const word of this.catalog.words)if(word.gap&&amounts[word.gap.index]===undefined){const t=amounts[word.units.at(-1).index]??0;amounts[word.gap.index]=t;appearances[word.gap.index]=appearanceAt(this.model,word.gap,t,a,b);}
       const layout=fitLiveLayout(this.model,this.catalog,appearances,amounts,this.catalog.reference.width,a,b,alignment),next=signature(layout);
@@ -96,7 +98,7 @@ export class LiveReflow {
     }
     // Scope availability follows the fitted text even when assignments had to
     // remain sampled to stop a cycle.
-    if(distribution.scope==='line')result.structure={...result.structure,scopeCount:result.layout.lines.filter(line=>line.length).length};
+    if(distribution.scope==='line'&&!samplingLayout)result.structure={...result.structure,scopeCount:result.layout.lines.filter(line=>line.length).length};
     this.key=key;this.result=result;return result;
   }
 }

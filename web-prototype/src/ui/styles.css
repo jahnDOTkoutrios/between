@@ -244,6 +244,11 @@ select:hover { border-color:var(--border);background-color:var(--hover); }
 .noise-detail { display:block;color:var(--muted);margin-top:12px;font-variant-numeric:tabular-nums; }
 .noise-detail[hidden] { display:none; }
 .icon-button.has-noise { background:var(--hover);border-color:var(--ink); }
+.distribution-range { width:174px;min-width:0; }
+.distribution-range input[type=range] { width:72px;min-width:0;flex:1;margin:0;accent-color:var(--accent); }
+.distribution-range input[type=number] { flex-shrink:0;width:56px;min-width:0; }
+.distribution-unit { min-width:29px;color:var(--muted);font-size:inherit; }
+.sampling-actions { display:flex;justify-content:flex-end;min-height:30px;align-items:center; }
 @supports (appearance:base-select) {
   select,.mode-control select,.setting-row select,.property-value select,select::picker(select) { appearance:base-select; }
   select::picker-icon { display:none; }
