@@ -141,6 +141,32 @@ A fully overset frame can recall and reapply its sample; enlarge it before
 resampling. Existing text-change and frame-ownership checks still apply.
 Paragraph indents and Line length retain their separate composition behavior.
 
+**Sample width** appears beneath Fixed sampling. It defaults to **100%** of
+this frame's outer width. Other values temporarily compose the original visible
+text at that width, save those line boundaries, then restore the exact frame
+path and final dimensions. Narrow samples use extra temporary height so the
+original visible text is retained; original overset stays outside the sample.
+No line breaks are inserted.
+
+Drag the slider to explore the pattern; sampling and document preview update
+on release. Typed values use the existing delay and accept positive fractional
+percentages, including values outside the slider's usual 50–150% span. With
+Preview off, only the graph changes; the temporary sampling transaction is
+undone. Cancel restores the previous setup and appearance.
+
+Changing Sample width creates a new source sample. Curve/range/noise/offset
+edits retain it, and reopening/reapply keep its exact boundaries after resizing.
+Resample uses the stored percentage of the frame's **current** width. Each kept
+property owns its own percentage and sample. Older v8 setups load at 100%.
+
+Sampling at another width supports one unthreaded, untransformed rectangular
+frame with one ordinary text column and auto-sizing off. At 100%, existing
+Fixed sampling support for other frame types remains unchanged.
+
+To make drifting fade bands: choose Character values, Restart Line, Fixed,
+Linear, Tint 10–100% and Invert. Vary Sample width around 100%, keeping Pattern
+offset at zero. The final text block stays the same size.
+
 ### Pattern offset
 
 **Pattern offset** appears under Distribution for text properties and works with
@@ -306,7 +332,7 @@ Run the dependency-free regression suite with Node.js:
 node tests/tracking-ramp.test.cjs
 ```
 
-The suite was tested with Node.js v24.21.0 and passes **253 checks**. It evaluates
+The suite was tested with Node.js v24.21.0 and passes **264 checks**. It evaluates
 the actual script's functions using document and ScriptUI mocks; it does not
 launch InDesign. An optional `TRACKING_RAMP_SOURCE` environment variable can
 point it at another script file.

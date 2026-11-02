@@ -350,7 +350,52 @@
         return settings.textEnabled !== false && settings.property !== "lineLength" && !isParagraphProperty(settings.property);
     }
     function lineSampleKey(settings, scope) {
-        return encode([settings.property, settings.mode, settings.restart || "never", scope.kind, scope.kind === "selection" ? scope.bounds : null]);
+        var key = [settings.property, settings.mode, settings.restart || "never", scope.kind, scope.kind === "selection" ? scope.bounds : null];
+        var percent = sampleWidthPercent(settings);
+        // Keep existing 100% samples compatible with earlier v8 setups.
+        if (percent !== 100) { key.push(percent); }
+        return encode(key);
+    }
+    function sampleWidthPercent(settings) {
+        var percent = parseNumber(settings.sampleWidth === undefined ? 100 : settings.sampleWidth, 0, Infinity, false);
+        if (percent === null || percent <= 0) { fail("Sample width must be a positive percentage."); }
+        return percent;
+    }
+    function captureAtSampleWidth(target, bounds, settings, percent) {
+        var frame = target.frame, story = target.story;
+        if (!frame || story.textContainers.length !== 1) { fail("Sample width other than 100% requires one unthreaded text frame."); }
+        var pref = frame.textFramePreferences;
+        if (pref.textColumnCount !== 1 || pref.useFixedColumnWidth || pref.useFlexibleColumnWidth || pref.autoSizingType != AutoSizingTypeEnum.OFF) { fail("Sample width requires one ordinary column with frame auto-sizing off. Use 100% for this frame."); }
+        if (Math.abs(frame.absoluteRotationAngle) > .01 || Math.abs(frame.absoluteShearAngle) > .01 || Math.abs(Number(frame.absoluteHorizontalScale) - 100) > .01 || Math.abs(Number(frame.absoluteVerticalScale) - 100) > .01 || frame.paths.length !== 1) { fail("Sample width requires an untransformed rectangular frame. Use 100% for this frame."); }
+        var path = frame.paths.item(0), originalPath = path.entirePath, pathType = path.pathType;
+        if (originalPath.length !== 4) { fail("Sample width requires a rectangular frame. Use 100% for a shaped frame."); }
+        var b = frame.geometricBounds, base = [Number(b[0]), Number(b[1]), Number(b[2]), Number(b[3])];
+        for (var i = 0; i < 4; i++) {
+            var pt = originalPath[i];
+            if (pt.length !== 2 || !((Math.abs(pt[0] - base[1]) < .001 || Math.abs(pt[0] - base[3]) < .001) && (Math.abs(pt[1] - base[0]) < .001 || Math.abs(pt[1] - base[2]) < .001))) { fail("Sample width requires a rectangular frame. Use 100% for a shaped frame."); }
+        }
+        var visible = visibleBounds(frame);
+        if (!visible) { fail("No visible lines to sample. Enlarge the frame before resampling."); }
+        var limited = { start: Math.max(bounds.start, visible.start), end: Math.min(bounds.end, visible.end) };
+        if (limited.start > limited.end) { fail("No visible lines in this sample scope."); }
+        var width = (base[3] - base[1]) * percent / 100, height = base[2] - base[0], data;
+        try {
+            frame.geometricBounds = [base[0], base[1], base[0] + height, base[1] + width]; story.recompose();
+            // Preserve the original visible range. A narrow sample may need
+            // extra temporary height, but never admits original overset text.
+            for (var pass = 0; pass < 10; pass++) {
+                visible = visibleBounds(frame);
+                var hasContents = typeof frame.contents !== "string" || frame.contents.length > 0;
+                if (hasContents && visible && visible.end >= limited.end) { break; }
+                if (pass === 9) { fail("This sample width cannot compose the original visible text. Try a wider value."); }
+                height = Math.max(height * 1.5, height + 72);
+                frame.geometricBounds = [base[0], base[1], base[0] + height, base[1] + width]; story.recompose();
+            }
+            data = captureEffect(story, limited, settings);
+        } finally {
+            path.entirePath = originalPath; path.pathType = pathType; story.recompose();
+        }
+        return { data: data, width: width, referenceWidth: base[3] - base[1] };
     }
     function savedLineSample(story, scope, settings) {
         var sample = settings.lineSample;
@@ -373,9 +418,12 @@
             // when an empty frame renders no contents at all.
             if (scope.kind === "frame" && target.frame && typeof target.frame.contents === "string" && !target.frame.contents.length) { fail("No visible lines to sample. Enlarge the frame before resampling."); }
             var bounds = boundsFor(target, scope); if (!bounds) { fail("No visible lines to sample. Enlarge the frame before resampling."); }
-            data = captureEffect(story, bounds, settings);
+            var percent = sampleWidthPercent(settings), resized = null;
+            if (percent !== 100) { resized = captureAtSampleWidth(target, bounds, settings, percent); data = resized.data; }
+            else { data = captureEffect(story, bounds, settings); }
             if (!data.lines.length) { fail("No visible lines to sample."); }
             sample = { version: 1, key: lineSampleKey(settings, scope), signature: signature(story), bounds: data.bounds, lines: data.lines, frames: data.frames || [] };
+            if (resized) { sample.widthPercent = percent; sample.widthPoints = resized.width; sample.referenceWidth = resized.referenceWidth; }
             sample = decode(encode(sample));
         } else { data = captureEffect(story, sample.bounds, settings); }
         settings.lineSample = sample;
@@ -2595,8 +2643,15 @@
         var samplingRow = row(optionsPanel), lineSampling = dropdown(samplingRow, "Line sampling", ["Follow layout", "Fixed"], 240, 96);
         var resampleLines = samplingRow.add("button", undefined, "Resample lines");
         lineSampling.helpTip = "Fixed keeps sampled line boundaries while the text reflows. Resizing does not redistribute values across the new lines. Follow layout recalculates from the resulting composition.";
-        resampleLines.helpTip = "Replace this property's line sample at the current frame width, after restoring its baseline. Kept properties remain in place. Preview turns on; Cancel restores the previous setup and appearance.";
+        resampleLines.helpTip = "Replace this property's line sample using Sample width relative to the current frame, after restoring its baseline. Kept properties remain in place. Preview turns on; Cancel restores the previous setup and appearance.";
         samplingRow.visible = false; samplingRow.maximumSize = [0, 0]; resampleLines.visible = false;
+        var sampleWidthRow = row(optionsPanel), sampleWidthCaption = sampleWidthRow.add("statictext", undefined, "Sample width");
+        sampleWidthCaption.preferredSize.width = 96; sampleWidthCaption.minimumSize = [96, 0]; sampleWidthCaption.maximumSize = [96, 10000];
+        var sampleWidthSlider = sampleWidthRow.add("slider", undefined, 100, 50, 150); sampleWidthSlider.preferredSize.width = 240;
+        var sampleWidthInput = sampleWidthRow.add("edittext", undefined, "100"); sampleWidthInput.characters = 7; sampleWidthRow.add("statictext", undefined, "%");
+        sampleWidthSlider.helpTip = "Sample lines at this percentage of the current frame width, then restore the frame. Updates on release. Requires one unthreaded, untransformed rectangular frame with one ordinary column and auto-sizing off.";
+        sampleWidthInput.helpTip = "100% samples the current width. Other positive percentages change the sampled pattern without changing the final frame dimensions. Fractions and values outside the slider range can be typed.";
+        sampleWidthRow.visible = false; sampleWidthRow.maximumSize = [0, 0];
         var offsetRow = row(distributionPanel), offsetCaption = offsetRow.add("statictext", undefined, "Pattern offset");
         offsetCaption.preferredSize.width = 96; offsetCaption.minimumSize = [96, 0]; offsetCaption.maximumSize = [96, 10000];
         var patternOffsetSlider = offsetRow.add("slider", undefined, 0, -100, 100); patternOffsetSlider.preferredSize.width = 240;
@@ -2846,6 +2901,7 @@
                 clearTracking: id === "tracking" && clearTracking.value, metrics: metrics.value, lockLines: allowBreaks.value, allowLineBreaks: allowBreaks.value, autoStabilize: lockLines.value };
             if (usesFixedLines(result)) {
                 result.lockLines = result.allowLineBreaks = false;
+                result.sampleWidth = sampleWidthPercent({ sampleWidth: sampleWidthInput.text });
             }
             else { result.lineSampling = "follow"; result.lineSample = null; }
             result.patternOffset = 0;
@@ -2873,6 +2929,10 @@
         }
         function showResult(result) {
             syncPreviewGroup(result);
+            if (usesFixedLines(settings)) {
+                var widthPercent = sampleWidthPercent(settings);
+                sampleWidthSlider.minvalue = Math.min(50, widthPercent); sampleWidthSlider.maxvalue = Math.max(150, widthPercent); sampleWidthSlider.value = widthPercent;
+            }
             if (usesPatternOffset(settings)) {
                 var period = Math.max(1, result.units.length), offsetValue = Number(patternOffsetInput.text) || 0;
                 patternOffsetSlider.minvalue = -period; patternOffsetSlider.maxvalue = period;
@@ -2909,7 +2969,7 @@
             samples.text = (editorTrack ? "Width samples: " : (displayed.average ? "Average across groups: " : "Group " + (previewIndex + 1) + " values: ")) + values.join("  >  ");
             var text = "Cancel restores the document. Metrics print and show actual tracking below each line.";
             if (usesComposition(settings)) { text = "Line/frame grouping follows the resulting composition. Tracking line curves can use fixed breaks when Allow added line breaks is on."; }
-            if (usesFixedLines(settings)) { text = "Fixed samples stay attached during reflow. Resample uses the current width. Added breaks are off; text outside the sample keeps its baseline."; }
+            if (usesFixedLines(settings)) { text = "Fixed samples stay attached during reflow. Sample width changes the sampled layout, then restores the frame. Resample uses that percentage of the current width. Added breaks are off; text outside the sample keeps its baseline."; }
             if (settings.property === "tracking" && settings.target === "letters") { text += "\nLetters excludes the outgoing word gap. Single-letter words may have no internal tracking target."; }
             else if (settings.target === "spaces") { text += "\nOnly interword spaces change. Tabs, breaks, and leading/trailing spaces are excluded."; }
             if (/^(gaussian|sine|triangle)$/.test(editorTrack ? graphSettings(settings).curve : settings.curve) && displayed.steps < 3) { text = "A bell needs at least 3 sampled steps to represent its interior. Only endpoint values are sampled.\n" + text; }
@@ -2989,6 +3049,7 @@
                 var samplingLayoutChanged = samplingRow.visible !== samplingAvailable || resampleLines.visible !== fixedLines || offsetRow.visible !== offsetAvailable;
                 samplingRow.visible = samplingAvailable; samplingRow.maximumSize = samplingAvailable ? [10000, 35] : [0, 0];
                 lineSampling.enabled = samplingAvailable; resampleLines.visible = resampleLines.enabled = fixedLines; resampleLines.maximumSize = fixedLines ? [160, 35] : [0, 0];
+                sampleWidthRow.visible = fixedLines; sampleWidthRow.maximumSize = fixedLines ? [10000, 35] : [0, 0]; sampleWidthSlider.enabled = sampleWidthInput.enabled = fixedLines;
                 offsetRow.visible = offsetAvailable; offsetRow.maximumSize = offsetAvailable ? [10000, 35] : [0, 0];
                 patternOffsetSlider.enabled = patternOffsetInput.enabled = offsetAvailable;
                 if (fixedLines) { lockLines.enabled = allowBreaks.enabled = false; }
@@ -3007,11 +3068,18 @@
                     if (session.stages.length) { session.preview(null); } else { session.rollback(); }
                     var b = scopeBounds();
                     if (usesFixedLines(settings)) {
-                        plan = makePlan(lineSamplingData(target, target.scopes[settings.scope], settings), settings);
-                        plan.fixedLines = true; plan.sampledLineCount = settings.lineSample.lines.length;
+                        if (sampleWidthPercent(settings) !== 100 && !savedLineSample(target.story, target.scopes[settings.scope], settings)) {
+                            // Geometry sampling belongs to an undoable preview,
+                            // even with Preview off. Retain its plain plan only.
+                            plan = session.preview(settings); session.rollback();
+                            if (session.stages.length) { session.preview(null); }
+                        } else {
+                            plan = makePlan(lineSamplingData(target, target.scopes[settings.scope], settings), settings);
+                            plan.fixedLines = true; plan.sampledLineCount = settings.lineSample.lines.length;
+                        }
                     } else { if (!b) { fail("No visible text in this frame."); } plan = makePlan(captureEffect(target.story, b, settings), settings); }
                 }
-                if (live.value && shown && plan.fixedLines) { lineSample = decode(encode(plan.settings.lineSample)); }
+                if (plan.fixedLines) { lineSample = decode(encode(plan.settings.lineSample)); }
                 showResult(plan); apply.enabled = true; addProperty.enabled = textEnabled.value && session.stages.length < propertyIDs.length - 1; syncStack();
                 removePoint.enabled = curveIDs[curve.selection.index] === "custom" && selected > 0 && selected < points.length - 1;
                 redraw(); if (shown) { dialog.update(); }
@@ -3049,6 +3117,7 @@
             noiseOptions = saved.noise ? decode(encode(saved.noise)) : { type: "off", amount: 25, seed: 1, values: true, restartWords: false };
             lineSampling.selection = saved.lineSampling === "fixed" ? 1 : 0;
             lineSample = saved.lineSample ? decode(encode(saved.lineSample)) : null;
+            sampleWidthInput.text = String(saved.sampleWidth === undefined ? 100 : saved.sampleWidth);
             patternOffsetInput.text = String(saved.patternOffset === undefined ? 0 : saved.patternOffset);
             textEnabled.value = saved.textEnabled !== false; replace.value = session.savedRecipe ? true : saved.replace; clearTracking.value = saved.clearTracking;
             metrics.value = saved.metrics; lockLines.value = saved.autoStabilize !== false; allowBreaks.value = allowsLineBreaks(saved); strokeWidth.text = String(saved.strokeWidth===undefined?0.5:saved.strokeWidth);
@@ -3190,6 +3259,12 @@
             } catch (e) { error.text = e.message; }
         };
         patternOffsetSlider.onChange = function () { patternOffsetSlider.value = Math.round(patternOffsetSlider.value); patternOffsetInput.text = String(patternOffsetSlider.value); refresh(true); };
+        sampleWidthSlider.onChanging = function () {
+            if (switching || windowClosed || !shown) { return; }
+            inputDelay.cancel(); sampleWidthInput.text = String(Math.round(sampleWidthSlider.value * 10) / 10);
+            summary.text = "Release slider to resample lines.";
+        };
+        sampleWidthSlider.onChange = function () { sampleWidthInput.text = String(Math.round(sampleWidthSlider.value * 10) / 10); refresh(true); };
         function numberChanging() {
             if (switching || windowClosed || !shown) { return; }
             summary.text = "Preview waits for typing to pause…"; inputDelay.request();
@@ -3199,6 +3274,7 @@
         minInput.onChange = maxInput.onChange = shapeInput.onChange = stepsInput.onChange = strokeWidth.onChange = restartWords.onChange = numberCommitted;
         restartKeywords.onChanging = numberChanging; restartKeywords.onChange = numberCommitted;
         patternOffsetInput.onChanging = numberChanging; patternOffsetInput.onChange = numberCommitted;
+        sampleWidthInput.onChanging = numberChanging; sampleWidthInput.onChange = numberCommitted;
         restartKeywordPosition.onChange = function () { refresh(true); };
         styleA.onChange = styleB.onChange = function () { if (switching) { return; } styleAttributes = null;blendLoadError="";definitionCacheKey=""; refresh(true); };
         missingStyle.onChange=function(){definitionCacheKey="";refresh(true);};

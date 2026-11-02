@@ -2,7 +2,7 @@
 
 ## Automated suite
 
-`node tests/tracking-ramp.test.cjs` runs 253 dependency-free checks against the
+`node tests/tracking-ramp.test.cjs` runs 264 dependency-free checks against the
 actual script functions in a mocked document/ScriptUI host. Coverage includes:
 
 - Letters/spaces/Both eligibility and outgoing tracking boundaries.
@@ -105,6 +105,26 @@ positive/negative integer snapping without writes during dragging, release
 preview, typed fractions and Cancel restoring previous settings/formatting.
 The controls were visually inspected in a disposable document.
 The web prototype's 114 regression checks also pass; no web behavior changed.
+
+## V8 Sample width
+
+264 automated checks pass. Eleven new checks cover backward-compatible 100% keys,
+positive fractional validation, temporary narrow/wide geometry, retaining the
+whole original visible range and excluding original overset, selection bounds,
+source retention across resize/range edits, new sampling contexts, frame guards,
+phantom-line rejection, failure restoration, saved independent stacks and Undo, release-only dragging,
+and Preview-off sampling without persistent document/geometry/history changes.
+
+25 focused native InDesign 2026 assertions pass. These verify exact path and
+final line-break restoration, extra sampling height, complete visible ink
+coverage, source-width metadata, no resampling on range edits/reapply, narrow
+and wide overset exclusion, resize/Resample behavior, saved settings, Cancel,
+Undo and save/reopen. Native controls load without dirtying the saved document;
+Preview-off width changes restore appearance, geometry, Undo and modified state.
+Dragging performs no sampling or writes; release samples once; typed fractions
+work. The controls were visually inspected, with a further post-show interaction
+confirming that Preview-off sampling leaves the dialog visible and the document
+unmodified. Disposable documents were used; user artwork was preserved.
 
 ## Historical v5 native verification
 

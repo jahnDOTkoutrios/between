@@ -21,6 +21,8 @@
 
 ## 8.0.0
 
+- Add Sample width beneath Fixed line sampling, with release-only slider updates and delayed fractional input. Compose at a percentage of the current width, retain the original visible range using temporary height, then restore exact frame geometry. Preserve source samples across curve/offset edits and reapply; Resample uses the new frame width. Keep Preview-off sampling undoable without changing formatting, history or saved state. Default 100% retains earlier v8 samples and existing frame support.
+
 - Extend Pattern offset to all restart types and Follow layout for text properties. Move it under Distribution; snap slider dragging to integers while retaining fractional numeric input and saved setups. Keep zero-offset processing on the previous allocation path.
 
 - Add Pattern offset beneath Fixed line sampling: a signed slider and fractional number field shift the full sampled value field across line boundaries with cyclic wrapping and neighbouring-value interpolation. Keep zero and full cycles exact, respect native precision, preserve noise and sampled topology, and persist independent offsets in saved property stacks. Graph feedback stays local while dragging; document preview updates on release and typed values use the input delay. Resample retains the offset while replacing its source.

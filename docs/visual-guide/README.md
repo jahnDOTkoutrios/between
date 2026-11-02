@@ -156,3 +156,10 @@ Resample replaces the source at the current width while retaining that offset.
 Pattern offset now sits under Distribution and also works with Word, Sentence,
 Paragraph, Frame, Keywords and Never restarts, and with Follow layout. Dragging
 snaps to whole units; type fractions for smooth intermediate animation frames.
+
+For drifting bands without resizing the final text block, choose Character,
+Restart Line and Fixed sampling. Sample width starts at 100%; try 75–125% with
+Linear, Invert and Tint 10–100%. Release the slider to sample new lines at the
+virtual width; the final frame returns to its original dimensions. Curve and
+offset edits keep that sample. Resample uses the saved percentage of the current
+frame width. Narrow sampling retains the original visible tail; overset is excluded.
